@@ -1,22 +1,31 @@
 <template>
+  <!-- 选择要操作的文件,即数据库 -->
   <el-upload
       v-model:file-list="fileList"
       class="upload-demo"
       action="http://127.0.0.1:8000/fr/"
       :limit="1"
+
+      style="margin-bottom: 50px"
   >
     <el-button type="primary">Click to upload</el-button>
   </el-upload>
 
-  <el-select v-model="selectVal" class="m-2" placeholder="Select" size="large" @change="changeSelect()">
-    <el-option
-        v-for="item in options"
-        :key="item.value"
-        :label="item.label"
-        :value="item.value"
-    />
-  </el-select>
+  <!-- 数据库查询选择(获取统计数据) -->
+  <el-row>
+    <el-select v-model="selectVal" class="m-2" placeholder="Select" size="large" @change="changeSelect()"  style="margin-bottom: 50px">
+      <el-option
+          v-for="item in options"
+          :key="item.value"
+          :label="item.label"
+          :value="item.value"
+      />
+    </el-select>
 
+    <el-button type="primary" @click="search" size="large">搜索</el-button>
+  </el-row>
+
+  <!--计数范围选择器  -->
   <div id="countScope" v-if="selectVal === 'count'">
 <!--    <el-select v-model="scopeDir" class="m-2" placeholder="Select" size="large" @change="changeSelect()">-->
 <!--      <el-option :key="'>'" :label="'大于'" :value="'>'"/>-->
@@ -27,16 +36,11 @@
       <el-slider v-model="sliderVal" range :min="0" :max="100"/>
     </div>
   </div>
-  <el-row>
-    <el-button type="primary" @click="search">搜索</el-button>
-  </el-row>
 
-  <el-row>
+  <div id="output">
     <div>真实值: {{searchRes.res}}</div>
-  </el-row>
-  <el-row>
     <div>隐私值: {{searchRes.privateRes}}</div>
-  </el-row>
+  </div>
 </template>
 
 <script>
@@ -109,5 +113,8 @@ export default {
 </script>
 
 <style>
-
+  #output {
+    border: #aaaaaa solid 3px;
+    width: 300px;
+  }
 </style>
