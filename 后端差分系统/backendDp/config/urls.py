@@ -16,8 +16,10 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 from baseDp.views import listorders
+from fileReceiver.views import fileReceive
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('baseDp/', listorders),
+    path('fr/', fileReceive),
 ]

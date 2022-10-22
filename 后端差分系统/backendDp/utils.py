@@ -43,8 +43,9 @@ class StatisticsWithPrivacy:
          return s.mean(list(self._df["carrots_eaten"]))
 
     # Function to calculate total number of carrots above a particular row.
-    def count_above(self, limit: int) -> int:
-        return self._df[self._df.carrots_eaten > limit].count()[0]
+    def count(self, limit: list) -> int:
+        temp = self._df[self._df.carrots_eaten > limit[0]]
+        return temp[limit[1] > temp.carrots_eaten].count()[0]
 
     # Function to calculate maximum number of carrots in the column.
     def max(self) -> int:
@@ -76,12 +77,15 @@ class StatisticsWithPrivacy:
         return x.quick_result(list(self._df["carrots_eaten"]))
 
     # Function to return the DP count of the number of animals who ate more than "limit" carrots.
-    def private_count_above(
-        self, privacy_budget: float, limit: int
+    def private_count(
+        self, privacy_budget: float, limit: list
     ) -> Union[int, float]:
         x = Count(epsilon=privacy_budget, dtype="int")
+
+        temp = self._df[self._df.carrots_eaten > limit[0]]
+        final = temp[limit[1] > temp.carrots_eaten]
         return x.quick_result(
-            list(self._df[self._df.carrots_eaten > limit]["carrots_eaten"])
+            list(final["carrots_eaten"])
         )
 
     # Function to return the DP maximum of the number of carrots eaten by any one animal.
@@ -99,18 +103,18 @@ class StatisticsWithPrivacy:
 # # get absolute path
 # path = Path(os.path.dirname(os.path.abspath(__file__)))
 #
-# c = CarrotReporter(path / "animals_and_carrots.csv", 1)
+c = StatisticsWithPrivacy("animals_and_carrots.csv", 1)
 # print("Mean:\t" + str(c.mean()))
 # print("Private Mean:\t" + str(c.private_mean(1)))
 #
 # print("Sum:\t" + str(c.sum()))
 # print("Private Sum:\t" + str(c.private_sum(1)))
 #
-# print("(Count) Above 70 values:\t" + str(c.count_above(70)))
-# print("private Count Above:\t" + str(c.private_count_above(1, 70)))
+print("(Count) Above 70 values:\t" + str(c.count([1, 70])))
+print("private Count Above:\t" + str(c.private_count(1, [1, 70])))
 #
 # print("Max:\t" + str(c.max()))
 # print("Private Max:\t" + str(c.private_max(1)))
 #
-# print("StDev:\t" + str(c.stdev()))
+# print("k:\t" + str(c.stdev()))
 # print("Private StDev:\t" + str(c.private_stdev(1)))
