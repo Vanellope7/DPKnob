@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Title</title>
+  <script src="d3@7.js"></script>
+</head>
+<body>
+  <svg width="500" height="500"></svg>
+  <script>
+    let values1 = [9,9,3,4,5]
+    let bin1 = d3.bin()
+    let buckets1 = bin1(values1)
+    console.log(buckets1)
+    let width = 500, height = 500;
+    d3.select('svg')
+      .selectAll('rect')
+      .data(buckets1)
+      .join("rect")
+      .attr("y", d => height - d.length * 70)
+      .attr('height', d => d.length * 70)
+      .attr("x", d => d.x0 * 30)
+      .attr("width", d => (d.x1 - d.x0) * 30)
+      .attr("fill", d => '#54a0ff')
+      .attr("stroke", d => '#ffffff')
+      .attr("stroke-width", 5)
+  </script>
+</body>
+</html>

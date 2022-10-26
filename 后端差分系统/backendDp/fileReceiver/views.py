@@ -1,11 +1,10 @@
-import json
-import os
-
+import numpy as np
+import pandas as pd
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.http import JsonResponse
+from tools.utils import getHistogramData
 
-from utils import StatisticsWithPrivacy
 
 def fileReceive(request):
     file = request.FILES.get('file')
@@ -15,7 +14,9 @@ def fileReceive(request):
         default_storage.delete(path)
     storageTempPath = default_storage.save('data/{}'.format(file), ContentFile(file.read()))
 
-    with open(storageTempPath, 'r', encoding="utf-8") as file:
-        log_data = file.read()
-        print(log_data)
-    return JsonResponse({'res': True})
+    df = pd.read_csv(storageTempPath, sep=",")
+    # 获取属性名列表供用户选择
+    attr = df.columns.values
+    # 获取直方图数据
+    histData = getHistogramData(df)
+    return JsonResponse({'attr': list(attr), 'data': histData})
