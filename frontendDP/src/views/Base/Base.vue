@@ -6,6 +6,7 @@
         class="upload-demo"
         action="http://127.0.0.1:8000/fr/"
         :limit="1"
+        :on-exceed="handleExceed"
         :on-success="uploadSuccess"
     >
       <el-button type="primary">Click to upload</el-button>
@@ -102,6 +103,8 @@
 
 import axios from "axios";
 import * as d3 from 'd3';
+import {ref} from "vue";
+import {genFileId, UploadInstance} from "element-plus";
 
 export default {
   name: 'Base',
@@ -261,12 +264,21 @@ export default {
           .attr("class", "axis")
           .attr("transform", "translate(" + (padding) + ",0)")
           .call(yAxis);
+    },
+    handleExceed(files) {
+      const upload = ref<UploadUserFile>([]);
+      upload.value.clearFiles()
+      const file = files[0]
+      file.uid = genFileId()
+      upload.value.handleStart(file)
     }
   },
   mounted() {
   }
 }
 </script>
+
+
 
 <style>
 .el-row {
