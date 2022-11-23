@@ -4,6 +4,7 @@ import Router, {createRouter, createWebHistory} from 'vue-router'
 const Index = () => import('../views/Index/Index')
 const Base = () => import('../views/Base/Base')
 const DPDecisionMaker = () => import("../views/DPDecisionMaker/DPDecisionMaker")
+const HOPs = () => import("../views/HOPs/HOPs")
 
 
 const routes = [
@@ -22,7 +23,12 @@ const routes = [
         path: '/DC',
         name: 'DPDecisionMaker',
         component: DPDecisionMaker,
-      }
+      },
+      {
+        path: '/HOPs',
+        name: 'HOPs',
+        component: HOPs,
+      },
     ]
   },
 

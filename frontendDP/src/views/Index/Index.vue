@@ -14,6 +14,9 @@
     <el-menu-item index="2">
       <router-link to="/DC">DPDecisionMaker</router-link>
     </el-menu-item>
+    <el-menu-item index="3">
+      <router-link to="/HOPs">HOPs</router-link>
+    </el-menu-item>
   </el-menu>
 
   <router-view/>

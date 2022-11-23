@@ -191,7 +191,7 @@ export default {
               delta: parseFloat(this.deltaInput)
             },
             datafile: {
-              filename: this.curFile,
+              filename: 'data/' + this.curFile,
               attr: this.selectedAttr,
             }
 
@@ -219,7 +219,7 @@ export default {
         url: 'http://127.0.0.1:8000/histogram/',
         method: 'post',
         data: {
-          filename: this.curFile,
+          filename: 'data/' + this.curFile,
           attr: this.selectedAttr,
         }
       }).then((data) => {
@@ -240,7 +240,7 @@ export default {
           .range([h - padding, padding]);
 
       d3.selectAll('#histogram > *')
-          .remove();
+        .remove();
 
       svg.selectAll('rect')
           .data(dataset)
@@ -259,7 +259,7 @@ export default {
           .attr("transform", "translate(0," + (h - padding) + ")")
           .call(xAxis);
 
-      let yAxis = d3.axisLeft().scale(y).ticks(10);
+      let yAxis = d3.axisLeft().scale(y).ticks();
       svg.append("g")
           .attr("class", "axis")
           .attr("transform", "translate(" + (padding) + ",0)")
@@ -280,7 +280,7 @@ export default {
 
 
 
-<style>
+<style scoped>
 .el-row {
   margin-top: 50px;
 }

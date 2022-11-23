@@ -15,6 +15,8 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+
+from HOPs.views import getLaplaceNoise
 from baseDp.views import listorders
 from fileReceiver.views import fileReceive
 from dpDecisionMaker.views import getEpsilon
@@ -26,4 +28,5 @@ urlpatterns = [
     path('fr/', fileReceive),
     path('dpdc/', getEpsilon),
     path('histogram/', histogram),
+    path('HOPs/', getLaplaceNoise)
 ]

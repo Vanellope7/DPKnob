@@ -12,22 +12,22 @@ class DFProcessor:
         )
         self.attr = attr
 
-    def getN(self) -> Union[int, float]:
+    def getN(self, params = None) -> Union[int, float]:
         return len(list(self._df[self.attr]))
 
-    def sum(self) -> (Union[int, float], float):
+    def sum(self, params = None) -> (Union[int, float], float):
         """
         Function to return total number of attr in dataset
         """
         return self._df.sum()[self.attr], self.max()[0]
 
-    def mean(self) -> (float, float):
+    def mean(self, params = None) -> (float, float):
         """
         Function to return mean of attr in dataset
         """
         return s.mean(list(self._df[self.attr])), self.max()[0] / self.getN()
 
-    def median(self) -> (Union[int, float], float):
+    def median(self, params = None) -> (Union[int, float], float):
         n = self.getN()
         sensitivity = 0
         if n % 2 == 1:
@@ -41,17 +41,17 @@ class DFProcessor:
             sensitivity = (a - b) / 2
         return s.median(list(self._df[self.attr])), sensitivity
 
-    def count(self, limit) -> (int, int):
-        temp = self._df[self._df[self.attr] > limit[0]]
-        return temp[limit[1] > temp[self.attr]].count()[0], 1
+    def count(self, params) -> (int, int):
+        temp = self._df[self._df[self.attr] > params[0]]
+        return temp[params[1] > temp[self.attr]].count()[0], 1
 
-    def max(self) -> (Union[int, float], float):
+    def max(self, params = None) -> (Union[int, float], float):
         n = self.getN()
         Max = self._df.max()[self.attr]
         secondMax = self.percentile((n -1) / n)
         return Max, Max - secondMax
 
-    def min(self) -> (Union[int, float], float):
+    def min(self, params = None) -> (Union[int, float], float):
         n = self.getN()
         Min = self._df.min()[self.attr]
         secondMin = self.percentile(1 / n)
