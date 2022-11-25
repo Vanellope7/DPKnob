@@ -27,17 +27,17 @@ import axios from "axios";
       }
     },
     methods: {
-      LaplacePDF(b, x, mu = 0) {
+      LaplacePDF(b, x, mu = 0) { // 拉普拉斯概率密度函数
         return Math.exp(-Math.abs(x - mu) / b) / (2 * b)
       },
-      getLaplaceData(b) {
+      getLaplaceData(b) { // 获取拉普拉斯分布的数据
         let lineData = [];
         for(let i = -10; i <= 10; i += 0.02) {
           lineData.push([i, this.LaplacePDF(b, i)])
         }
         return lineData;
       },
-      drawLaplaceDistribution(b) {
+      drawLaplaceDistribution(b) { // 绘制拉普拉斯分布图
         d3.selectAll('#LaplaceDistribution > *').remove();  // 清空svg里的所有元素
         let svg = d3.select('#LaplaceDistribution');
         let padding = 40, w = 500, h = 500;
@@ -72,7 +72,7 @@ import axios from "axios";
             .attr("transform", `translate(${padding}, 0)`)
             .call(yAxis);
       },
-      restartHOPs() {
+      restartHOPs() { // 重启HOPs动画
         const w = 500, h = 500, padding = 20;
         let xScale = d3.scaleLinear().domain([this.realVal - this.gap, this.realVal + this.gap]).range([padding, w - padding])
         let yScale = d3.scaleLinear().domain([0, this.LaplacePDF(this.b, 0)]).range([h - padding, padding])
@@ -96,17 +96,17 @@ import axios from "axios";
                 .attr('x2', xScale(this.realVal + noise[this.timeIndex]))
                 .attr('y2', yScale(this.LaplacePDF(this.b, noise[this.timeIndex])))
             this.timeIndex++;
-            // if(this.timeIndex === 950) {
-            //   this.timeIndex = 0
-            //   this.restartHOPs();
-            // }
+            if(this.timeIndex === 950) { // 每次只获取1000个噪声数据，接近1000时准备重启HOPs，重新获取数据
+              this.timeIndex = 0
+              this.restartHOPs();
+            }
           }, 800);
         })
       }
 
     },
     watch: {
-      b(newB) {
+      b(newB) { // 修改 b 时改变分布图效果以及HOPs动画效果
         let lineData = this.getLaplaceData(newB);
         let svg = d3.select('#LaplaceDistribution')
         let path = d3.select('#LaplaceDistribution #container path');
@@ -131,7 +131,7 @@ import axios from "axios";
 
       }
     },
-    mounted() {
+    mounted() { //绘制分布图、 HOPs
       const w = 500, h = 500, padding = 20;
       let svg = d3.select('#HOPs');
       let xScale = d3.scaleLinear().domain([this.realVal - this.gap, this.realVal + this.gap]).range([padding, w - padding])
@@ -149,8 +149,9 @@ import axios from "axios";
                     .attr("id", 'HOPs-line')
                     .attr("stroke", '#f0932b');
 
-      this.restartHOPs();
+
       this.drawLaplaceDistribution(this.b)
+      this.restartHOPs();
     }
   }
 </script>

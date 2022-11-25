@@ -6,5 +6,5 @@
 
 ## 运行
 
-双击run.bat即可。
+双击start.bat即可。
 
