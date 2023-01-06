@@ -1,4 +1,5 @@
 @import "./normalize.css";
+@import "./element.css";
 
 /*:root -> 获取根元素html*/
 :root {
@@ -18,6 +19,11 @@
   box-sizing: border-box;
 }
 
+html {
+  width: 100%;
+  height: 100%;
+}
+
 body {
   font-family: "Helvetica Neue",Helvetica,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","微软雅黑",Arial,sans-serif;
   user-select: none; /* 禁止用户鼠标在页面上选中文字/图片等 */
@@ -25,7 +31,8 @@ body {
   background: var(--color-background);
   color: var(--color-text);
   /* rem vw/vh */
-  width: 100vw;
+  width: 100%;
+  height: 100%;
 }
 
 a {
@@ -57,4 +64,8 @@ a {
 
 span {
   line-height: 30px;
+}
+
+table {
+  border-collapse: collapse !important;
 }

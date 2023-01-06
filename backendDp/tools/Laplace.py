@@ -7,9 +7,8 @@ class Laplace:
     Incrementally provides a differentially private sum, clamped between upper
     and lower values. Bounds can be manually set or privately inferred.
     """
-    def __init__(self, u, b):
+    def __init__(self, b):
         self.b = b
-        self.u = u
 
     def laplace_f(self, x):
         """
@@ -44,6 +43,11 @@ class Laplace:
         """
         b = self.b
         return 1 / 2 + np.sign(x) / 2 * (1 - np.exp(-np.abs(x) / b))
+
+    def Laplace_DV_f(self, x):
+        b = self.b
+        ret = self.laplace_f(x) / 2 + abs(x) / (4 * b * b) * np.exp(-abs(x) / b)
+        return ret
 
     def Laplace_DV_F(self, x):
         b = self.b

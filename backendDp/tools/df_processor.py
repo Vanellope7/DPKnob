@@ -8,7 +8,7 @@ import statistics as s
 class DFProcessor:
     def __init__(self, data_filepath, attr):
         self._df = pd.read_csv(
-            data_filepath, sep=","
+            'data/' + data_filepath, sep=","
         )
         self.attr = attr
 

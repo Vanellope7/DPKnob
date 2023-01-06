@@ -5,6 +5,7 @@
         v-model:file-list="fileList"
         class="upload-demo"
         action="http://127.0.0.1:8000/fr/"
+        show-file-list="false"
         :limit="1"
         :on-exceed="handleExceed"
         :on-success="uploadSuccess"
@@ -14,31 +15,36 @@
   </el-row>
 
   <el-row>
-    <el-col :span="3" :offset="0">
+    <el-col :span="12" :offset="0">
+      <el-table
+          :data="tableData"
+          :header-cell-style="headerCellStyle"
+          :cell-style="cellStyle"
+          v-fit-columns
+          style="width: 100%; height: 350px">
+        <el-table-column
+            v-for="attr in attrOptions"
+            :prop="attr"
+            :label="attr"
+            align="center"
+            width="180">
+        </el-table-column>
+      </el-table>
+    </el-col>
+
+    <el-col :span="3" :offset="3" class="ParamsSelect">
       <el-input v-model="epsilonInput" size="large"  placeholder="Input epsilon"/>
-    </el-col>
-
-    <el-col :span="3" :offset="1">
       <el-input v-model="deltaInput" size="large"  placeholder="Input delta"/>
-    </el-col>
-
-    <el-col :span="3" :offset="1">
       <el-select v-model="selectedMechType" placeholder="Select mechanism type" size="large">
         <el-option key="numerical" label="数值型" value="numerical"/>
         <el-option key="nonnumerical" label="非数值型" value="nonnumerical"/>
       </el-select>
-    </el-col>
-
-    <el-col :span="3" :offset="1">
       <el-select v-model="selectedMech" placeholder="Select mechanism" size="large">
         <el-option key="Laplace" label="拉普拉斯机制" value="Laplace" v-if="selectedMechType === 'numerical'"/>
         <el-option key="Gaussian" label="高斯机制" value="Gaussian" v-if="selectedMechType === 'numerical'"/>
         <el-option key="Exponential" label="指数机制" value="Exponential" v-if="selectedMechType === 'nonnumerical'"/>
       </el-select>
-    </el-col>
 
-    <!-- 数据库查询选择(获取统计数据) -->
-    <el-col :span="3" :offset="1">
       <el-select v-model="selectedWay" placeholder="Select Way" size="large">
         <el-option
             v-for="item in numericalWayOptions"
@@ -55,10 +61,7 @@
             v-if="selectedMechType === 'nonnumerical'"
         />
       </el-select>
-    </el-col>
 
-    <!--  选择列名  -->
-    <el-col :span="3" :offset="1">
       <el-select v-if="attrOptions.length !== 0"  v-model="selectedAttr" placeholder="Select Attribute" size="large" @change="changeHistogram">
         <el-option
             v-for="item in attrOptions"
@@ -68,6 +71,7 @@
         />
       </el-select>
     </el-col>
+
   </el-row>
 
   <!--计数范围选择器  -->
@@ -119,6 +123,7 @@ export default {
       selectedMechType: '',
       selectedMech: '',
       searchRes: {priavateRes: '', res: ''},
+      tableData: [],
       attrOptions: [],  // 文件的列名数组
       numericalWayOptions: [{
         value: 'sum',
@@ -208,9 +213,8 @@ export default {
 
     uploadSuccess(response, file, fileList) {
       this.attrOptions = response.attr;
-      console.log(response.data);
-
-      let dataset = response.data;
+      this.tableData = response.tableData;
+      console.log(response.tableData)
       // this.drawHistogram(dataset);
 
     },
@@ -271,6 +275,16 @@ export default {
       const file = files[0]
       file.uid = genFileId()
       upload.value.handleStart(file)
+    },
+    cellStyle({row, column, rowIndex, columnIndex}) {
+      // if(column.label === this.modeColumnMap[this.mode]) {
+      //   return {'background-color': '#ffdcdc'}
+      // }
+    },
+    headerCellStyle({ row, column, rowIndex, columnIndex }) {
+      if(column.label === this.selectedAttr) {
+        return {'background-color': '#909399'}
+      }
     }
   },
   mounted() {
@@ -287,5 +301,11 @@ export default {
 #output {
   border: #aaaaaa solid 3px;
   width: 600px;
+}
+
+.ParamsSelect{
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 </style>

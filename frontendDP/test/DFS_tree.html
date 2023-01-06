@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Title</title>
+  <script src="axios.min.js"></script>
+  <script src="vue.js"></script>
+  <script src="d3@7.js"></script>
+  <style>
+
+  </style>
+
+  <div id="app">
+    <svg id="tree" style="margin-top: 50px"></svg>
+  </div>
+</head>
+<body>
+  <script>
+
+    const App = new Vue({
+      el: '#app',
+      data: {
+        curFile: 'titanic_clean.csv',
+        attrList: [],
+        NonIdAttrs: [0, 1, 2, 3, 4, 5, 6, 8, 9],
+        treeData: {},
+        treeFunc: {}
+      },
+      methods: {
+        getDimensionScale(keyMap, height, dimNum, parentKeyList) {
+          keyLen = []
+          for(let dimensionData of keyMap) {
+            keyLen.push(dimensionData.data.length);
+          }
+          let dimensionNodeNum = []
+          let c = 1;
+          for(let len of keyLen) {
+            dimensionNodeNum.push(c);
+            c *= len;
+          }
+
+          let parentNodeScaleList = [];
+          let childNodeScaleList = [];
+          let parentNodeHeights = [];
+          let nodeHeights = [];
+          for(let i = 0 ;i< dimNum;i++) {
+            let parentNodeHeight = height / keyLen[i];
+            let nodeHeight = parentNodeHeight / dimensionNodeNum[i];
+            parentNodeHeights.push(parentNodeHeight);
+            nodeHeights.push(nodeHeight);
+            parentNodeScaleList.push(
+                d3.scaleBand()
+                    .domain(keyMap[i].data)
+                    .range([parentNodeHeight / 2, height + parentNodeHeight / 2])
+            )
+
+            childNodeScaleList.push(
+                d3.scaleBand()
+                    .domain(Array.from(parentKeyList[i]))
+                    .range([-parentNodeHeight/2 + nodeHeight / 2, parentNodeHeight/2 - nodeHeight / 2])
+            )
+          }
+
+          return [parentNodeScaleList, childNodeScaleList, parentNodeHeights, nodeHeights]
+
+        },
+        MakeTree(nodes, links, keyMap, parentKeyList) {
+          let width=1000;
+          let height=600;
+          let [parentNodeScaleList, childNodeScaleList, parentNodeHeights, nodeHeights] = this.getDimensionScale(keyMap, height, keyMap.length, parentKeyList);
+
+
+          nodes = nodes.filter(d => d.depth > 0)
+          links = links.filter(d => d.source.depth > 0)
+          console.log(keyMap)
+
+          let Xscale = d3.scaleLinear()
+                        .domain([-0.5, keyMap.length-1 + 0.5])
+                        .range([0, width]);
+
+          let nodeColorScale = d3.scaleLinear()
+                                  .domain([d3.min(nodes, d => d.data.num), d3.max(nodes, d => d.data.num)])
+                                  .range(['#bbbbbb', '#777777'])
+
+          let colorScale = d3.scaleOrdinal()
+                             .domain(keyMap[1].data)
+                             .range(["#ee5355",
+                                 					"#2faef5",
+                                 					"#bdff71",
+                                 					"#ab88ff",
+                                 					"#ff9393"])
+
+
+
+
+          for(let i in nodes) {
+            let dim = nodes[i].data.dim;
+            nodes[i].y = Xscale(dim);
+            keyMap[dim].x = nodes[i].y;
+            nodes[i].x = parentNodeScaleList[dim](nodes[i].data.key) + childNodeScaleList[dim](nodes[i].parentKey);
+
+            // if(nodes[i].data.dim === 0) {
+            //   keyMap[0].x = nodes[i].y;
+            //   nodes[i].x = scale1(nodes[i].data.key)
+            // }
+            // if(nodes[i].data.dim === 1) {
+            //   keyMap[1].x = nodes[i].y;
+            //   nodes[i].x = scale2(nodes[i].data.key) + scale22(nodes[i].parent.data.key)
+            // }
+          }
+          console.log(nodes)
+          let generator = d3
+              .linkHorizontal()
+              .x(function(d) {
+                return d.y;
+              })
+              .y(function(d) {
+                return d.x;
+              });
+          let TreeLinkG = d3.select(".container .TreeLinkG");
+          let TreeNodeG = d3.select(".container .TreeNodeG");
+          let ParentNodeG = d3.select(".container .ParentNodeG");
+          let ParentNodeG_DATA = ParentNodeG.selectAll(".DimensionNodeG")
+                                            .data(keyMap);
+          ParentNodeG_DATA.exit().remove();
+          let DimensionG = ParentNodeG_DATA.enter()
+                          .append("g")
+                          .attr("class", 'DimensionNodeG')
+                          .attr("transform", function(d) {
+                            let cx = d.x;
+                            let cy = 0;
+                            return "translate(" + cx + "," + 0 + ")";
+                          });
+
+          let dimension1 = -1, dimension2 = -1;
+          let parentNodes = DimensionG.selectAll(".ParentNode")
+                                      .data(d => d.data)
+                                      .enter()
+                                      .append('rect')
+                                      .attr("class", 'ParentNode')
+                                      .attr("x", d => 15)
+                                      .attr("y", (d, k) => {
+                                        if(k === 0) dimension1 += 1;
+                                        return `${parentNodeScaleList[dimension1](d) - parentNodeHeights[dimension1] / 2}px`
+                                      })
+                                      .attr('width', '40px')
+                                      .attr("height", (d, k) => {
+                                        if(k === 0) dimension2 += 1;
+                                        return `${parentNodeHeights[dimension2] - 5}px`
+                                      })
+                                      .attr('fill', '#e1ffac');
+          let dimension3 = -1;
+          let parentTextG = DimensionG.selectAll(".ParentText")
+              .data(d => d.text)
+              .enter()
+              .append('g')
+              .attr("class", 'ParentText')
+              .attr("transform", (d,k) => {
+                let cx = 15;
+                if(k === 0) dimension3 += 1;
+                let cy = parentNodeScaleList[dimension3](k)
+                return "translate(" + cx + "," + cy + ")";
+              });
+
+          parentTextG.append('text')
+                    .attr("x", 20)
+                    .attr("y", 10)
+                    .style('text-anchor', 'middle')
+                    .text(d => d.split('~')[0]);
+          parentTextG.append('text')
+                    .attr("x", 20)
+                    .attr("y", 20)
+                    .style('text-anchor', 'middle')
+                    .text(d => '~');
+          parentTextG.append('text')
+                    .attr("x", 20)
+                    .attr("y", 30)
+                    .style('text-anchor', 'middle')
+                    .text(d => d.split('~')[1]);
+
+
+
+          let TreeLink_DATA = TreeLinkG
+              .selectAll(".TreeLinkPath")
+              .data(links);
+          // 移除旧边
+          TreeLink_DATA.exit().remove();
+          // 添加新边
+          TreeLink_DATA
+              .enter()
+              .append("path")
+              .attr("d", function(d) {
+                let start = { x: d.source.x, y: d.source.y };
+                let end = { x: d.target.x, y: d.target.y };
+                return generator({ source: start, target: end });
+              })
+              .attr('class', 'TreeLinkPath')
+              .attr("fill", "none")
+              .attr("stroke", "#000")
+              .attr("stroke-width", 1);
+          // 统一边位置
+          let TreeLinkPath = TreeLinkG.selectAll(".TreeLinkPath")
+                                      .attr("d", function(d) {
+                                        let start = { x: d.source.x, y: d.source.y };
+                                        let end = { x: d.target.x, y: d.target.y };
+                                        return generator({ source: start, target: end });
+                                      });
+
+          let TreeNode_DATA = TreeNodeG
+              .selectAll(".TreeNodePie")
+              .data(nodes);
+
+
+
+          let NodesG = TreeNode_DATA
+              .enter()
+              .append("g")
+              .attr("class", 'TreeNodePie')
+              .attr("transform", function(d) {
+                let cx = d.x;
+                let cy = d.y;
+                return "translate(" + cy + "," + cx + ")";
+              });
+          d3.selectAll('.TreeNodePie')
+              .attr("transform", function(d) {
+                let cx = d.x;
+                let cy = d.y;
+                return "translate(" + cy + "," + cx + ")";
+              })
+              .on('mouseover', (e, d) => {
+                TreeLinkPath.filter(link => link.source !== d)
+                            .classed('nonHighlightEdge', true);
+
+              })
+              .on('mouseout', (e, d) => {
+                TreeLinkPath.classed('nonHighlightEdge', false);
+              })
+
+          NodesG.append("rect")
+             .attr("x", -10)
+             .attr("y", d => {
+               return `-${nodeHeights[d.data.dim] / 2 - 2.5}`
+             })
+             .attr("height", d => {
+                 return `${nodeHeights[d.data.dim] - 5}px`
+             })
+             .attr("width", '20px')
+             .attr('fill', d => {
+               let num = d.data.num;
+               if(num === 1) {
+                 return '#c0392b'
+               }
+               else {
+                 return nodeColorScale(num)
+               }
+             })
+             .append('title')
+             .text(d => d.data.index)
+        },
+      },
+      mounted() {
+        d3.json('tree/case5(1)-【统一指标-bst数量】.json')
+          .then((data) => {
+            let keyMap = data.keyMap;
+            data = data.data;
+
+            d3.selectAll('#tree > *').remove();
+            //定义边界
+            let margin = { top: 90, bottom: 0, left: 10, right: 0 };
+
+            let width=1000;
+            let height=600;
+            let svg = d3
+                .select("#tree")
+                .attr("width", width + "px")
+                .attr("height", height + "px");
+
+            let container = svg
+                .append("g")
+                .attr("class", 'container')
+                // .attr("transform", "translate(" + margin.top + "," + margin.left + ")");
+
+            let TreeLinkG = container.append("g").attr("class", 'TreeLinkG');
+            let TreeNodeG = container.append("g").attr("class", 'TreeNodeG');
+            let ParentNodeG = container.append("g").attr("class", 'ParentNodeG');
+            let parentKeyList = {};
+            let hierarchyData = d3.hierarchy(data).sum(function(d) {
+              return d.val;
+            })
+            .each(d => {
+              if(d.parent) d.parentKey = `${d.parent.parentKey}-${d.parent.data.key}`
+              else d.parentKey = 'parent'
+
+              let dim = d.data.dim;
+              parentKeyList[dim] ? "": parentKeyList[dim] = new Set();
+              parentKeyList[dim].add(d.parentKey);
+
+            });
+            console.log(parentKeyList)
+            let treeFunc = d3
+                .tree()
+                .size([height - 100, width - 100])
+                .separation(function(a, b) {
+                  return (a.parent === b.parent ? 1 : 2) / a.depth;
+                });
+
+            let treeData = treeFunc(hierarchyData);
+            let nodes = treeData.descendants();
+            let links = treeData.links();
+            this.MakeTree(nodes, links, keyMap, parentKeyList);
+          })
+
+      }
+    })
+  </script>
+</body>
+</html>

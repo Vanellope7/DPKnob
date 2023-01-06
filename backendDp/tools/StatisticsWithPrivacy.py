@@ -31,7 +31,7 @@ def numericalStatistic(mech, params):
     dfp = DFProcessor(params['datafile']['filename'], params['datafile']['attr'])
     res, sensitivity = eval("dfp.{0}(params['mechParams']['scope'])".format(params['queryWay']))
     params['mechParams']['sensitivity'] = sensitivity
-    return float(res), round(initMechInstance(mech, params['mechParams']).randomise(res), 4)
+    return float(res), round(initMechInstance(mech, params['mechParams']).randomise(res), 4), sensitivity
 
 
 def nonNumericalStatistic(mech, params):

@@ -5,30 +5,30 @@
     </el-col>
 
     <el-radio-group v-model="mode">
-      <el-radio-button label="noise search" />
-      <el-radio-button label="fine-tune &epsilon;" />
-      <el-radio-button label="privacy search" />
+      <el-radio-button label="Query precision input" />
+      <el-radio-button label="&epsilon; fine-tuning" />
+      <el-radio-button label="Privacy level input" />
     </el-radio-group>
 
   </el-row>
 
   <el-row>
-    <el-table :data="tableData" style="width: 600px" :cell-style="cellStyle">
-      <el-table-column prop="ncv" label="noise confidence value" width="200px"/>
-      <el-table-column prop="b" label="b" width="200px" />
-      <el-table-column prop="pcv" label="privacy confidence value" width="200px"/>
+    <el-table :data="tableData" style="width: 900px" :cell-style="cellStyle">
+      <el-table-column prop="ncv" label="Precision confidence value" width="300px"/>
+      <el-table-column prop="b" label="Laplace param b" width="300px" />
+      <el-table-column prop="pcv" label="Privacy confidence value" width="300px"/>
     </el-table>
   </el-row>
 
   <el-row>
-    <el-col :span=3 v-if="mode !== 'fine-tune &epsilon;'">
+    <el-col :span=3 v-if="mode !== '&epsilon; fine-tuning'">
       <span>Confidence value Input</span>
-      <el-input v-model="ncv" v-show="mode === 'noise search'"/>
-      <el-input v-model="pcv" v-show="mode === 'privacy search'"/>
+      <el-input v-model="ncv" v-show="mode === 'Query precision input'"/>
+      <el-input v-model="pcv" v-show="mode === 'Privacy level input'"/>
     </el-col>
 
     <el-col :span=12>
-      <el-row id="epsilonScope" class="noMarginRow" v-if="mode === 'fine-tune &epsilon;'">
+      <el-row id="epsilonScope" class="noMarginRow" v-if="mode === '&epsilon; fine-tuning'">
         <span style="margin-right: 30px">b区间</span>
         <div class="slider">
           <el-slider v-model="b" show-stops :min="0" :max="10" step="0.1"/>
@@ -190,11 +190,6 @@ export default {
       })
     },
     cellStyle({row, column, rowIndex, columnIndex}) {
-      let cellStyle = {
-        style: {
-          background: "#ffdcdc"
-        }
-      }
       if(column.label === this.modeColumnMap[this.mode]) {
         return {'background-color': '#ffdcdc'}
       }

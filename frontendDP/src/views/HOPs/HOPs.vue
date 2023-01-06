@@ -23,7 +23,8 @@ import axios from "axios";
         yAxis: {},
 
         timer: {},
-        timeIndex: 0
+        timeIndex: 0,
+        lineData: []
       }
     },
     methods: {
@@ -38,15 +39,17 @@ import axios from "axios";
         return lineData;
       },
       drawLaplaceDistribution(b) { // 绘制拉普拉斯分布图
+        let that = this;
         d3.selectAll('#LaplaceDistribution > *').remove();  // 清空svg里的所有元素
         let svg = d3.select('#LaplaceDistribution');
         let padding = 40, w = 500, h = 500;
-        let lineData = this.getLaplaceData(b);
-        let x = this.xScale = d3.scaleLinear()
+        let lineData = that.getLaplaceData(b);
+        that.lineData = lineData;
+        let x = that.xScale = d3.scaleLinear()
             .domain([d3.min(lineData, d => d[0]), d3.max(lineData, d => d[0])])
             .range([padding, w - padding])
             .clamp(true);  //原因是定义域为止  暂时这么做为了保险
-        let y = this.yScale = d3.scaleLinear()
+        let y = that.yScale = d3.scaleLinear()
             .domain([0, d3.max(lineData, d => d[1])])
             .range([h - padding, padding]);
         let cg = d3.line()
@@ -66,11 +69,50 @@ import axios from "axios";
             .attr("transform", `translate(0, ${h - padding})`)
             .call(xAxis);
 
-        let yAxis = this.yAxis = d3.axisLeft().scale(y);
+        let yAxis = that.yAxis = d3.axisLeft().scale(y);
         svg.append("g")
             .attr("class", "y axis")
             .attr("transform", `translate(${padding}, 0)`)
             .call(yAxis);
+
+
+        svg.append("clipPath")
+            .attr("id", "clip-th-accuracy")
+            .append("rect")
+            .attr("x", 200)
+            .attr("y", 0)
+            .attr("width", 100)
+            .attr("height", h);
+
+        container.append("path")
+            .attr("stroke", "grey")
+            .attr('d', cg(that.lineData))
+            .attr("fill", "yellowgreen")
+            .attr("fill-opacity", 0.5)
+            .attr("fill-rule", "evenodd")
+            .attr('clip-path', "url(#clip-th-accuracy)");
+
+        let ClipRect = svg.select('#clip-th-accuracy rect')
+        svg.append('g').attr('id', 'brush').call(
+            d3.brush()
+                .on('start', (e) => {
+                  d3.select('#brush').style('visibility', 'visible')
+                })
+                .on('brush', (e) => {
+                  let selection = e.selection;
+                  svg.select('#clip-th-accuracy rect')
+                      .attr("x", selection[0][0])
+                      .attr("width", selection[1][0] - selection[0][0]);
+                })
+                .on('end', (e) => {
+                  d3.select('#brush').style('visibility', 'hidden')
+                })
+                .extent([
+                  [padding, 0],
+                  [w - padding, h - padding]
+                ])
+        )
+
       },
       restartHOPs() { // 重启HOPs动画
         const w = 500, h = 500, padding = 20;
@@ -102,8 +144,10 @@ import axios from "axios";
             }
           }, 800);
         })
-      }
+      },
+      brushChange() {
 
+      }
     },
     watch: {
       b(newB) { // 修改 b 时改变分布图效果以及HOPs动画效果
@@ -152,6 +196,9 @@ import axios from "axios";
 
       this.drawLaplaceDistribution(this.b)
       this.restartHOPs();
+
+
+
     }
   }
 </script>

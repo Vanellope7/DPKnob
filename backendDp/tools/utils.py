@@ -13,12 +13,12 @@ def getHistogramData(df, attr, bins):
 
 
 def laplace_P(interval, b):
-    L = Laplace(0, b)
+    L = Laplace(b)
     return L.laplace_F(interval[1]) - L.laplace_F(interval[0])
 
 
 def laplace_DV_P(interval, b):
-    L = Laplace(0, b)
+    L = Laplace(b)
     return L.Laplace_DV_F(interval[1]) - L.Laplace_DV_F(interval[0])
 
 
@@ -26,11 +26,17 @@ def binarySearch(left, right, precision, func, params, target):
     while right - left >= precision:
         mid = (left + right) / 2
         f = func(params, mid)
-        if f > target:
-            left = mid
+        flag = func(params, left) < func(params, right)
+        if f < target:
+            if flag:
+                left = mid
+            else:
+                right = mid
         else:
-            right = mid
-    print(abs(func(params, mid) - target))
+            if flag:
+                right = mid
+            else:
+                left = mid
     if abs(func(params, mid) - target) > precision:
         return False
     else:
