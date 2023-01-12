@@ -11,12 +11,16 @@ from tools.utils import laplace_P, binarySearch, laplace_DV_P, ternarySearch
 def UpdateEpsilonWithPrivacy(request):
     postData = json.loads(request.body)
     Sensitivity = postData['Sensitivity']
+    isCount = postData['QueryType'] == 'count'
     d = postData['Deviation']  # 偏差值
     SRT = postData['SRT']  # 置信值
     left = 1e-200
     right = 100
     precision = 1e-5
-    b = binarySearch(left, right, precision, func=laplace_DV_P, params=[-d, d], target=SRT)
+    if isCount:
+        b = binarySearch(left, right, precision, func=laplace_DV_P, params=[0, 0.5], target=SRT - 0.5)
+    else:
+        b = binarySearch(left, right, precision, func=laplace_DV_P, params=[-d, d], target=SRT)
     epsilon = round(b / Sensitivity, 2)
     return JsonResponse({'epsilon': epsilon})
 

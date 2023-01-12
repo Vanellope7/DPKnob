@@ -1,3 +1,2 @@
-let a = Array([], [], [])
-a[5] = 1
-console.log(a);
+let x = {'a': 1, 'b': 2}
+console.log(x.length)

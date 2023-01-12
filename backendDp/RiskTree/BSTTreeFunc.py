@@ -66,24 +66,21 @@ def DFS(input, d, bitmap, depth, dim):
         subgroup_size = len(subgroup)
         if subgroup_size == 1:
             # 记录BST，并且对expand BST进行去重
-
-            # global rBSTMap
             BST = subgroup[0]
-            bm = bitmap + (1 << d)
-            # rBSTMap[bm] = rBSTMap.get(bm, set())
-            # rBSTMap[bm].add(BST)
             ret.append({
                 'dim': d,
                 'key': key,
+                'val': 1 if depth == dim - 1 else 0,
                 'isBST': True,
                 'index': [BST],
                 'num': subgroup_size,
-                'children': []
+                'children': DFS(GroupMap[key], d + 1, bitmap + (1 << d), depth + 1, dim)
             })
 
         else:
             ret.append({
                 'dim': d,
+                'val': 0,
                 'key': key,
                 'isBST': False,
                 'index': subgroup,

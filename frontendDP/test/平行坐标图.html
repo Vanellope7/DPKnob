@@ -7,46 +7,77 @@
 </head>
 <body>
   <svg width="500" height="500">
-    <circle r="20" cx="200" cy="300" fill="None" stroke="black"></circle>
+    <rect class="dragRect" fill="red" stroke="black" fill-opacity="0.5"></rect>
+    <rect class="dragRect" fill="green" stroke="black" fill-opacity="0.5"></rect>
+    <rect class="dragRect" fill="blue" stroke="black" fill-opacity="0.5"></rect>
   </svg>
   <script>
-    let svg = d3.select('svg');
-    let data = [
-      {
-        x: 50,
-        y: 20,
-      },
-      {
-        x: 100,
-        y: 70,
-      },
-      {
-        x: 150,
-        y: 150,
-      },
-      {
-        x: 200,
-        y: 190,
-      },
-      {
-        x: 250,
-        y: 280,
-      },
-    ];
-    let Line = d3.line()
-        .x(function (d) {
-          return d.x;
-        })
-        .y(function (d) {
-          return d.y;
+    let scale = d3.scaleLinear().domain([0, 2]).range([20, 220]);
+    let scale2 = d3.scaleBand().domain([0, 2, 3]).range([20, 220]);
+    console.log(scale2.invert(20))
+    let data = [0,1,2];
+    let pos = [0,1,2]
+    d3.selectAll('rect')
+      .data(data)
+      .join('rect')
+      .attr('class', 'dragRect')
+      .attr('id', d => 'dragRect' + d)
+      .attr('x', d => scale(d))
+      .attr('y', 20)
+      .attr('width', 100)
+      .attr('height', 100)
+    var drag = d3.drag()
+        .on("drag", dragmove)
+        .on('end', dragEnd);
+
+    function dragmove(event, d) {
+      let newX = event.x;
+      d3.select(this)
+          .attr("x", newX - 50);
+      let preIndex = pos[d];
+      let curIndex = Math.round(scale.invert(newX - 50))
+      if (curIndex > 2) {
+        curIndex = 2
+      }
+      if(curIndex < 0) {
+        curIndex = 0
+      }
+      if (preIndex < curIndex) {
+        // 右移
+        pos.forEach((d, i) => {
+          if (d === curIndex) {
+            pos[i] -= 1;
+          }
+          if (d === preIndex) {
+            pos[i] = curIndex
+          }
         });
-    svg.append("path")
-        .attr("d", Line(data))
-        .attr("stroke", function (d) {
-          return 'red';
-        })
-        .attr("stroke-width", 10)
-        .attr("fill", "none");
+        d3.selectAll('.dragRect')
+            .attr('x', d => scale(pos[d]))
+      } else {
+        if (preIndex > curIndex) {
+          // 左移
+          pos.forEach((d, i) => {
+            if (d === curIndex) {
+              pos[i] += 1;
+            }
+            if (d === preIndex) {
+              pos[i] = curIndex
+            }
+          });
+          d3.selectAll('.dragRect')
+              .attr('x', d => scale(pos[d]))
+        }
+      }
+    }
+    function dragEnd() {
+      d3.selectAll('.dragRect')
+          .attr('x', d => scale(pos[d]))
+    }
+    d3.selectAll('.dragRect')
+      .call(drag);
+
+
   </script>
 </body>
 </html>

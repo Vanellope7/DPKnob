@@ -14,7 +14,9 @@ from RiskTree.BSTTreeFunc import getCodedData
 
 # 回应接受文件请求
 from RiskTree.Class import JsonEncoder
-from RiskTree.funcs import classifyAttr, getRiskRecord, getCubeByIndices, getDataCoder, key2string
+from RiskTree.NodeRiskFunc import getNodeRisk, getNodeRiskRatio
+from RiskTree.funcs import classifyAttr, getRiskRecord, getCubeByIndices, getDataCoder, key2string, indices2bitmap, \
+    getAvgRiskP
 
 
 def fileReceive(request):
@@ -38,14 +40,17 @@ def fileReceive(request):
         if dtype == 'object':
             # 非数值型
             Mode = df[attr].mode().tolist()[0]
+            Range = df[attr].value_counts().index.tolist()
             AttrList.append({
                 'Name': attr,
-                'Type': 'nonnumerical',
-                'Range': '-',
-                'Range Width': '-',
+                'Type': 'categorical',
+                'Range': Range,
+                'Range Width': len(Range),
                 'Search Min Edge': '-',
+                'Search Max Edge': '-',
                 'DAable Window Width': '-',
-                'Rounding Bit': '-'
+                'Exposure Probability': 0.5,
+                'Tolerance Deviation': '-'
             })
         else:
             # 数值型
@@ -63,9 +68,9 @@ def fileReceive(request):
                 'Search Min Edge': MinEdge,
                 'Search Max Edge': MaxEdge,
                 'DAable Window Width': width,
-                'Rounding Bit': bit
+                'Exposure Probability': 0.1,
+                'Tolerance Deviation': Max / 10
             })
-
     return JsonResponse({'data': AttrList})
 
 
@@ -74,9 +79,11 @@ def riskTree(request):
     postData = json.loads(request.body)
     filename = postData['filename']
     attrList = postData['attrList']
-    bitmap = postData['bitmap']
-    json_data = getRiskRecord(filename, attrList, bitmap)
-    return JsonResponse(json_data)
+    indices = postData['indices']
+    RiskMap = postData.get('RiskMap', -1)
+    json_data = getRiskRecord(filename, attrList, indices, RiskMap)
+
+    return JsonResponse(json_data, encoder=JsonEncoder)
 
 
 def QueryWheres(request):
@@ -118,19 +125,14 @@ def BSTTree(request):
     postData = json.loads(request.body)
     filename = postData['filename']
     attrList = postData['attrList']
-    bitmap = postData['bitmap']
-
-
-    indices = getCubeByIndices(bitmap)
-
+    indices = postData['indices']
 
     global m, DCs, R
     R = pd.read_csv('data/' + filename)
 
-    Indices = getCubeByIndices(bitmap)
     keepAttr = list(map(lambda d: d['Name'], attrList))
-    cur_keepAttr = [keepAttr[i] for i in Indices]
-    cur_attrList = [attrList[i] for i in Indices]
+    cur_keepAttr = [keepAttr[i] for i in indices]
+    cur_attrList = [attrList[i] for i in indices]
 
     R = R[cur_keepAttr]
     R.fillna(0, inplace=True)
@@ -143,8 +145,10 @@ def BSTTree(request):
 
     values = R.values
     tree = {
+        'index': list(range(n)),
         'key': 0,
         'pie': [0, n],
+        'val': 0,
         'children': DFS_OUTER(R.index.tolist(), 0, 0, 0, m, values)
     }
     keyMap = []
@@ -201,10 +205,22 @@ def DataDistribution(request):
     for index, row in R.iterrows():
         TableData.append(row.to_dict())
 
+    getCodedData(R, DCs)
+    values = R.values
+
     MaxMap = {}
     for i, attr in enumerate(attrList):
         if attr['Type'] == 'numerical':
             MaxMap[attr['Name']] = DCs[i].params['Max']
         else:
             MaxMap[attr['Name']] = max(R[attr['Name']].value_counts().tolist())
-    return JsonResponse({'ScaleData': ScaleData, 'TableData': TableData, 'MaxMap': MaxMap})
+    return JsonResponse({'ScaleData': ScaleData, 'TableData': TableData, 'TableKeyData': values, 'MaxMap': MaxMap}, encoder=JsonEncoder)
+
+
+def AvgRiskP(request):
+    postData = json.loads(request.body)
+    filename, deviation = postData['filename'], postData['deviation']
+    attrParams, attr, epsilon = postData['attrParams'], postData['attr'], postData['epsilon']
+    BSTMap, type, sensitivity = postData['BSTMap'], postData['type'], postData['sensitivity']
+    avgRiskP = getAvgRiskP(filename, attr, deviation, attrParams, epsilon, BSTMap, type, sensitivity)
+    return JsonResponse({'avgRiskP': avgRiskP})

@@ -7,6 +7,6 @@ urlpatterns = [
     path('RiskTreeData/', views.riskTree),
     path('QueryWheres/', views.QueryWheres),
     path('BSTTreeData/', views.BSTTree),
-
-    path('DataDistribution/', views.DataDistribution),
+    path('DataDistribution/', views.DataDistribution), #平行坐标图
+    path('AvgRiskP/', views.AvgRiskP)
 ]
