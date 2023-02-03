@@ -15,7 +15,7 @@
   </el-upload>
 
   <el-table
-      v-fit-columns
+      table-layout="fixed"
       :data="attrList"
       ref="multipleTable"
       @selection-change="handleSelectionChange"
@@ -166,22 +166,29 @@
 
   .item .item__input {
     display: none;
-    width: 100px;
+    width: 100%;
+    height: 100%;
   }
-  /* 调整elementUI中样式 如果不需要调整请忽略 */
-  .item .item__input .el-input__inner{
-    height: 24px!important;
-  }
+
   /* 调整elementUI中样式 如果不需要调整请忽略 */
   .item .item__input .el-input__suffix i{
     font-size: 12px !important;
     line-height: 26px !important;
   }
 
+
+</style>
+
+<style>
+  /* 调整elementUI中样式 如果不需要调整请忽略 */
+  .item .item__input .el-input__inner{
+    height: 23px!important;
+    text-align: center;
+  }
+
   .item .item__txt{
     box-sizing: border-box;
     border: 1px solid transparent;
-    width: 100px;
     line-height: 24px;
     padding: 0 8px;
     text-align: center;
@@ -191,6 +198,4 @@
     border-radius: 4px;
     cursor: text;
   }
-
-
 </style>

@@ -14,7 +14,7 @@ from RiskTree.BSTTreeFunc import getCodedData
 
 # 回应接受文件请求
 from RiskTree.Class import JsonEncoder
-from RiskTree.NodeRiskFunc import getNodeRisk, getNodeRiskRatio
+from RiskTree.NodeRiskFunc import getNodeRisk
 from RiskTree.funcs import classifyAttr, getRiskRecord, getCubeByIndices, getDataCoder, key2string, indices2bitmap, \
     getAvgRiskP
 
@@ -49,8 +49,6 @@ def fileReceive(request):
                 'Search Min Edge': '-',
                 'Search Max Edge': '-',
                 'DAable Window Width': '-',
-                'Exposure Probability': 0.5,
-                'Tolerance Deviation': '-'
             })
         else:
             # 数值型
@@ -68,8 +66,6 @@ def fileReceive(request):
                 'Search Min Edge': MinEdge,
                 'Search Max Edge': MaxEdge,
                 'DAable Window Width': width,
-                'Exposure Probability': 0.1,
-                'Tolerance Deviation': Max / 10
             })
     return JsonResponse({'data': AttrList})
 
@@ -80,8 +76,8 @@ def riskTree(request):
     filename = postData['filename']
     attrList = postData['attrList']
     indices = postData['indices']
-    RiskMap = postData.get('RiskMap', -1)
-    json_data = getRiskRecord(filename, attrList, indices, RiskMap)
+    RiskRatioMap = postData.get('RiskRatioMap', -1)
+    json_data = getRiskRecord(filename, attrList, indices, RiskRatioMap)
 
     return JsonResponse(json_data, encoder=JsonEncoder)
 
@@ -188,12 +184,14 @@ def DataDistribution(request):
     R.fillna(0, inplace=True)
     DCs = getDataCoder(R, attrList)
     ScaleData = []
+
     for i, attr in enumerate(attrList):
         if attr['Type'] == 'numerical':
+            padding = (DCs[i].params['Max'] - DCs[i].params['Min']) / 100
             ScaleData.append({
                 'name': attr['Name'],
                 'type': attr['Type'],
-                'domain': [DCs[i].params['Min'], DCs[i].params['Max']]
+                'domain': [DCs[i].params['Min'] - padding, DCs[i].params['Max'] + padding]
             })
         else:
             ScaleData.append({
@@ -219,8 +217,8 @@ def DataDistribution(request):
 
 def AvgRiskP(request):
     postData = json.loads(request.body)
-    filename, deviation = postData['filename'], postData['deviation']
+    filename, deviationRatio, riskRecord = postData['filename'], postData['deviationRatio'], postData['riskRecord']
     attrParams, attr, epsilon = postData['attrParams'], postData['attr'], postData['epsilon']
     BSTMap, type, sensitivity = postData['BSTMap'], postData['type'], postData['sensitivity']
-    avgRiskP = getAvgRiskP(filename, attr, deviation, attrParams, epsilon, BSTMap, type, sensitivity)
+    avgRiskP = getAvgRiskP(filename, attr, deviationRatio, attrParams, epsilon, riskRecord, type, sensitivity)
     return JsonResponse({'avgRiskP': avgRiskP})

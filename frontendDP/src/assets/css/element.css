@@ -14,3 +14,11 @@
 .el-table .el-table__cell {
     padding: 0 !important;
 }
+
+.el-switch__label {
+    line-height: 20px;
+}
+
+.el-table .cell {
+    text-overflow: clip !important;
+}

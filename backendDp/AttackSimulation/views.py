@@ -6,7 +6,7 @@ from django.http import JsonResponse
 from RiskTree.Class import JsonEncoder
 from tools.df_processor import DFProcessor
 from tools.Laplace import Laplace
-from tools.utils import laplace_P
+from tools.utils import laplace_P, laplace_DV_P
 
 
 def GetNoisyDataDistribution(request):
@@ -14,23 +14,26 @@ def GetNoisyDataDistribution(request):
     dfp = DFProcessor(postData['FileName'], postData['QueryAttr'],
                       postData['QueryCondition'], postData['sensitivityWay'], postData['Interval'])
     res = eval("dfp.{0}()".format(postData['QueryType']))
-    sensitivity = dfp.getSensitivity(postData['QueryType'])
+    sensitivities = dfp.getSensitivity(postData['QueryType'])
+    sensitivity = dfp.getCurSensitivity(postData['QueryType'])
     b = sensitivity / postData['epsilon']
     L = Laplace(b)
     D = []
     for x in np.linspace(-sensitivity * 2, sensitivity * 2, 1000):
         D.append([x + res, L.laplace_f(x)])
-    return JsonResponse({'distribution': D, 'b': b, 'sensitivity': sensitivity, 'ExactVal': res}, encoder=JsonEncoder)
+    return JsonResponse({'distribution': D, 'b': b, 'sensitivity': sensitivity, 'ExactVal': res, 'sensitivities': sensitivities}, encoder=JsonEncoder)
 
 
 def GetPrivacyDistribution(request):
     postData = json.loads(request.body)
     b = postData['b']
     targetResult = postData['targetResult']
+    gapwidth = 5 if targetResult == 0 else 5 * targetResult
     L = Laplace(b)
     D = []
-    for x in np.linspace(-5 * targetResult, 5 * targetResult, 1000):
+    for x in np.linspace(-gapwidth, gapwidth, 1000):
         D.append([x + targetResult, L.Laplace_DV_f(x)])
+    # p = laplace_DV_P([], B)
     return JsonResponse({'distribution': D})
 
 

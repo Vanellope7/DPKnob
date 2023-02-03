@@ -1,12 +1,13 @@
 # 接收文件，返回数据
 import itertools
+import math
 import time
 from functools import reduce
 
 import pandas as pd
 
 from RiskTree.Class import DataCoder
-from RiskTree.NodeRiskFunc import getNodeRisk, getNodeRiskRatio
+from RiskTree.NodeRiskFunc import getNodeRisk, getChildNodeRiskRatio
 from tools.utils import laplace_DV_P
 
 
@@ -117,6 +118,7 @@ def getCodedData(data, DCs):
 
 def BFS(values, lattice, n):
     BSTMap = {}
+    RiskRatioMap = {}
     for q in lattice:
         GroupMap = {}
         indices = getCubeByIndices(q)
@@ -133,10 +135,11 @@ def BFS(values, lattice, n):
             if len(GroupMap[key]) == 1:
                 index = GroupMap[key][0]
                 BSTMap[q].add(index)
-    return BSTMap
+        RiskRatioMap[q] = [len(BSTMap[q]), len(GroupMap)]
+    return BSTMap, RiskRatioMap
 
 
-def makeTree(indices, BSTMap, n, m, bitmap, NodeRiskRatio):
+def makeTree(indices, m, bitmap, RiskRatioMap, childNodeRiskRatio):
     # print(BSTMap)
     ret = []
     dimensions = [i for i in range(m) if i not in indices]
@@ -145,8 +148,8 @@ def makeTree(indices, BSTMap, n, m, bitmap, NodeRiskRatio):
         ret.append({
                 'indices': indices + [dimension],
                 'name': new_bitmap,
-                'childNodeRiskPie': NodeRiskRatio[new_bitmap],
-                'curNodeRiskPie': [len(BSTMap[new_bitmap]), n - len(BSTMap[new_bitmap])],
+                'childNodeRiskPie': childNodeRiskRatio[new_bitmap],
+                'curNodeRiskPie': RiskRatioMap[str(new_bitmap)],
                 'children': [],
                 'val': 1
             })
@@ -160,13 +163,11 @@ def indices2bitmap(indices):
     return ret
 
 
-def getRiskRecord(filename, attrList, indices, RiskMap):
+def getRiskRecord(filename, attrList, indices, RiskRatioMap):
     R = pd.read_csv('data/{0}'.format(filename))
     keepAttr = map(lambda d: d['Name'], attrList)
     BSTMap = {}
-    rBSTMap = {}
     R = R[keepAttr]
-    # R.drop(columns=dropColumns, inplace=True)
     R.fillna(0, inplace=True)
     n = R.shape[0]
     m = R.shape[1]
@@ -176,18 +177,18 @@ def getRiskRecord(filename, attrList, indices, RiskMap):
     getCodedData(R, DCs)
     values = R.values
     lattice = ConstructLattice(bitmap, m)
-    if RiskMap == -1:
-        BSTMap, RiskMap = getNodeRisk(values) #遍历了全部记录
-    else:
-        BSTMap = BFS(values, lattice, n)
-
-    NodeRiskRatio = getNodeRiskRatio(lattice, RiskMap, m)
+    riskRecord = set()
+    if RiskRatioMap == -1:
+        BSTMap, RiskRatioMap, riskRecord = getNodeRisk(values) #遍历了全部记录
+    riskRecord = list(riskRecord)
+    childNodeRiskRatio = getChildNodeRiskRatio(lattice, RiskRatioMap, m)
+    print(RiskRatioMap, '\n',childNodeRiskRatio)
     tree = {
         'indices': indices,
         'name': bitmap,
         'childNodeRiskPie': [0, 0],
         'curNodeRiskPie': [0, n],
-        'children': makeTree(indices, BSTMap, n, m, bitmap, NodeRiskRatio)
+        'children': makeTree(indices, m, bitmap, RiskRatioMap, childNodeRiskRatio)
     }
     end_time = time.time()
     run_time = end_time - start_time
@@ -200,49 +201,33 @@ def getRiskRecord(filename, attrList, indices, RiskMap):
         'treeData': tree,
         'run_time': run_time,
         'Indices': indices,
-        'RiskMap': RiskMap,
-        'BSTMap': BSTMap
+        'RiskRatioMap': RiskRatioMap,
+        'BSTMap': BSTMap,
+        'riskRecord': riskRecord
     }
     return json_data
 
-def getAvgRiskP(filename, attr, deviation, attrParams, epsilon, BSTMap, type, sensitivity):
+def getAvgRiskP(filename, attr, deviationRatio, attrParams, epsilon, riskRecord, type, sensitivity):
     R = pd.read_csv('data/{0}'.format(filename))
+    R.fillna(0, inplace=True)
     R = R[attr]
-    attrExposureP = list(map(lambda d: float(d['Exposure Probability']), attrParams))
     b = sensitivity / epsilon
+    barData = {}
     # count类型时, 数值型和类别型一致
     if type == 'count':
         deviation = '-'
 
-    if deviation == '-': #类别型数据
-        riskPSum = 0
-        riskSum = 0
-        for bitmap in BSTMap.keys():
-            bitmap = int(bitmap)
-            indices = getCubeByIndices(bitmap)
-            exposeP = 1
-            for index in indices:
-                exposeP *= attrExposureP[index]
-            riskP = exposeP * (laplace_DV_P([-0.5, 0], b) + 0.5)
-            riskPSum += riskP * len(BSTMap[bitmap])
-            riskSum += len(BSTMap[bitmap])
-        return riskPSum / riskSum
+
+    if attrParams['Type'] != 'numerical': #类别型数据
+        return laplace_DV_P([0, 0.5], b) + 0.5
     else: #数值型数据
-        deviation = float(deviation)
-        riskPSum = 0
-        riskSum = 0
-        for bitmap in BSTMap.keys():
-            curRiskSum = len(BSTMap[bitmap])
-            if curRiskSum == 0:
-                continue
-            bitmap = int(bitmap)
-            indices = getCubeByIndices(bitmap)
-            exposeP = 1
-            for index in indices:
-                exposeP *= attrExposureP[index]
-            riskP = exposeP * laplace_DV_P([-deviation, deviation], b)
-            riskPSum += riskP * curRiskSum
-            riskSum += curRiskSum
-        return riskPSum / riskSum
+        for i in range(10):
+            barData[i] = 0
+        for index in riskRecord:
+            deviation = R[index] * deviationRatio
+            p = laplace_DV_P([-deviation, deviation], b)
+            key = math.floor(p * 100) // 10
+            barData[key] += 1
+        return barData
 
 

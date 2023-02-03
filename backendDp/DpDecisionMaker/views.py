@@ -14,6 +14,7 @@ def UpdateEpsilonWithPrivacy(request):
     isCount = postData['QueryType'] == 'count'
     d = postData['Deviation']  # 偏差值
     SRT = postData['SRT']  # 置信值
+    curB = postData['b']
     left = 1e-200
     right = 100
     precision = 1e-5
@@ -21,8 +22,10 @@ def UpdateEpsilonWithPrivacy(request):
         b = binarySearch(left, right, precision, func=laplace_DV_P, params=[0, 0.5], target=SRT - 0.5)
     else:
         b = binarySearch(left, right, precision, func=laplace_DV_P, params=[-d, d], target=SRT)
-    epsilon = round(b / Sensitivity, 2)
-    return JsonResponse({'epsilon': epsilon})
+    print('SRT:'+ str(laplace_DV_P([-d, d], b)))
+    epsilon = round(Sensitivity / b, 2)
+    dp = laplace_DV_P([-d, d], curB)  # deviation p
+    return JsonResponse({'epsilon': epsilon, 'dp': dp})
 
 
 def UpdateEpsilonWithAccuracy(request):
@@ -33,8 +36,12 @@ def UpdateEpsilonWithAccuracy(request):
     left = 1e-200
     right = 100
     precision = 1e-5
-    b = binarySearch(left, right, precision, func=laplace_P, params=[-d, d], target=SRT)
-    epsilon = round(b / Sensitivity, 2)
+    isCount = postData['QueryType'] == 'count'
+    if isCount:
+        b = binarySearch(left, right, precision, func=laplace_P, params=[0, 0.5], target=SRT - 0.5)
+    else:
+        b = binarySearch(left, right, precision, func=laplace_P, params=[-d, d], target=SRT)
+    epsilon = round(Sensitivity / b, 2)
     print(epsilon, Sensitivity)
     return JsonResponse({'epsilon': epsilon})
 

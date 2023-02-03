@@ -30,7 +30,7 @@ class DFProcessor:
         queryDF = df.query(queryStr) if queryStr else df
         return queryDF
 
-    def getSensitivity(self, way):
+    def getCurSensitivity(self, way):
         df = self.sensitivityDF
         Sensitivity = 1
         if way == 'sum':
@@ -39,6 +39,18 @@ class DFProcessor:
             Sensitivity = df.max()[self.attr] / len(self._queryDF[self.attr])
         elif way == 'count':
             Sensitivity = 1
+        return Sensitivity
+
+    def getSensitivity(self, way):
+        dfs = [self._df, self._queryDF]
+        Sensitivity = []
+        for df in dfs:
+            if way == 'sum':
+                Sensitivity.append(df.max()[self.attr])
+            elif way == 'mean':
+                Sensitivity.append(df.max()[self.attr] / len(self._queryDF[self.attr]))
+            elif way == 'count':
+                Sensitivity.append(1)
         return Sensitivity
 
 

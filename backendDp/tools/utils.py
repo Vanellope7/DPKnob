@@ -19,7 +19,9 @@ def laplace_P(interval, b):
 
 def laplace_DV_P(interval, b):
     L = Laplace(b)
-    return L.Laplace_DV_F(interval[1]) - L.Laplace_DV_F(interval[0])
+    p1 = L.Laplace_DV_F(interval[1])
+    p2 = L.Laplace_DV_F(interval[0])
+    return p1 - p2
 
 
 def binarySearch(left, right, precision, func, params, target):

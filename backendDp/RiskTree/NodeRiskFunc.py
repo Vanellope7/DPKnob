@@ -92,11 +92,14 @@ def getCodedData(data, DCs):
         data[column] = data[column].map(lambda x: DCs[i].enCoder(x))
 
 
-def GenerateCandidateTupleIndex(q, n, childrenMap, BSTMap):
+def GenerateCandidateTupleIndex(q, n, childrenMap, BSTMap, RiskRatioMap):
     children = childrenMap.get(q, [])
     CandidateTuple = set(range(n))
+    pruning_node = set()
     for child in children:
-        CandidateTuple -= BSTMap[child]
+        pruning_node = BSTMap[child] | pruning_node
+    CandidateTuple -= pruning_node
+    RiskRatioMap[str(q)] = [len(pruning_node), 0]
     return CandidateTuple
 
 
@@ -105,12 +108,14 @@ def getNodeRisk(values):
     m, n = len(values[0]), len(values)
     lattice = ConstructLattice(m, 3)
     BSTMap = {}
+    riskRecord = set()
+    RiskRatioMap = {}
     # 创建节点相关关系,比如AB的字节点是A 和 B,可以对A和B的BST剪枝
     childrenMap = getChildrenMap(lattice)
     for q in lattice:
         GroupMap = {}
         indices = getCubeByIndices(q)
-        candidateTuple = GenerateCandidateTupleIndex(q, n, childrenMap, BSTMap)
+        candidateTuple = GenerateCandidateTupleIndex(q, n, childrenMap, BSTMap, RiskRatioMap)
 
         for i in candidateTuple:
             key = ''
@@ -124,24 +129,21 @@ def getNodeRisk(values):
             if len(GroupMap[key]) == 1:
                 index = GroupMap[key][0]
                 BSTMap[q].add(index)
+                riskRecord.add(index)
+        RiskRatioMap[str(q)][0] += len(BSTMap[q])
+        RiskRatioMap[str(q)][1] += len(GroupMap) - len(BSTMap[q])
 
-    RiskMap = {}
-    for key in BSTMap.keys():
-        RiskMap[str(key)] = True if len(BSTMap[key]) > 0 else False #list(BSTMap[key])
-    return BSTMap, RiskMap
+    return BSTMap, RiskRatioMap, riskRecord
 
 
-def getNodeRiskRatio(bitmaps, RiskMap, m):
-    NodeRiskRatio = {}
+def getChildNodeRiskRatio(bitmaps, RiskRatioMap, m):
+    ChildNodeRiskRatio = {}
     lattice = ConstructLattice(m, 3)
     for target in bitmaps:
-        NodeRiskRatio[target] = [0, 0]
+        ChildNodeRiskRatio[target] = [0, 0]
         for q in lattice:
-            if binaryInclusion(q, target):
-                NodeRiskRatio[target][1] += 1
-                if RiskMap[str(q)]:
-                    NodeRiskRatio[target][0] += 1
-        if NodeRiskRatio[target][0] == 0 and NodeRiskRatio[target][1] == 0:
-            NodeRiskRatio[target][1] += 1
-    return NodeRiskRatio
+            if len(getCubeByIndices(q)) == 3 and binaryInclusion(q, target):
+                ChildNodeRiskRatio[target][0] += RiskRatioMap[str(q)][0]
+                ChildNodeRiskRatio[target][1] += RiskRatioMap[str(q)][1]
+    return ChildNodeRiskRatio
 
