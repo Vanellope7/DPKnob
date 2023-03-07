@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Title</title>
+  <script src="axios.min.js"></script>
+  <script src="vue.js"></script>
+  <script src="d3@7.js"></script>
+
+  <div id="app">
+    <button @click="RiskTree" style="position: absolute">画树</button>
+    <svg id="tree" style="margin-top: 50px"></svg>
+  </div>
+</head>
+<body>
+  <script>
+
+    const App = new Vue({
+      el: '#app',
+      data: {
+        curFile: 'titanic_clean.csv',
+        attrList: [],
+        NonIdAttrs: [0, 1, 2, 3, 4, 5, 6, 8, 9],
+        treeData: {},
+        treeFunc: {}
+      },
+      methods: {
+        getSelectedAttrInfo() {
+          axios({
+            url: 'http://127.0.0.1:8000/RiskTree/AttrParams/',
+            method: 'post',
+            data: {
+              'filename': this.curFile,
+              'keepAttr': this.NonIdAttrs
+            }
+          }).then((response) => {
+            this.attrList = response.data.data;
+          })
+        },
+        MakeTree(nodes, links) {
+          let generator = d3
+              .linkHorizontal()
+              .x(function(d) {
+                return d.y;
+              })
+              .y(function(d) {
+                return d.x;
+              });
+          let TreeLinkG = d3.select(".container .TreeLinkG");
+          let TreeNodeG = d3.select(".container .TreeNodeG");
+          let TreeLink_DATA = TreeLinkG
+              .selectAll(".TreeLinkPath")
+              .data(links);
+          // 移除旧边
+          TreeLink_DATA.exit().remove();
+          // 添加新边
+          TreeLink_DATA
+              .enter()
+              .append("path")
+              .attr("d", function(d) {
+                let start = { x: d.source.x, y: d.source.y };
+                let end = { x: d.target.x, y: d.target.y };
+                return generator({ source: start, target: end });
+              })
+              .attr('class', 'TreeLinkPath')
+              .attr("fill", "none")
+              .attr("stroke", "#000")
+              .attr("stroke-width", 1);
+          // 统一边位置
+          TreeLinkG
+              .selectAll(".TreeLinkPath")
+              .attr("d", function(d) {
+                let start = { x: d.source.x, y: d.source.y };
+                let end = { x: d.target.x, y: d.target.y };
+                return generator({ source: start, target: end });
+              });
+
+          let TreeNode_DATA = TreeNodeG
+              .selectAll(".TreeNodePie")
+              .data(nodes);
+
+          let Pie = TreeNode_DATA
+              .enter()
+              .append("g")
+              .attr("class", 'TreeNodePie')
+              .attr("transform", function(d) {
+                let cx = d.x;
+                let cy = d.y;
+                return "translate(" + cy + "," + cx + ")";
+              });
+          d3.selectAll('.TreeNodePie')
+              .attr("transform", function(d) {
+                let cx = d.x;
+                let cy = d.y;
+                return "translate(" + cy + "," + cx + ")";
+              })
+              .on('click', (e, d) => {
+                  this.ClickNode(d);
+                });
+
+          let outerRadius = 20;	//外半径
+          let innerRadius = 0;	//内半径，为0则中间没有空白
+
+          let arc = d3.arc()	//弧生成器
+              .innerRadius(innerRadius)	//设置内半径
+              .outerRadius(outerRadius);	//设置外半径
+
+          let color = ['#d35400', '#81ecec'];
+
+          let arcs = Pie.selectAll(".pie_path")//g用于把相关元素进行组合的容器元素
+              .data(d => d3.pie()(d.data.pie))
+              .enter()
+              .append("g")
+              .attr('class', 'pie_path')
+              .attr("transform","translate("+ 0 +","+ 0 +")")
+
+
+          arcs
+              .append("path")
+              .attr("fill",function(d,i){
+                return color[i];
+              })
+              .attr("d",function(d){
+                return arc(d);
+              });
+
+          // arcs.append("text")
+          //     .attr("transform",function(d){
+          //       return "translate(" + arc.centroid(d) + ")";
+          //     })
+          //     .attr("text-anchor","middle")
+          //     .text(function(d) {
+          //       return d.data;
+          //     })
+
+
+
+          //绘制文字
+          Pie.append("text")
+              .attr("x", function(d) {
+                return -40;
+              })
+              .attr("y", -20)
+              .attr("dy", 10)
+              .style('font-size', '10px')
+              .text(function(d) {
+                let bitmap = d.data.name;
+                if(bitmap === 0) {
+                  return 'ALL';
+                }
+                else {
+                  let i = 1;
+                  let ret = '';
+                  while(bitmap) {
+                    let x = bitmap & 1;
+                    if (x === 1) {
+                      ret += String.fromCharCode(i + 64)
+                    }
+                    i += 1;
+                    bitmap = bitmap >> 1
+                  }
+                  return ret
+                }
+              });
+        },
+        ClickNode(d) {
+          axios({
+            url: 'http://127.0.0.1:8000/RiskTree/RiskTreeData/',
+            method: 'post',
+            data: {
+              'filename': 'titanic_clean.csv',
+              'attrList': this.attrList,
+              'bitmap': d.data.name
+            }
+          }).then((response) => {
+            d.data.children = response.data.treeData.children;
+
+            let newTreeData = this.treeFunc(d3.hierarchy(this.treeData).sum(function (d) {
+              return d.val;
+            }));
+            let Nodes = newTreeData.descendants();
+            let Links = newTreeData.links();
+            this.MakeTree(Nodes, Links);
+          })
+        },
+        RiskTree() {
+          axios({
+            url: 'http://127.0.0.1:8000/RiskTree/RiskTreeData/',
+            method: 'post',
+            data: {
+              'filename': 'titanic_clean.csv',
+              'attrList': this.attrList,
+              'bitmap': 0
+            }
+          }).then((response) => {
+            let data = response.data;
+            this.treeData = data.treeData;
+            console.log(data)
+            d3.selectAll('#tree > *').remove();
+            //定义边界
+            let margin = { top: 90, bottom: 0, left: 10, right: 0 };
+
+            let width=1000;
+            let height=600;
+            let svg = d3
+                .select("#tree")
+                .attr("width", width + "px")
+                .attr("height", height + "px");
+
+            let container = svg
+                .append("g")
+                .attr("class", 'container')
+                .attr("transform", "translate(" + margin.top + "," + margin.left + ")");
+
+            let TreeLinkG = container.append("g").attr("class", 'TreeLinkG')
+            let gs = container.append("g").attr("class", 'TreeNodeG')
+            let hierarchyData = d3.hierarchy(data.treeData).sum(function(d) {
+              return d.val;
+            });
+            this.treeFunc = d3
+                .tree()
+                .size([width - 400, height - 200])
+                .separation(function(a, b) {
+                  return (a.parent === b.parent ? 1 : 2);
+                });
+
+            let treeData = this.treeFunc(hierarchyData);
+            let nodes = treeData.descendants();
+            let links = treeData.links();
+            this.MakeTree(nodes, links);
+          })
+        }
+      },
+      mounted() {
+        this.getSelectedAttrInfo()
+      }
+    })
+  </script>
+</body>
+</html>

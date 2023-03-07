@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Title</title>
+  <script src="d3@7.js"></script>
+  <script src="jquery-3.6.1.min.js"></script>
+</head>
+<body>
+  <select class="selectData" style="position: absolute">
+    <option>case0-初始顺序.json</option>
+    <option>case1(1)-数值型在前，类别型在后.json</option>
+    <option>case1(2)-类别型在前，数值型在后.json</option>
+    <option>case2(1)-数值型(方差排序)在前，类别型在后.json</option>
+    <option>case2(2)-类别型在前，数值型(方差排序)在后.json</option>
+    <option>case3(1)-数值型在前，类别型(异众比率)在后.json</option>
+    <option>case3(2)-类别型(异众比率)在前，数值型在后.json</option>
+    <option>case4(1)-【统一指标-异众指数】.json</option>
+    <option>case4(2)-【统一指标-离散距离】.json</option>
+  </select>
+
+  <div style="position: absolute; left: 500px">时间： <span id="timeVal"></span>   </div>
+  <div style="position: absolute; left: 700px">节点数： <span id="nodeVal"></span>   </div>
+  <svg id="tree" style="margin-top: 50px"></svg>
+  <script>
+    $('.selectData').change(function() {
+
+      let filename = $(this).val()
+      d3.selectAll('#tree > *').remove();
+
+      // d3.json(`data.json`)
+      d3.json(`tree/${filename}`)
+          .then(data => {
+            $('#timeVal').text(data.run_time.toFixed(2))
+
+            //定义边界
+            var margin = { top: 90, bottom: 0, left: 10, right: 0 };
+
+            var width=1500;
+            var height=700;
+            var svg = d3
+                .select("#tree")
+                .attr("width", width + "px")
+                .attr("height", height + "px");
+
+            var g = svg
+                .append("g")
+                .attr("transform", "translate(" + margin.top + "," + margin.left + ")");
+
+            var scale = svg
+                .append("g")
+                .attr("transform", "translate(" + margin.top + "," + margin.left + ")");
+
+            // 创建一个层级布局
+            var hierarchyData = d3.hierarchy(data.data).sum(function(d) {
+              return d.val;
+            });
+            $('#nodeVal').text(hierarchyData.value)
+            // 创建一个树状图
+            var tree = d3
+                .tree()
+                .size([height - 50, width - 200])
+                .separation(function(a, b) {
+                  return (a.parent === b.parent ? 1 : 2) / a.depth;
+                });
+
+            var treeData = tree(hierarchyData);
+            console.log(treeData)
+            var nodes = treeData.descendants();
+            var links = treeData.links();
+            var generator = d3
+                .linkHorizontal()
+                .x(function(d) {
+                  return d.y;
+                })
+                .y(function(d) {
+                  return d.x;
+                });
+            g.append("g")
+                .selectAll("path")
+                .data(links)
+                .enter()
+                .append("path")
+                .attr("d", function(d) {
+                  var start = { x: d.source.x, y: d.source.y };
+                  var end = { x: d.target.x, y: d.target.y };
+                  return generator({ source: start, target: end });
+                })
+                .attr("fill", "none")
+                .attr("stroke", "#000")
+                .attr("stroke-width", 1);
+            var gs = g
+                .append("g")
+                .selectAll("g")
+                .data(nodes)
+                .enter()
+                .append("g")
+                .attr("class", 'gs')
+                .attr("transform", function(d) {
+                  var cx = d.x;
+                  var cy = d.y;
+                  return "translate(" + cy + "," + cx + ")";
+                });
+            //绘制 饼状图节点
+            // gs.append("circle")
+            //     .attr("r", 6)
+            //     .attr("fill", "white")
+            //     .attr("stroke", "#000")
+            //     .attr("stroke-width", 1)
+            //     .on("mouseover", function(d) {   //交互
+            //       d3.select(this)
+            //           .attr("stroke", "skyblue")
+            //           .attr("stroke-width", 2)
+            //     })
+            //     .on("mouseout",function(){
+            //       d3.select(this)
+            //           .attr("stroke", "#000")
+            //           .attr("stroke-width", 1)
+            //     })
+
+
+            var outerRadius = 50;	//外半径
+            var innerRadius = 0;	//内半径，为0则中间没有空白
+
+            var arc = d3.arc()	//弧生成器
+                .innerRadius(innerRadius)	//设置内半径
+                .outerRadius(outerRadius);	//设置外半径
+
+            var color = ['red', 'green'];
+
+            var arcs = gs.selectAll("g")//g用于把相关元素进行组合的容器元素
+                .data(d => d3.pie()(d.data.pie))
+                .enter()
+                .append("g")
+                .attr('class', 'pie_path')
+                .attr("transform","translate("+ 0 +","+ 0 +")");
+
+            arcs
+                .append("path")
+                .attr("fill",function(d,i){
+                  return color[i];
+                })
+                .attr("d",function(d){
+                  return arc(d);
+                });
+
+
+            arcs.append("text")
+                .attr("transform",function(d){
+                  return "translate(" + arc.centroid(d) + ")";
+                })
+                .attr("text-anchor","middle")
+                .text(function(d) {
+                  return d.data;
+                })
+
+
+
+            //绘制文字
+            gs.append("text")
+                .attr("x", function(d) {
+                  return d.children ? -20 : 10;
+                })
+                .attr("y", -5)
+                .attr("dy", 10)
+                .style('font-size', '10px')
+                .text(function(d) {
+                  return d.data.name;
+                })
+                .on("mouseover", function(d) {    //交互
+                  d3.select(this)
+                      .attr("fill", "red")
+                })
+                .on("mouseout",function(){
+                  d3.select(this)
+                      .attr("fill", "#000")
+                })
+          })
+    })
+
+
+
+
+
+  </script>
+</body>
+</html>
