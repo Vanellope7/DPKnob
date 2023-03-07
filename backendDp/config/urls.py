@@ -2,10 +2,6 @@ from django.contrib import admin
 from django.urls import path, include
 
 from BaseDp.views import listorders
-<<<<<<< HEAD
-from DpDecisionMaker.views import getEpsilon
-=======
->>>>>>> ec03867 (initial)
 
 urlpatterns = [
     path('admin/', admin.site.urls),

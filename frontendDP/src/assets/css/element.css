@@ -21,11 +21,8 @@
 
 .el-table .cell {
     text-overflow: clip !important;
-<<<<<<< HEAD
-=======
 }
 
 .el-input-group__prepend {
     padding: 5px !important;
->>>>>>> ec03867 (initial)
 }

@@ -1,8 +1,3 @@
-<<<<<<< HEAD
-from django.test import TestCase
-
-# Create your tests here.
-=======
 import math
 
 import numpy as np
@@ -43,4 +38,3 @@ print(laplace_DV_P([x, y], b1))
 # f = lambda d: x(d, 2, 2)
 # f(2)
 # f(3)
->>>>>>> ec03867 (initial)

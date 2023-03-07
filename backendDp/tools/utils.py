@@ -1,8 +1,5 @@
-<<<<<<< HEAD
-=======
 import numpy as np
 
->>>>>>> ec03867 (initial)
 from tools.StatisticsWithPrivacy import StatisticsWithPrivacy
 from tools.Laplace import Laplace
 
@@ -29,8 +26,6 @@ def laplace_DV_P(interval, b):
     return p1 - p2
 
 
-<<<<<<< HEAD
-=======
 def laplace_DP_f2(z, b1, b2):
     nz = -np.abs(z)
     return (1 / (4 * (b1 + b2))) * np.exp(nz / b1) + (1 / (4 * (b1 + b2))) * np.exp(nz / b2) \
@@ -52,7 +47,6 @@ def laplace_DV_P2(interval, b1, b2):
 
 
 
->>>>>>> ec03867 (initial)
 def binarySearch(left, right, precision, func, params, target):
     while right - left >= precision:
         mid = (left + right) / 2

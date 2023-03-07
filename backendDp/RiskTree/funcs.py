@@ -2,25 +2,16 @@
 import itertools
 import math
 import time
-<<<<<<< HEAD
-from functools import reduce
-
-=======
 from collections import defaultdict
 from functools import reduce
 
 import numpy as np
->>>>>>> ec03867 (initial)
 import pandas as pd
 
 from RiskTree.Class import DataCoder
 from RiskTree.NodeRiskFunc import getNodeRisk, getChildNodeRiskRatio
-<<<<<<< HEAD
-from tools.utils import laplace_DV_P
-=======
 from tools.df_processor import DFProcessor
 from tools.utils import laplace_DV_P, laplace_DV_P2
->>>>>>> ec03867 (initial)
 
 
 def key2string(key, DataCoder):
@@ -34,10 +25,6 @@ def key2string(key, DataCoder):
     return ret
 
 
-<<<<<<< HEAD
-
-=======
->>>>>>> ec03867 (initial)
 def classifyAttr(df, attrs):
     non_id_attr = []
     n = df.shape[0]
@@ -113,11 +100,7 @@ def getCubeByIndices(x):
     while x:
         c = x & 1
         if c == 1:
-<<<<<<< HEAD
-           indices.append(i)
-=======
             indices.append(i)
->>>>>>> ec03867 (initial)
         i += 1
         x = x >> 1
     return indices
@@ -165,15 +148,6 @@ def makeTree(indices, m, bitmap, RiskRatioMap, childNodeRiskRatio):
     for dimension in dimensions:
         new_bitmap = bitmap + (1 << dimension)
         ret.append({
-<<<<<<< HEAD
-                'indices': indices + [dimension],
-                'name': new_bitmap,
-                'childNodeRiskPie': childNodeRiskRatio[new_bitmap],
-                'curNodeRiskPie': RiskRatioMap[str(new_bitmap)],
-                'children': [],
-                'val': 1
-            })
-=======
             'indices': indices + [dimension],
             'name': new_bitmap,
             'childNodeRiskPie': childNodeRiskRatio[new_bitmap],
@@ -181,7 +155,6 @@ def makeTree(indices, m, bitmap, RiskRatioMap, childNodeRiskRatio):
             'children': [],
             'val': 1
         })
->>>>>>> ec03867 (initial)
     return ret
 
 
@@ -196,10 +169,7 @@ def getRiskRecord(filename, attrList, indices, RiskRatioMap):
     R = pd.read_csv('data/{0}'.format(filename))
     keepAttr = map(lambda d: d['Name'], attrList)
     BSTMap = {}
-<<<<<<< HEAD
-=======
     BSTKeyMap = defaultdict(list)
->>>>>>> ec03867 (initial)
     R = R[keepAttr]
     R.fillna(0, inplace=True)
     n = R.shape[0]
@@ -212,17 +182,10 @@ def getRiskRecord(filename, attrList, indices, RiskRatioMap):
     lattice = ConstructLattice(bitmap, m)
     riskRecord = set()
     if RiskRatioMap == -1:
-<<<<<<< HEAD
-        BSTMap, RiskRatioMap, riskRecord = getNodeRisk(values) #遍历了全部记录
-    riskRecord = list(riskRecord)
-    childNodeRiskRatio = getChildNodeRiskRatio(lattice, RiskRatioMap, m)
-    print(RiskRatioMap, '\n',childNodeRiskRatio)
-=======
         BSTMap, BSTKeyMap, RiskRatioMap, riskRecord = getNodeRisk(values)  # 遍历了全部记录
     riskRecord = list(riskRecord)
     childNodeRiskRatio = getChildNodeRiskRatio(lattice, RiskRatioMap, m)
     print(RiskRatioMap, '\n', childNodeRiskRatio)
->>>>>>> ec03867 (initial)
     tree = {
         'indices': indices,
         'name': bitmap,
@@ -243,40 +206,11 @@ def getRiskRecord(filename, attrList, indices, RiskRatioMap):
         'Indices': indices,
         'RiskRatioMap': RiskRatioMap,
         'BSTMap': BSTMap,
-<<<<<<< HEAD
-=======
         'BSTKeyMap': BSTKeyMap,
->>>>>>> ec03867 (initial)
         'riskRecord': riskRecord
     }
     return json_data
 
-<<<<<<< HEAD
-def getAvgRiskP(filename, attr, deviationRatio, attrParams, epsilon, riskRecord, type, sensitivity):
-    R = pd.read_csv('data/{0}'.format(filename))
-    R.fillna(0, inplace=True)
-    R = R[attr]
-    b = sensitivity / epsilon
-    barData = {}
-    # count类型时, 数值型和类别型一致
-    if type == 'count':
-        deviation = '-'
-
-
-    if attrParams['Type'] != 'numerical': #类别型数据
-        return laplace_DV_P([0, 0.5], b) + 0.5
-    else: #数值型数据
-        for i in range(10):
-            barData[i] = 0
-        for index in riskRecord:
-            deviation = R[index] * deviationRatio
-            p = laplace_DV_P([-deviation, deviation], b)
-            key = math.floor(p * 100) // 10
-            barData[key] += 1
-        return barData
-
-
-=======
 
 def keys2condition(AttrsKeyMap, dc_indices, dc_keys):
     conditions = {}
@@ -429,4 +363,3 @@ def getAvgRiskP(filename, attr, attrParams, epsilon, attrOption, sensitivity, at
                 sumRisk += minAttrRiskP * attackRisk
                 cnt += 1
         return {'sum': sumRet, 'count': [attackRisk, sumRisk / cnt]}
->>>>>>> ec03867 (initial)

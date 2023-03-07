@@ -5,11 +5,7 @@ from . import views
 urlpatterns = [
     # path('GetEpsilon/', getEpsilon),
     path('UpdateEpsilonWithPrivacy/', views.UpdateEpsilonWithPrivacy),
-<<<<<<< HEAD
-    path('UpdateEpsilonWithAccuracy/', views.UpdateEpsilonWithAccuracy)
-=======
     path('UpdateEpsilonWithAccuracy/', views.UpdateEpsilonWithAccuracy),
     path('GetAccuracyDeviationP/', views.GetAccuracyDeviationP),
     path('GetPrivacyDeviationP/', views.GetPrivacyDeviationP)
->>>>>>> ec03867 (initial)
 ]

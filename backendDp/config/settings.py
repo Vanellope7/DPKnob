@@ -53,11 +53,7 @@ MIDDLEWARE = [
 
 CORS_ORIGIN_WHITELIST = (
     'http://localhost:8081',
-<<<<<<< HEAD
-    'http://localhost:8800',
-=======
     'http://localhost:8080',
->>>>>>> ec03867 (initial)
 )
 CORS_ALLOW_CREDENTIALS = True  # 允许携带cookie
 ROOT_URLCONF = 'config.urls'

@@ -12,10 +12,7 @@
     "core-js": "^3.6.5",
     "d3": "^7.6.1",
     "element-plus": "^2.2.19",
-<<<<<<< HEAD
-=======
     "save-svg-as-png": "^1.4.17",
->>>>>>> ec03867 (initial)
     "v-fit-columns": "^0.2.0",
     "vue": "^3.0.0",
     "vue-router": "^4.1.6"

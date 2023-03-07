@@ -6,14 +6,6 @@ import statistics as s
 
 
 class DFProcessor:
-<<<<<<< HEAD
-    def __init__(self, data_filepath, attr, QueryCondition, sensitivityWay, attrParams = None):
-        self._df = pd.read_csv('data/' + data_filepath, sep=",")
-        self._df.fillna(0 ,inplace=True)
-        self._queryDF = self.getSliceDF(self._df, QueryCondition)
-        self.attr = attr
-        self.attrParams = attrParams
-=======
     def __init__(self, data_filepath, attr, QueryCondition, sensitivityWay, attrParams=None):
         self._df = pd.read_csv('data/' + data_filepath, sep=",")
         self._df.fillna(0, inplace=True)
@@ -23,7 +15,6 @@ class DFProcessor:
         # if type(self.attrParams) == list:
 
         self.attr = attr
->>>>>>> ec03867 (initial)
         self.sensitivityDF = self._df if sensitivityWay == 'Global sensitivity' else self._queryDF
 
     def getSliceDF(self, df, QueryCondition):
@@ -32,15 +23,9 @@ class DFProcessor:
             # 数值型
             if isinstance(QueryCondition[attr][0], list):
                 # 可能有多个条件
-<<<<<<< HEAD
-                temp = [] #先收集, 最后再join
-                for scope in QueryCondition[attr]:
-                    temp.append('(({0} >= {1}) & ({0} <= {2}))'.format(attr, scope[0], scope[1]))
-=======
                 temp = []  # 先收集, 最后再join
                 for scope in QueryCondition[attr]:
                     temp.append('(({0} >= {1}) & ({0} < {2}))'.format(attr, scope[0], scope[1]))
->>>>>>> ec03867 (initial)
                 queryList.append('(' + '|'.join(temp) + ')')
             else:
                 queryList.append('({0} in {1})'.format(attr, str(QueryCondition[attr])))
@@ -48,15 +33,6 @@ class DFProcessor:
         queryDF = df.query(queryStr) if queryStr else df
         return queryDF
 
-<<<<<<< HEAD
-    def getCurSensitivity(self, way):
-        df = self.sensitivityDF
-        Sensitivity = 1
-        if way == 'sum':
-            Sensitivity = df.max()[self.attr]
-        elif way == 'mean':
-            Sensitivity = df.max()[self.attr] / len(self._queryDF[self.attr])
-=======
     def getSumAndCountSens(self, type):
         df = self.sensitivityDF
         if type == 'numerical':
@@ -73,7 +49,6 @@ class DFProcessor:
         Sensitivity = 1
         if way == 'sum':
             Sensitivity = df.max(numeric_only=True)[self.attr]
->>>>>>> ec03867 (initial)
         elif way == 'count':
             Sensitivity = 1
         return Sensitivity
@@ -84,19 +59,10 @@ class DFProcessor:
         for df in dfs:
             if way == 'sum':
                 Sensitivity.append(df.max()[self.attr])
-<<<<<<< HEAD
-            elif way == 'mean':
-                Sensitivity.append(df.max()[self.attr] / len(self._queryDF[self.attr]))
-=======
->>>>>>> ec03867 (initial)
             elif way == 'count':
                 Sensitivity.append(1)
         return Sensitivity
 
-<<<<<<< HEAD
-
-=======
->>>>>>> ec03867 (initial)
     def getN(self) -> Union[int, float]:
         return len(self._queryDF[self.attr])
 
@@ -172,8 +138,3 @@ class DFProcessor:
         utility = pd.Series(utility)
         res = utility.idxmax()
         return res, utility, sensitivity
-<<<<<<< HEAD
-
-
-=======
->>>>>>> ec03867 (initial)

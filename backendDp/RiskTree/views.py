@@ -17,10 +17,7 @@ from RiskTree.Class import JsonEncoder
 from RiskTree.NodeRiskFunc import getNodeRisk
 from RiskTree.funcs import classifyAttr, getRiskRecord, getCubeByIndices, getDataCoder, key2string, indices2bitmap, \
     getAvgRiskP
-<<<<<<< HEAD
-=======
 from tools.df_processor import DFProcessor
->>>>>>> ec03867 (initial)
 
 
 def fileReceive(request):
@@ -186,11 +183,8 @@ def DataDistribution(request):
     attrs = map(lambda d: d['Name'], attrList)
     R = R[attrs]
     R.fillna(0, inplace=True)
-<<<<<<< HEAD
-=======
     m = R.shape[1]
     n = R.shape[0]
->>>>>>> ec03867 (initial)
     DCs = getDataCoder(R, attrList)
     ScaleData = []
 
@@ -214,8 +208,6 @@ def DataDistribution(request):
 
     getCodedData(R, DCs)
     values = R.values
-<<<<<<< HEAD
-=======
     AttrsKeyMap = []
     for d in range(m):
         temp = {'data': []}
@@ -227,7 +219,6 @@ def DataDistribution(request):
         temp['type'] = DCs[d].type
 
         AttrsKeyMap.append(temp)
->>>>>>> ec03867 (initial)
 
     MaxMap = {}
     for i, attr in enumerate(attrList):
@@ -235,9 +226,6 @@ def DataDistribution(request):
             MaxMap[attr['Name']] = DCs[i].params['Max']
         else:
             MaxMap[attr['Name']] = max(R[attr['Name']].value_counts().tolist())
-<<<<<<< HEAD
-    return JsonResponse({'ScaleData': ScaleData, 'TableData': TableData, 'TableKeyData': values, 'MaxMap': MaxMap}, encoder=JsonEncoder)
-=======
     return JsonResponse({'ScaleData': ScaleData,
                          'TableData': TableData,
                          'TableKeyData': values,
@@ -261,18 +249,10 @@ def getSensitivity(request):
         sensitivityMap[attr]['sum'] = sensitivity[0]
         sensitivityMap[attr]['count'] = sensitivity[1]
     return JsonResponse({'sensitivityMap': sensitivityMap}, encoder=JsonEncoder)
->>>>>>> ec03867 (initial)
 
 
 def AvgRiskP(request):
     postData = json.loads(request.body)
-<<<<<<< HEAD
-    filename, deviationRatio, riskRecord = postData['filename'], postData['deviationRatio'], postData['riskRecord']
-    attrParams, attr, epsilon = postData['attrParams'], postData['attr'], postData['epsilon']
-    BSTMap, type, sensitivity = postData['BSTMap'], postData['type'], postData['sensitivity']
-    avgRiskP = getAvgRiskP(filename, attr, deviationRatio, attrParams, epsilon, riskRecord, type, sensitivity)
-    return JsonResponse({'avgRiskP': avgRiskP})
-=======
     filename, attrOption = postData['filename'], postData['attrOption']
     attrParams, attr, epsilon = postData['attrParams'], postData['attr'], postData['epsilon']
     BSTMap, sensitivity, attrRisk = postData['BSTMap'], postData['sensitivity'], postData['attrRisk']
@@ -299,4 +279,3 @@ def initializeSchemeHistory(request):
         # dp = laplace_P([-d, d], b)
         ret.append(avgRiskP)
     return JsonResponse({'data': ret})
->>>>>>> ec03867 (initial)

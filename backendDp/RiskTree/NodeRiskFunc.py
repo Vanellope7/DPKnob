@@ -1,8 +1,5 @@
-<<<<<<< HEAD
-=======
 from collections import defaultdict
 
->>>>>>> ec03867 (initial)
 from RiskTree.Class import DataCoder
 
 
@@ -113,10 +110,7 @@ def getNodeRisk(values):
     m, n = len(values[0]), len(values)
     lattice = ConstructLattice(m, 3)
     BSTMap = {}
-<<<<<<< HEAD
-=======
     BSTKeyMap = defaultdict(list)
->>>>>>> ec03867 (initial)
     riskRecord = set()
     RiskRatioMap = {}
     # 创建节点相关关系,比如AB的字节点是A 和 B,可以对A和B的BST剪枝
@@ -130,13 +124,8 @@ def getNodeRisk(values):
             key = ''
             for j in indices:
                 key += '-' + str(values[i][j])
-<<<<<<< HEAD
-                GroupMap[key] = GroupMap.get(key, [])
-                GroupMap[key].append(i)
-=======
             GroupMap[key] = GroupMap.get(key, [])
             GroupMap[key].append(i)
->>>>>>> ec03867 (initial)
 
         BSTMap[q] = set()
         for key in GroupMap.keys():
@@ -144,12 +133,6 @@ def getNodeRisk(values):
                 index = GroupMap[key][0]
                 BSTMap[q].add(index)
                 riskRecord.add(index)
-<<<<<<< HEAD
-        RiskRatioMap[str(q)][0] += len(BSTMap[q])
-        RiskRatioMap[str(q)][1] += len(GroupMap) - len(BSTMap[q])
-
-    return BSTMap, RiskRatioMap, riskRecord
-=======
 
                 keys = key.split('-')
                 keys.pop(0)
@@ -164,7 +147,6 @@ def getNodeRisk(values):
         RiskRatioMap[str(q)][1] += len(GroupMap) - len(BSTMap[q])
 
     return BSTMap, BSTKeyMap, RiskRatioMap, riskRecord
->>>>>>> ec03867 (initial)
 
 
 def getChildNodeRiskRatio(bitmaps, RiskRatioMap, m):

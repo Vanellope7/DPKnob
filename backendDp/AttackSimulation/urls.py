@@ -6,9 +6,6 @@ urlpatterns = [
     path('GetNoisyDataDistribution/', views.GetNoisyDataDistribution),
     path('GetPrivacyDistribution/', views.GetPrivacyDistribution),
     path('GetOppositeProbability/', views.GetOppositeProbability),
-<<<<<<< HEAD
-=======
     path('GetGeneralQueryDistribution/', views.GetGeneralQueryDistribution),
 
->>>>>>> ec03867 (initial)
 ]
