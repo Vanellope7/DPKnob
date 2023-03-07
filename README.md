@@ -4,9 +4,6 @@
 
 项目的前后端框架分别为Vue和Django，
 
-<<<<<<< HEAD
-## 运行
-=======
 ## Prerequisites
 
 如果运行出现问题，请更换环境版本如下
@@ -16,7 +13,5 @@
 + python 3.9
 
 ## Usage
->>>>>>> ec03867 (initial)
-
 双击start.bat即可。
 
