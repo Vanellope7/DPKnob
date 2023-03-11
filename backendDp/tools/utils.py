@@ -46,7 +46,6 @@ def laplace_DV_P2(interval, b1, b2):
     return p1 - p2
 
 
-
 def binarySearch(left, right, precision, func, params, target):
     while right - left >= precision:
         mid = (left + right) / 2

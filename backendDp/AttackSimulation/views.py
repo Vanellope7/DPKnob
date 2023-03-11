@@ -22,7 +22,8 @@ def GetNoisyDataDistribution(request):
     scope = [res - sensitivity * 2, res + sensitivity * 2] if postData['scope'] == -1 else postData['scope']
     for x in np.linspace(scope[0], scope[1], 1000):
         D.append([x, L.laplace_f(x - res)])
-    return JsonResponse({'distribution': D, 'b': b, 'sensitivity': sensitivity, 'ExactVal': res, 'sensitivities': sensitivities, 'scope': scope}, encoder=JsonEncoder)
+    ret = {'distribution': D, 'b': b, 'sensitivity': sensitivity, 'ExactVal': res, 'sensitivities': sensitivities, 'scope': scope}
+    return JsonResponse(ret, encoder=JsonEncoder)
 
 
 def GetPrivacyDistribution(request):

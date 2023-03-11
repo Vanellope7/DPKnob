@@ -45,14 +45,11 @@ def UpdateEpsilonWithAccuracy(request):
     d = postData['Deviation']  # 偏差值
     SRT = postData['SRT']  # 置信值
     left = 1e-200
-    right = 100
+    right = 1000000
     precision = 1e-5
     curB = postData['b']
     isCount = postData['QueryType'] == 'count'
-    if isCount:
-        b = binarySearch(left, right, precision, func=laplace_P, params=[0, 0.5], target=SRT - 0.5)
-    else:
-        b = binarySearch(left, right, precision, func=laplace_P, params=[-d, d], target=SRT)
+    b = binarySearch(left, right, precision, func=laplace_P, params=[-d, d], target=SRT)
     if b == 0:
         b = 0.01
     epsilon = round(Sensitivity / b, 2)

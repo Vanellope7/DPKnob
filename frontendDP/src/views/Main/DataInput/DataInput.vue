@@ -24,14 +24,15 @@
       style="width: 100%; height: calc(50% - 30px)">
     <el-table-column type="selection" width="30" v-if="attrListColumn.length !== 0" />
     <el-table-column
-        v-for="attr in attrListColumn"
+        v-for="(attr, i) in attrListColumn"
         :prop="attr"
         :label="attr"
+        :width="columnWidth[i]"
         align="center">
       <template #default="scope">
         <div class="item">
           <el-input class="item__input" v-model="scope.row[attr]" placeholder="请输入内容"></el-input>
-          <div :class="{item__txt: true, 'item__txt--hover': this.editProp.includes(attr)}">{{scope.row[attr]}}</div>
+          <div :class="{item__txt: true, 'item__txt--hover': editProp.includes(attr)}">{{scope.row[attr]}}</div>
         </div>
       </template>
     </el-table-column>
@@ -63,7 +64,8 @@
         multipleSelection: [],
 
         // 需要编辑的属性
-        editProp: ['Search Min Edge', 'Search Max Edge', 'DAable Window Width', 'Exposure Probability'],
+        editProp: ['Search Min Edge', 'Search Max Edge', 'DAable Window Width', 'Leakage Probability'],
+        columnWidth: [100, 120, 80, 120, 150, 150, 175, 160],
         // 保存进入编辑的cell
         clickCellMap: {}
       }

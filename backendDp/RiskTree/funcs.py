@@ -302,7 +302,7 @@ def getAvgRiskP(filename, attr, attrParams, epsilon, attrOption, sensitivity, at
                     minAttrRiskP = attrRisk[str(bitmap)]
                 else:
                     for attrIndex in indices:
-                        minAttrRiskP = min(minAttrRiskP, attrRisk[str(attrIndex)])
+                        minAttrRiskP = min(minAttrRiskP, attrRisk[str(1 << attrIndex)])
                 sumRisk += minAttrRiskP * attackRisk
                 cnt += 1
         return {'sum': '-', 'count': [attackRisk, sumRisk / cnt]}
@@ -324,7 +324,7 @@ def getAvgRiskP(filename, attr, attrParams, epsilon, attrOption, sensitivity, at
                         minAttrRiskP = attrRisk[str(bitmap)]
                     else:
                         for attrIndex in indices:
-                            minAttrRiskP = min(minAttrRiskP, attrRisk[str(attrIndex)])
+                            minAttrRiskP = min(minAttrRiskP, attrRisk[str(1 << attrIndex)])
                     # deviation = sensitivity['sum'] * deviationRatio
                     deviation = attrR[index] * deviationRatio
                     if SensitivityCalculationWay == 'Local sensitivity':
@@ -359,7 +359,7 @@ def getAvgRiskP(filename, attr, attrParams, epsilon, attrOption, sensitivity, at
                     minAttrRiskP = attrRisk[str(bitmap)]
                 else:
                     for attrIndex in indices:
-                        minAttrRiskP = min(minAttrRiskP, attrRisk[str(attrIndex)])
+                        minAttrRiskP = min(minAttrRiskP, attrRisk[str(1 << attrIndex)])
                 sumRisk += minAttrRiskP * attackRisk
                 cnt += 1
         return {'sum': sumRet, 'count': [attackRisk, sumRisk / cnt]}

@@ -35,7 +35,7 @@ def fileReceive(request):
     AttrList = []
     # 获取非ID属性名列表供用户选择
     attr = df.columns.tolist()
-    non_id_attr = classifyAttr(df, attr)
+    non_id_attr = attr # classifyAttr(df, attr) 区分非主键属性还存在缺陷 (像一些数值型数据的重复率也是0，无法判别，手动判别）
     for attr in non_id_attr:
         dtype = df[attr].dtype
         if dtype == 'object':
@@ -50,6 +50,7 @@ def fileReceive(request):
                 'Search Min Edge': '-',
                 'Search Max Edge': '-',
                 'DAable Window Width': '-',
+                'Leakage Probability': 0.5
             })
         else:
             # 数值型
@@ -67,6 +68,7 @@ def fileReceive(request):
                 'Search Min Edge': MinEdge,
                 'Search Max Edge': MaxEdge,
                 'DAable Window Width': width,
+                'Leakage Probability': 0.5
             })
     return JsonResponse({'data': AttrList})
 
