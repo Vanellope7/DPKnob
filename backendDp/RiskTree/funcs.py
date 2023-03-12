@@ -69,9 +69,10 @@ def getDataCoder(data, attrList):
         # 首先得知道数据的范围
         type = attrList[i]['Type']
         if type == 'numerical':
-            Width = attrList[i]['DAable Window Width']
-            MaxEdge = attrList[i]['Search Max Edge']
-            MinEdge = attrList[i]['Search Min Edge']
+            Width = attrList[i]['Minimum Granularity']
+            splitEdge = attrList[i]['Search Range'].split('~')
+            MinEdge = float(splitEdge[0])
+            MaxEdge = float(splitEdge[1])
             Width = float(Width) if isinstance(Width, str) else Width
             MaxEdge = float(MaxEdge) if isinstance(MaxEdge, str) else MaxEdge
             MinEdge = float(MinEdge) if isinstance(MinEdge, str) else MinEdge
@@ -221,20 +222,27 @@ def keys2condition(AttrsKeyMap, dc_indices, dc_keys):
         dc_text = texts[keys.index(int(float(dc_key)))]
         if type == 'numerical':
             conditions[dc_index] = list(map(lambda d: float(d), dc_text.split('~')))
-            otherConditions[dc_index] = [list(map(lambda d: float(d), text.split('~'))) for text in texts if text != dc_text]
+            otherConditions[dc_index] = [list(map(lambda d: float(d), text.split('~'))) for text in texts if
+                                         text != dc_text]
         else:
             conditions[dc_index] = dc_text
             otherConditions[dc_index] = [text for text in texts if text != dc_text]
     return conditions, otherConditions
 
 
-def getMinLocalSensitivityMap(AttrsKeyMap, BSTKeyMap, attrOption, filename, attr):
-    minSensitivityMap = {}
-    for bstIndex in BSTKeyMap.keys():
+def getMinLocalSensitivityMap(AttrsKeyMap, BSTKeyMap, attrOption, filename, attr, index=-1, attrIndex=-1):
+    minSensitivityMap = defaultdict(dict)
+    group = BSTKeyMap.keys() if index == -1 else [str(index)]
+    for bstIndex in group:
         minSensitivity = float('inf')
+        firstSensitivityWay = {}
+        secondSensitivityWay = {}
+        minSensitivityDataIndices = []
         # differencing condition
         for dc in BSTKeyMap[bstIndex]:
             dc_indices = dc['indices']
+            if attrIndex in dc_indices:
+                continue
             dc_keys = dc['keys']
             dcConditions, otherConditions = keys2condition(AttrsKeyMap, dc_indices, dc_keys)
 
@@ -258,17 +266,29 @@ def getMinLocalSensitivityMap(AttrsKeyMap, BSTKeyMap, attrOption, filename, attr
                 dcCondition = otherConditions[dc_index]
                 dcAttr = attrOption[dc_index]
                 for dc in dcCondition:
-                    QueryCondition = {dcAttr: [dc]}
+                    secondQueryCondition = {dcAttr: [dc]}
+                    firstQueryCondition = {dcAttr: [dc, dcConditions[dc_index]]}
                     for n_attr, condition in zip(normalAttr, normalCondition):
-                        QueryCondition[n_attr] = [condition]
+                        secondQueryCondition[n_attr] = [condition]
+                        firstQueryCondition[n_attr] = [condition]
                     dfp = DFProcessor(filename, attr,
-                                      QueryCondition, 'Local sensitivity')
+                                      secondQueryCondition, 'Local sensitivity')
                     sensitivity = dfp.getCurSensitivity('sum')
+                    dataIndices = dfp.getCurDataIndices();
                     if sensitivity == 'None':
                         continue
                     else:
-                        minSensitivity = min(minSensitivity, sensitivity)
-        minSensitivityMap[int(bstIndex)] = minSensitivity
+                        if minSensitivity > sensitivity:
+                            minSensitivity = sensitivity
+                            firstSensitivityWay = firstQueryCondition
+                            secondSensitivityWay = secondQueryCondition
+                            minSensitivityDataIndices = dataIndices
+        minSensitivityMap[int(bstIndex)] = {
+            'sensitivity': minSensitivity,
+            'firstSensitivityWay': firstSensitivityWay,
+            'secondSensitivityWay': secondSensitivityWay,
+            'minSensitivityDataIndices': minSensitivityDataIndices
+        }
     return minSensitivityMap
 
 
@@ -277,16 +297,17 @@ def getMinLocalSensitivityMap(AttrsKeyMap, BSTKeyMap, attrOption, filename, attr
 #     return float(s.values[1])
 
 
-def getAvgRiskP(filename, attr, attrParams, epsilon, attrOption, sensitivity, attrRisk, BSTMap, SensitivityCalculationWay, AttrsKeyMap, BSTKeyMap):
+def getAvgRiskP(filename, attr, attrParams, epsilon, attrOption, sensitivity, attrRisk, BSTMap,
+                SensitivityCalculationWay, AttrsKeyMap, BSTKeyMap, minSensitivityMap={}):
+    getNewMinSensitivity = minSensitivityMap == {}
     R = pd.read_csv('data/{0}'.format(filename))
     R.fillna(0, inplace=True)
     attrR = R[attr]
     attrIndex = attrOption.index(attr)
     barData = {}
-    minSensitivityMap = {}
     # query2S = 0
-    if SensitivityCalculationWay == 'Local sensitivity':
-        minSensitivityMap = getMinLocalSensitivityMap(AttrsKeyMap, BSTKeyMap, attrOption, filename, attr)
+    # if SensitivityCalculationWay == 'Local sensitivity' and getNewMinSensitivity:
+    #     minSensitivityMap = getMinLocalSensitivityMap(AttrsKeyMap, BSTKeyMap, attrOption, filename, attr)
 
     if attrParams['Type'] != 'numerical':  # 类别型数据
         attackRisk = laplace_DV_P([0, 0.5], sensitivity['count'] / epsilon) + 0.5
@@ -328,8 +349,8 @@ def getAvgRiskP(filename, attr, attrParams, epsilon, attrOption, sensitivity, at
                     # deviation = sensitivity['sum'] * deviationRatio
                     deviation = attrR[index] * deviationRatio
                     if SensitivityCalculationWay == 'Local sensitivity':
-                        query1S = max(minSensitivityMap[index], attrR[index])
-                        query2S = minSensitivityMap[index]
+                        query1S = max(minSensitivityMap[index]['sensitivity'], attrR[index])
+                        query2S = minSensitivityMap[index]['sensitivity']
                         if query1S == query2S:
                             p = laplace_DV_P([-deviation, deviation], query1S / epsilon)
                         else:
@@ -343,7 +364,7 @@ def getAvgRiskP(filename, attr, attrParams, epsilon, attrOption, sensitivity, at
                 barData[key] += 1
                 riskNum += 1
             sumRet['avgRiskList'].append(math.fsum(pMap.values()) / len(pMap))
-            sumRet['attackRiskList'].append(list(map(lambda d: d/riskNum, barData.values())))
+            sumRet['attackRiskList'].append(list(map(lambda d: d / riskNum, barData.values())))
 
         # 求count的结果
         attackRisk = laplace_DV_P([0, 0.5], sensitivity['count'] / epsilon) + 0.5

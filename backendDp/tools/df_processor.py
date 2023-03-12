@@ -53,6 +53,10 @@ class DFProcessor:
             Sensitivity = 1
         return Sensitivity
 
+    def getCurDataIndices(self):
+        df = self.sensitivityDF
+        return df.index.tolist();
+
     def getSensitivity(self, way):
         dfs = [self._df, self._queryDF]
         Sensitivity = []

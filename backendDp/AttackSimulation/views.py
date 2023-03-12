@@ -13,16 +13,17 @@ def GetNoisyDataDistribution(request):
     postData = json.loads(request.body)
     dfp = DFProcessor(postData['FileName'], postData['QueryAttr'],
                       postData['QueryCondition'], postData['sensitivityWay'], postData['Interval'])
-    res = eval("dfp.{0}()".format(postData['QueryType']))
+    res = float(eval("dfp.{0}()".format(postData['QueryType'])))
     sensitivities = dfp.getSensitivity(postData['QueryType'])
     sensitivity = dfp.getCurSensitivity(postData['QueryType'])
-    b = sensitivity / postData['epsilon']
+    b = float(sensitivity / postData['epsilon'])
     L = Laplace(b)
     D = []
     scope = [res - sensitivity * 2, res + sensitivity * 2] if postData['scope'] == -1 else postData['scope']
     for x in np.linspace(scope[0], scope[1], 1000):
         D.append([x, L.laplace_f(x - res)])
     ret = {'distribution': D, 'b': b, 'sensitivity': sensitivity, 'ExactVal': res, 'sensitivities': sensitivities, 'scope': scope}
+    # 不是编码器的问题,就是返回了str  数据有问题才会返回字符串!!!! 比如 list里出现了不同类型的,以为浏览器也转型不了
     return JsonResponse(ret, encoder=JsonEncoder)
 
 

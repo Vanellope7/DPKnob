@@ -23,16 +23,16 @@
               <text x="105" y="14" text-anchor="end">0</text>
               <text x="195" y="14">1</text>
               <g class="attrRiskSlider" transform="translate(0,0)">
-                <line x1="105" x2="115" y1="5" y2="5" stroke="#666" stroke-width="2px"></line>
-                <line x1="110" x2="110" y1="5" y2="15" stroke="#666" stroke-width="3px"></line>
-                <line x1="105" x2="115" y1="15" y2="15" stroke="#666" stroke-width="2px"></line>
+                <line x1="105" x2="115" y1="2" y2="2" stroke="#666" stroke-width="2px"></line>
+                <line x1="110" x2="110" y1="2" y2="18" stroke="#666" stroke-width="3px"></line>
+                <line x1="105" x2="115" y1="18" y2="18" stroke="#666" stroke-width="2px"></line>
               </g>
               <text x="98" y="30">Leakage probability (p)</text>
             </svg>
 
             <svg id="AttributeSetTree"></svg>
             <el-input v-model="curAttrRiskStr"  class="attrRiskInput"
-                      style="position: absolute; width: 55px; height: 20px">
+                      style="position: absolute; width: 60px; height: 20px">
               <template #prepend>p:</template>
             </el-input>
           </div>
@@ -64,9 +64,11 @@
               </el-scrollbar>
             </div>
             <el-divider border-style="dashed" style="margin: 0; margin-top: 10px" />
-            <div id="CorrespondingSQLCommands">
+            <div id="CorrespondingSQLCommands" class="relativeDiv">
               <div class="SecondaryLabel" style="margin-bottom: 0">Corresponding SQL Commands</div>
-
+              <el-button type="primary" @click="switchSQL" class="convertSQLBtn blueBtn" v-if="SensitivityCalculationWay === 'Local sensitivity'">
+                <el-icon><Refresh /></el-icon>
+              </el-button>
               <div class="SQL_panel">
                 <div id="firstQuery" class="SQL">
                   <span id="firstSqlTitle" class="SqlTitle">1st query</span>
@@ -119,7 +121,8 @@
           />
         </div>
 
-        <svg id="DataDistribution" v-show="DataExplorationStatus === 'DD'"></svg>
+        <svg id="DataDistribution" v-show="DataExplorationStatus === 'DD'">
+        </svg>
         <el-table :data="DifferentialRecordTableData"
                   :row-style="rowStyle"
                   :header-cell-style="headerCellStyle"
@@ -247,7 +250,7 @@
             <span style="top: 1.5px" class="percentageMasker" :class="{hidden: !isPercentage1}">%</span>
             <el-button type="primary" @click="switchPercentage1" class="refreshBtn blueBtn">
               <el-icon><Refresh /></el-icon>
-              <span class="oppositeDeviation">{{ isPercentage1 ? PrivacyDeviationVal : PrivacyDeviationPercent + '%' }}</span>
+              <span class="oppositeDeviation">{{ isPercentage1 ? PrivacyDeviationVal.toFixed(0) : PrivacyDeviationPercent + '%' }}</span>
             </el-button>
 
           </div>
@@ -298,7 +301,7 @@
             <span style="top: 1.5px" class="percentageMasker" :class="{hidden: !isPercentage2}">%</span>
             <el-button type="primary" @click="switchPercentage2" class="refreshBtn blueBtn">
               <el-icon><Refresh /></el-icon>
-              <span class="oppositeDeviation">{{ isPercentage2 ? AccuracyDeviationVal : AccuracyDeviationPercent + '%' }}</span>
+              <span class="oppositeDeviation">{{ isPercentage2 ? AccuracyDeviationVal.toFixed(0) : AccuracyDeviationPercent + '%' }}</span>
             </el-button>
           </div>
           <div class="flexLayout">
@@ -314,22 +317,22 @@
             />
             <span class="percentageMasker">%</span>
           </div>
-          <el-button type="primary" class="rightEdgeBtn blueBtn" @click="Update2AE">Update &epsilon; <br v-if="QueryType !== 'count'" />to {{accuracyEpsilon}}</el-button>
+          <el-button type="primary" class="rightEdgeBtn blueBtn" @click="Update2AE">Update &epsilon; <br/>to {{accuracyEpsilon}}</el-button>
         </div>
       </div>
 
       <div id="AttackSimulationViews" class="SimulationViews">
         <svg id="FirstQuerySVG" class="AS_view QueryView">
 <!--          <text x="5" y="15">Attack queries</text>-->
-          <text x="5" y="15">Probability density</text>
+          <text x="5" y="15">{{'Probability density (*10^-' + this.QueryPDensityPrecision + ')'}}</text>
           <text x="170" y="30" style="text-anchor: end">Sensitivity</text>
-          <text x="170" y="45" style="text-anchor: end" :fill="colorMap['blue-normal']">1st: {{curSensitivity1}}</text>
-          <text x="170" y="60" style="text-anchor: end" :fill="colorMap['normal-grey']">2nd: {{curSensitivity2}}</text>
+          <text x="170" y="45" style="text-anchor: end" :fill="colorMap['blue-normal']">1st: {{curSensitivity1.toFixed(2)}}</text>
+          <text x="170" y="60" style="text-anchor: end" :fill="colorMap['normal-grey']">2nd: {{curSensitivity2.toFixed(2)}}</text>
           <text x="170" y="200" style="text-anchor: end">Query result</text>
         </svg>
         <svg id="DA_OutputSVG" class="AS_view QueryView">
 <!--          <text x="45" y="15">Inference result</text>-->
-          <text x="35" y="15">Probability density</text>
+          <text x="35" y="15">{{'Probability density (*10^-' + this.AttackPDensityPrecision + ')'}}</text>
 <!--          <text x="105" y="40" :fill="deviationP1 > AttackSRT ? colorMap['risk'] : colorMap['deep-grey']" style="text-anchor: middle">{{'Succ rate: ' + deviationP1.toFixed(3)}}</text>-->
           <line x1="28" y1="20" x2="28" y2="190" stroke-dasharray="3 2" stroke="#dcdfe6" stroke-width="1px" />
           <text x="200" y="200" style="text-anchor: end">Attack result</text>
@@ -353,7 +356,7 @@
           <span style="padding-left: 200px">Top attribute: </span>
           <el-select class="marginLeft10px"
                      size="small"
-                     v-model="TopAttr" placeholder="Select" style="width: 60px">
+                     v-model="TopAttr" placeholder="Select" style="width: 80px">
             <el-option
                 v-for="item in TopAttrOption"
                 :key="item"
@@ -667,6 +670,13 @@ export default {
         waitDeviationP2: {},
 
         AttrLockMap: {},
+
+        QueryPDensityPrecision: 0,
+        AttackPDensityPrecision: 0,
+        minSensitivityMap: {},
+        curDifferIndex: 0,
+        curQueryNodeD: {},
+        isMinSQL: false
       }
     },
     computed: {
@@ -814,7 +824,7 @@ export default {
           i = parseInt(i)
           let attr = this.QueryAttrOption[i];
           // 修改之后就变成str了
-          this.attrRiskMap[1 << i] = parseFloat(this.attrList[i]['Leakage Probability']);
+          this.attrRiskMap[1 << i] = parseInt(this.attrList[i]['Leakage Probability'].split('%')[0]) / 100;
           // this.SchemeHistoryEpsilon[attr] = [];
           this.AccuracyEpsilonHistory[attr] = {};
           this.AttrLockMap[attr] = -1;
@@ -1440,7 +1450,7 @@ export default {
               .text(d => {
                 let dim = d.data.dim;
                 let index = this.keyMap[dim].data.indexOf(d.data.key);
-                return this.keyMap[dim].text[index];
+                return this.convert2shortVersion(this.keyMap[dim].text[index]);
               });
 
 
@@ -1593,10 +1603,12 @@ export default {
 
       //平行坐标图方法
       clickQueryNode(d) {
+        this.isMinSQL = false;
         // 高亮节点
         d3.selectAll('.strokeRectNode').attr('stroke-width', 0);
         d3.selectAll('.strokeRectNode').filter(node => node === d).attr('stroke-width', '10px');
-
+        this.curDifferIndex = d.data.index[0];
+        this.curQueryNodeD = d;
 
         // 先不考虑单节点情况
         // 蓝色条件下的index集合
@@ -1718,9 +1730,9 @@ export default {
 
             let SQL_in_list = []
             for(let key of finalKeyList) {
-              SQL_in_list.push(`'${obj.text[obj.data.indexOf(key)]}'`)
+              SQL_in_list.push(`${obj.text[obj.data.indexOf(key)]}`)
             }
-            SecondQueryText += `<br/>AND <span class="redFont">${finalAttrName} IN (${SQL_in_list.join(', ')})</span>`;
+            SecondQueryText += `<br/>AND <span class="redFont">${finalAttrName} IN (${SQL_in_list.map(d => `'${d}'`).join(', ')})</span>`;
             this.SecondQueryCondition[finalAttrName] ? '' : this.SecondQueryCondition[finalAttrName] = [];
             this.SecondQueryCondition[finalAttrName].push(...SQL_in_list);
           }
@@ -1759,9 +1771,9 @@ export default {
             if(!largerCategoricalFlag) {
               let SQL_in_list = []
               for(let key of finalKeyList) {
-                SQL_in_list.push(`'${obj.text[obj.data.indexOf(key)]}'`)
+                SQL_in_list.push(`${obj.text[obj.data.indexOf(key)]}`)
               }
-              SecondQueryText += `<br/>AND <span class="redFont">${finalAttrName} IN (${SQL_in_list.join(', ')})</span>`;
+              SecondQueryText += `<br/>AND <span class="redFont">${finalAttrName} IN (${SQL_in_list.map(d => `'${d}'`).join(', ')})</span>`;
               this.SecondQueryCondition[finalAttrName] ? '' : this.SecondQueryCondition[finalAttrName] = [];
               this.SecondQueryCondition[finalAttrName].push(...SQL_in_list);
             }
@@ -1799,8 +1811,9 @@ export default {
             });
         let index = d.data.index[0];
         let finalData = this.TableData[index][finalAttrName];
+        // 差分标记点
         svg.select('.finalMaskCircle').remove();
-        svg.append('circle')
+        svg.select('.maskG').append('circle')
             .attr('class', 'finalMaskCircle')
             .attr('cx', this.scale_Xscale(finalAttr))
             .attr('cy', obj.type === 'numerical' ? this.scaleMap[finalAttrName](finalData) : this.scaleMap[finalAttrName](finalData) + this.scaleMap[finalAttrName].bandwidth() / 2)
@@ -2103,7 +2116,7 @@ export default {
         }
 
         svg.append("marker")
-            .attr("id", "arrow")
+            .attr("id", "ddarrow")
             .attr("markerUnits","strokeWidth")//设置为strokeWidth箭头会随着线的粗细发生变化
             .attr("viewBox", "0 0 12 12")//坐标系的区域
             .attr("refX", 6)//箭头坐标
@@ -2113,7 +2126,7 @@ export default {
             .attr("orient", "auto")//绘制方向，可设定为：auto（自动确认方向）和 角度值
             .append("path")
             .attr("d", "M2,2 L10,6 L2,10 L6,6 L2,2")//箭头的路径
-            .attr('fill', this.colorMap["normal-grey"]);//箭头颜色
+            .attr('fill', this.colorMap["deep-grey"]);//箭头颜色
 
 
         this.PCP_tick_func = []
@@ -2164,14 +2177,14 @@ export default {
             .attr('class', 'axis')
             .attr('transform', (d, k) => `translate(${scale_Xscale(k)}, ${0})`)
             .each(function(d, k) {
-              let tickfunc = d3.axisLeft().scale(scaleMap[d.name]).tickSize(0).ticks(5);
+              let tickfunc = d3.axisLeft().scale(scaleMap[d.name]).tickSize(0).ticks(5).tickFormat(d => d.toString());
               d3.select(this).call(tickfunc);
               that.PCP_tick_func.push(tickfunc)
             });
         svg.selectAll('.axis')
             .select('path')
-            .attr('stroke', this.colorMap["normal-grey"])
-            .attr("marker-end","url(#arrow)");
+            .attr('stroke', this.colorMap["deep-grey"])
+            .attr("marker-end","url(#ddarrow)");
 
         let DDHighlightRects = axisG.append('rect')
                                     .attr('class', 'DDHighlightRect')
@@ -2226,6 +2239,8 @@ export default {
                 }).then(response2 => {
                   let data1 = response1.data;
                   let data2 = response2.data;
+                  data1 = typeof data1 === 'string' ? JSON.parse(data1) : data1;
+                  data2 = typeof data2 === 'string' ? JSON.parse(data2) : data2;
                   this.ExactVal['firstQuery'] = data1.ExactVal;
                   this.ExactVal['secondQuery'] = data2.ExactVal;
                   this.curB = data1.b;
@@ -2339,9 +2354,28 @@ export default {
             .clamp(true);  //原因是定义域为止  暂时这么做为了保险
         let ymax = d3.max(lineData, d => d[1]);
         let ymin = d3.min(lineData, d => d[1]);
+        if(externalData.length !== 0) {
+          ymax = Math.max(ymax, d3.max(externalData, d => d[1]))
+          ymin = Math.max(ymin, d3.min(externalData, d => d[1]))
+        }
+
         let y = d3.scaleLinear()
             .domain([0, ymax])
             .range(yRange);
+
+        let cnt = 0;
+        let temp = ymax;
+        while(temp < 1) {
+          temp *= 10;
+          cnt += 1;
+        }
+        if(position === 'left') {
+          this.QueryPDensityPrecision = cnt;
+        }
+        else {
+          this.AttackPDensityPrecision = cnt;
+        }
+
         let cg = d3.line()
             .x(d => x(d[0]))
             .y(d => y(d[1]));
@@ -2371,7 +2405,8 @@ export default {
                 .attr('x', (xRange[1] + xRange[0]) / 2)
                 .attr('y', (yRange[1] + yRange[0]) / 2 + 20)
                 .style('text-anchor', 'middle')
-                .attr('fill', this.deviationP1 > this.AttackSRT ? this.colorMap['risk'] : this.colorMap['black'])
+                .attr('fill', this.colorMap['black'])
+                // .attr('fill', this.deviationP1 > this.AttackSRT ? this.colorMap['risk'] : this.colorMap['black'])
                 .text(`Succ rate: ${(this.deviationP1*100).toFixed(0)}%`);
             // deviationTextBgc.attr('width', deviation1Text.node().getComputedTextLength())
             //     .attr('height', 12)
@@ -2384,13 +2419,13 @@ export default {
 
         let trueVal = (lineData[0][0] + lineData[lineDataLen - 1][0]) / 2;
 
-        let xAxis = d3.axisBottom().scale(x).tickSizeOuter(0).ticks(3);
+        let xAxis = d3.axisBottom().scale(x).tickSizeOuter(0).ticks(3).tickFormat(d => this.convert2word(d));
         container.append("g")
             .attr("class", "x axis")
             .attr("transform", `translate(0, ${h - padding})`)
             .call(xAxis);
 
-        let yAxis = d3.axisLeft().scale(y).tickSizeOuter(0).ticks(3);
+        let yAxis = d3.axisLeft().scale(y).tickSizeOuter(0).ticks(3).tickFormat(d => `${d * Math.pow(10, cnt)}`);
         container.append("g")
             .attr("class", "y axis")
             .attr("transform", `translate(${position === 'right' ? 2 * padding - 10 : padding}, 0)`)
@@ -3016,7 +3051,8 @@ export default {
             'attrRisk': this.attrRiskMap,
             'SensitivityCalculationWay': this.SensitivityCalculationWay,
             'AttrsKeyMap': this.AttrsKeyMap,
-            'BSTKeyMap': this.BSTKeyMap
+            'BSTKeyMap': this.BSTKeyMap,
+            'minSensitivityMap': this.minSensitivityMap[attr]
           }
         }).then(response => {
           let data = response.data.data;
@@ -3162,6 +3198,272 @@ export default {
       unlockScheme(attr) {
         this.AttrLockMap[attr] = -1;
       },
+      convert2shortVersion(str) {
+        // 类别型
+        if(str.indexOf('~') === -1) return str;
+        let splitA = str.split('~');
+        let left = this.convert2word(parseFloat(splitA[0]));
+        let right = this.convert2word(parseFloat(splitA[1]));
+        return `${left}~${right}`;
+      },
+      convert2word(num) {
+        if(num > 10000) {
+          let t = num % 10000 === 0 ? 0 : 2;
+          return (num / 10000).toFixed(t) + 'w'
+        }
+        else if(num > 1000) {
+          let t = num % 1000 === 0 ? 0 : 2;
+          return (num / 1000).toFixed(t) + 'k'
+        }
+        return num.toString();
+      },
+      switchSQL() {
+        if(this.isMinSQL) {
+          this.clickQueryNode(this.curQueryNodeD);
+        }
+        else {
+          this.convertSQL2MinS();
+        }
+      },
+      convertSQL2MinS() {
+        this.isMinSQL = true;
+        // 获取当前目标的最小敏感度
+        axios({
+          url: 'http://127.0.0.1:8000/RiskTree/curMinSensitivityMap/',
+          method: 'post',
+          data: {
+            'filename': this.curFile,
+            'attrList': this.attrList,
+            'attrOption': this.QueryAttrOption,
+            'AttrsKeyMap': this.AttrsKeyMap,
+            'BSTKeyMap': this.BSTKeyMap,
+            'QueryAttr': this.QueryAttr,
+            'index': this.curDifferIndex,
+            'attrIndex': this.QueryAttrIndex
+          }
+        }).then((response) => {
+          let curMinSensitivityMap = response.data.minSensitivityMap;
+          d3.selectAll('.DDHighlightRect')
+              .style('opacity', 0);
+          for(let attr of Object.keys(curMinSensitivityMap.firstSensitivityWay)) {
+            d3.select(`#DDHighlightRect-${attr}`)
+                .style('opacity', 1);
+          }
+
+
+
+          console.log(this.minSensitivityMap);
+          let firstCondition = this.FirstQueryCondition = curMinSensitivityMap.firstSensitivityWay;
+          let secondCondition = this.SecondQueryCondition = curMinSensitivityMap.secondSensitivityWay;
+          let minSensitivityDataIndices = curMinSensitivityMap.minSensitivityDataIndices;
+          let firstQueryText = this.condition2Text(firstCondition);
+          let secondQueryText = this.condition2Text(secondCondition);
+          let maskData = [];
+          let differAttr, differAttrIndex;
+          for(let attr in secondCondition) {
+            if(firstCondition[attr].length === 2) {
+              differAttr = attr;
+              differAttrIndex = this.attrList.findIndex(d => d.Name === attr)
+            }
+            maskData.push({
+              'attr': attr,
+              'attrIndex': this.attrList.findIndex(d => d.Name === attr),
+              'scope': secondCondition[attr][0]
+            })
+          }
+          console.log(maskData);
+          let svg = d3.select('#DataDistribution');
+          // 红蓝线
+          this.OtherRecordNum = minSensitivityDataIndices.length;
+          this.DifferentialRecordNum = 1;
+          for(let d of this.LineData) {
+            d['highlight'] = false;
+          }
+          for(let i of minSensitivityDataIndices) {
+            this.LineData[i]['highlight'] = this.colorMap["blue-normal"];
+          }
+          this.LineData[this.curDifferIndex]['highlight'] = this.colorMap["risk"]
+          svg.selectAll('.cloneLineG').remove();
+
+
+          // 保证红线在蓝色上面
+          let blueCloneLinePath = svg.selectAll('.LineG')
+              .filter(d => d.highlight === this.colorMap["blue-normal"])
+              .select(function() {
+                return this.parentNode.insertBefore(this.cloneNode(true), null);
+              })
+              .attr('class', 'cloneLineG blueLine')
+
+          let resCloneLinePath = svg.selectAll('.LineG')
+              .filter(d => d.highlight === this.colorMap["risk"])
+              .select(function() {
+                return this.parentNode.insertBefore(this.cloneNode(true), null);
+              })
+              .attr('class', 'cloneLineG redLine')
+
+
+
+          svg.selectAll('.cloneLineG')
+              .select('path')
+              .attr('stroke', d => d.highlight)
+              .attr('stroke-opacity', d => d.highlight === this.colorMap["blue-normal"] ? 0.7 : 1.0)
+              .attr('stroke-width', d => d.highlight === this.colorMap["blue-normal"] ? 1 : 2);
+
+
+
+          d3.select("#FirstQueryText").html(firstQueryText)
+          d3.select("#SecondQueryText").html(secondQueryText)
+          // 绘制data distribution 的 黄色方块
+
+          let maskG = svg.select('.maskG');
+          let height = parseFloat(d3.select('#DataDistribution').style('height').split('px')[0]);
+          let padding = 20;
+          maskG.selectAll('.finalMaskG').remove();
+          maskG.selectAll('.MaskNodeG').remove();
+          maskG.selectAll('.finalMaskG').remove();
+          let MaskNodeG = maskG.selectAll('.MaskNodeG').data(maskData)
+               .join('g')
+               .attr('class', 'MaskNodeG')
+               .attr('transform', d => `translate(${this.scale_Xscale(d.attrIndex)}, ${0})`)
+          let offset = 3;
+          MaskNodeG.append('rect')
+              .attr("class", 'MaskNode')
+              .attr("x", 0)
+              .attr("y", d => {
+                if(typeof d.scope !== 'string') {
+                  return this.scaleMap[d.attr](d.scope[1]) + offset
+                }
+                else {
+                  return this.scaleMap[d.attr](d.scope)
+                }
+              })
+              .attr('width', '10px')
+              .attr("height", (d, k) => {
+                if(typeof d.scope !== 'string') {
+                  return this.scaleMap[d.attr](d.scope[0]) - this.scaleMap[d.attr](d.scope[1]) - offset
+                }
+                else {
+                  return this.scaleMap[d.attr].bandwidth();
+                }
+              })
+              .attr('fill', this.colorMap["selected"])
+              .style('stroke', 'none');
+
+
+          svg.select('.tickLine').selectAll('.TickLineG').remove();
+          svg.select('.tickLine').selectAll('.finalTickLineG').remove();
+          let TickLineG = svg.select('.tickLine')
+              .selectAll('.TickLineG')
+              .data(maskData)
+              .join('g')
+              .attr('class', 'TickLineG')
+              .attr('transform', d => `translate(${this.scale_Xscale(d.attrIndex)}, ${0})`)
+          // rect 上边界线
+          TickLineG.append('line')
+              .attr('stroke-width', '2px')
+              .attr('x1', 0)
+              .attr('x2', 10)
+              .attr('y1', (d, k) => {
+                if(typeof d.scope !== 'string') {
+                  return this.scaleMap[d.attr](d.scope[1]) + offset
+                }
+                else {
+                  return this.scaleMap[d.attr](d.scope)
+                }
+              })
+              .attr('y2', (d, k) => {
+                if(typeof d.scope !== 'string') {
+                  return this.scaleMap[d.attr](d.scope[1]) + offset
+                }
+                else {
+                  return this.scaleMap[d.attr](d.scope)
+                }
+              })
+              .style('stroke', this.colorMap["deep-grey"]);
+          // rect 中线
+          TickLineG.append('line')
+              .attr('stroke-width', '2px')
+              .attr('x1', 0)
+              .attr('x2', 0)
+              .attr('y1', (d, k) => {
+                if(typeof d.scope !== 'string') {
+                  return this.scaleMap[d.attr](d.scope[1]) + offset
+                }
+                else {
+                  return this.scaleMap[d.attr](d.scope)
+                }
+              })
+              .attr('y2', (d, k) => {
+                if(typeof d.scope !== 'string') {
+                  return this.scaleMap[d.attr](d.scope[0])
+                }
+                else {
+                  return this.scaleMap[d.attr](d.scope) + this.scaleMap[d.attr].bandwidth();
+                }
+              })
+              .style('stroke', this.colorMap["deep-grey"]);
+
+          // rect 下边界线
+          TickLineG.append('line')
+              .attr('stroke-width', '2px')
+              .attr('x1', 0)
+              .attr('x2', 10)
+              .attr('y1', (d, k) => {
+                if(typeof d.scope !== 'string') {
+                  return this.scaleMap[d.attr](d.scope[0])
+                }
+                else {
+                  return this.scaleMap[d.attr](d.scope) + this.scaleMap[d.attr].bandwidth();
+                }
+              })
+              .attr('y2', (d, k) => {
+                if(typeof d.scope !== 'string') {
+                  return this.scaleMap[d.attr](d.scope[0])
+                }
+                else {
+                  return this.scaleMap[d.attr](d.scope) + this.scaleMap[d.attr].bandwidth();
+                }
+              })
+              .style('stroke', this.colorMap["deep-grey"]);
+
+          // 差分标记点
+          let finalData = this.TableData[this.curDifferIndex][differAttr];
+          svg.select('.finalMaskCircle').remove();
+          maskG.append('circle')
+              .attr('class', 'finalMaskCircle')
+              .attr('cx', this.scale_Xscale(differAttrIndex))
+              .attr('cy', this.attrList[differAttrIndex].Type === 'numerical' ? this.scaleMap[differAttr](finalData) : this.scaleMap[differAttr](finalData) + this.scaleMap[differAttr].bandwidth() / 2)
+              .attr('fill', this.colorMap['risk'])
+              .attr('r', 5);
+          this.initializeAttackSimulationViews(this.curQueryNodeD);
+        })
+      },
+      condition2Text(condition) {
+        let text = 'WHERE ';
+        let textList = [];
+        for(let attr in condition) {
+          let attrType = this.attrList.filter(d => d.Name === attr)[0].Type;
+          let attrText;
+          let scope = condition[attr];
+          if(attrType === 'numerical') {
+            if (scope.length === 2) {
+              attrText = `<span class="blueFont">(${attr} BETWEEN ${scope[0][0]} AND ${scope[0][1]} OR ${attr} BETWEEN ${scope[1][0]} AND ${scope[1][1]})</span>`;
+            } else {
+              attrText = `<span class="blueFont">${attr} BETWEEN ${scope[0][0]} AND ${scope[0][1]}</span>`
+            }
+          }
+          else {
+            if (scope.length > 1) {
+              attrText = `<span class="blueFont">${attr} in (${scope.map(d => `'${d}'`).join(' ,')})</span>`;
+            } else {
+              attrText = `<span class="blueFont">${attr} = '${scope[0]}'</span>`
+            }
+          }
+          textList.push(attrText);
+        }
+        text += textList.join('<br/>AND ')
+        return text;
+      }
     },
     watch: {
       'PrivacyDeviationVal': {
@@ -3291,6 +3593,21 @@ export default {
           }).then((response) => {
             this.SchemeHistoryColumnSensitivity = response.data.sensitivityMap;
             this.initializeSchemeHistory();
+
+            // 初始化 minSensitivityMap
+            axios({
+              url: 'http://127.0.0.1:8000/RiskTree/minSensitivityMap/',
+              method: 'post',
+              data: {
+                'filename': this.curFile,
+                'attrList': this.attrList,
+                'attrOption': this.QueryAttrOption,
+                'AttrsKeyMap': this.AttrsKeyMap,
+                'BSTKeyMap': this.BSTKeyMap
+              }
+            }).then((response) => {
+              this.minSensitivityMap = response.data.minSensitivityMap;
+            })
           })
 
         },
@@ -3564,7 +3881,7 @@ export default {
 
   .SQLText {
     font-size: 10px;
-    width: calc(75% - 24px);
+    width: calc(75% - 30px);
   }
 
   .paddingLeft5px {
@@ -3650,7 +3967,7 @@ export default {
 
   #DQTreeContainer {
     width: 100%;
-    height: calc(100% - 37px - 40px - 30px - 120px - 10px - 10px);
+    height: calc(100% - 37px - 40px - 30px - 120px - 10px - 10px - 40px);
     overflow-x: hidden;
     overflow-y: hidden;
     position: relative;
@@ -3666,7 +3983,7 @@ export default {
     margin-top: 10px;
   }
   #CorrespondingSQLCommands {
-    height: 120px;
+    height: 160px;
   }
 
   #firstQuery {
@@ -3726,6 +4043,14 @@ export default {
     border-left: none;
   }
 
+  .convertSQLBtn {
+    position: absolute;
+    right: 20px;
+    top: 0;
+    height: 20px;
+    width: 25px;
+  }
+
 
 /****************************************/
   #SchemeHistory {
@@ -3758,7 +4083,7 @@ export default {
   }
 
   .DataInput {
-    width: 75%;
+    width: 72%;
     height: 70vh;
     margin: 0 auto;
     margin-top: 15px;
@@ -3970,5 +4295,10 @@ export default {
 
   .blueBtn {
     background-color: rgba(52, 152, 219,1.0);
+  }
+
+  .el-input-number.is-controls-right .el-input__wrapper {
+    padding-right: 25px !important;
+    padding-left: 0 !important;
   }
 </style>

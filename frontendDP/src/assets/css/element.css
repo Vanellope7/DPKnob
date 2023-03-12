@@ -26,3 +26,10 @@
 .el-input-group__prepend {
     padding: 5px !important;
 }
+.el-switch__label--left {
+    margin-right: 5px !important;
+}
+.el-switch__label--right {
+    margin-left: 5px !important;
+}
+

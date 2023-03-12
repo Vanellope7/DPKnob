@@ -64,8 +64,8 @@
         multipleSelection: [],
 
         // 需要编辑的属性
-        editProp: ['Search Min Edge', 'Search Max Edge', 'DAable Window Width', 'Leakage Probability'],
-        columnWidth: [100, 120, 80, 120, 150, 150, 175, 160],
+        editProp: ['Search Range', 'Minimum Granularity', 'Leakage Probability'],
+        columnWidth: [130, 120, 160, 120, 140, 170, 170],
         // 保存进入编辑的cell
         clickCellMap: {}
       }
@@ -167,6 +167,7 @@
 
 
   .item .item__input {
+    line-height: 25px;
     display: none;
     width: 100%;
     height: 100%;

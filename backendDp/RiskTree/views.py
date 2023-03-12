@@ -16,7 +16,7 @@ from RiskTree.BSTTreeFunc import getCodedData
 from RiskTree.Class import JsonEncoder
 from RiskTree.NodeRiskFunc import getNodeRisk
 from RiskTree.funcs import classifyAttr, getRiskRecord, getCubeByIndices, getDataCoder, key2string, indices2bitmap, \
-    getAvgRiskP
+    getAvgRiskP, getMinLocalSensitivityMap
 from tools.df_processor import DFProcessor
 
 
@@ -47,10 +47,9 @@ def fileReceive(request):
                 'Type': 'categorical',
                 'Range': Range,
                 'Range Width': len(Range),
-                'Search Min Edge': '-',
-                'Search Max Edge': '-',
-                'DAable Window Width': '-',
-                'Leakage Probability': 0.5
+                'Search Range': '-',
+                'Minimum Granularity': '-',
+                'Leakage Probability': '100%'
             })
         else:
             # 数值型
@@ -65,10 +64,9 @@ def fileReceive(request):
                 'Type': 'numerical',
                 'Range': "{0}~{1}".format(Min, Max),
                 'Range Width': Max - Min,
-                'Search Min Edge': MinEdge,
-                'Search Max Edge': MaxEdge,
-                'DAable Window Width': width,
-                'Leakage Probability': 0.5
+                'Search Range': '{0}~{1}'.format(MinEdge, MaxEdge),
+                'Minimum Granularity': width,
+                'Leakage Probability': '100%'
             })
     return JsonResponse({'data': AttrList})
 
@@ -258,8 +256,9 @@ def AvgRiskP(request):
     filename, attrOption = postData['filename'], postData['attrOption']
     attrParams, attr, epsilon = postData['attrParams'], postData['attr'], postData['epsilon']
     BSTMap, sensitivity, attrRisk = postData['BSTMap'], postData['sensitivity'], postData['attrRisk']
+    minSensitivityMap = postData['minSensitivityMap']
     SensitivityCalculationWay, AttrsKeyMap, BSTKeyMap = postData['SensitivityCalculationWay'], postData['AttrsKeyMap'], postData['BSTKeyMap']
-    avgRiskP = getAvgRiskP(filename, attr, attrParams, epsilon, attrOption, sensitivity, attrRisk, BSTMap, SensitivityCalculationWay, AttrsKeyMap, BSTKeyMap)
+    avgRiskP = getAvgRiskP(filename, attr, attrParams, epsilon, attrOption, sensitivity, attrRisk, BSTMap, SensitivityCalculationWay, AttrsKeyMap, BSTKeyMap, minSensitivityMap)
     return JsonResponse({'data': avgRiskP})
 
 
@@ -281,3 +280,25 @@ def initializeSchemeHistory(request):
         # dp = laplace_P([-d, d], b)
         ret.append(avgRiskP)
     return JsonResponse({'data': ret})
+
+
+def minSensitivityMap(request):
+    postData = json.loads(request.body)
+    attrList = postData['attrList']
+    filename, attrOption = postData['filename'], postData['attrOption']
+    AttrsKeyMap, BSTKeyMap = postData['AttrsKeyMap'], postData['BSTKeyMap']
+    minSensitivityMap = {}
+    for attr, attrParams in zip(attrOption, attrList):
+        if attrParams['Type'] == 'numerical':
+            minSensitivityMap[attr] = getMinLocalSensitivityMap(AttrsKeyMap, BSTKeyMap, attrOption, filename, attr)
+    return JsonResponse({'minSensitivityMap': minSensitivityMap})
+
+
+def curMinSensitivityMap(request):
+    postData = json.loads(request.body)
+    attrList, QueryAttr = postData['attrList'], postData['QueryAttr']
+    index, attrIndex = postData['index'], postData['attrIndex']
+    filename, attrOption = postData['filename'], postData['attrOption']
+    AttrsKeyMap, BSTKeyMap = postData['AttrsKeyMap'], postData['BSTKeyMap']
+    minSensitivityMap = getMinLocalSensitivityMap(AttrsKeyMap, BSTKeyMap, attrOption, filename, QueryAttr, index, attrIndex)
+    return JsonResponse({'minSensitivityMap': minSensitivityMap[index]})
