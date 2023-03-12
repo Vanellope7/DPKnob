@@ -17,4 +17,5 @@ test.py
 *.ntvs*
 *.njsproj
 *.sln
+*.pyc
 *.sw?
