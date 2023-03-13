@@ -19,7 +19,7 @@ def UpdateEpsilonWithPrivacy(request):
     attrRisk = postData['attrRisk']
     SRT /= attrRisk # 转化为攻击者成功概率
     left = 1e-200
-    right = 100000
+    right = 1000000
     precision = 1e-5
     func = laplace_DV_P if curB1 == curB2 else lambda interval, b1: laplace_DV_P2(interval, b1, b1/curB1*curB2)  # 保持b1 和 b2 的比例关系
     if isCount:
@@ -45,7 +45,7 @@ def UpdateEpsilonWithAccuracy(request):
     d = postData['Deviation']  # 偏差值
     SRT = postData['SRT']  # 置信值
     left = 1e-200
-    right = 1000000
+    right = 10000000
     precision = 1e-5
     curB = postData['b']
     isCount = postData['QueryType'] == 'count'

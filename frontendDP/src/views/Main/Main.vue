@@ -68,6 +68,7 @@
               <div class="SecondaryLabel" style="margin-bottom: 0">Corresponding SQL Commands</div>
               <el-button type="primary" @click="switchSQL" class="convertSQLBtn blueBtn" v-if="SensitivityCalculationWay === 'Local sensitivity'">
                 <el-icon><Refresh /></el-icon>
+                <span style="font-size: 12px">{{isMinSQL ? 'Roll back' : 'Highest risk'}}</span>
               </el-button>
               <div class="SQL_panel">
                 <div id="firstQuery" class="SQL">
@@ -326,8 +327,8 @@
 <!--          <text x="5" y="15">Attack queries</text>-->
           <text x="5" y="15">{{'Probability density (*10^-' + this.QueryPDensityPrecision + ')'}}</text>
           <text x="170" y="30" style="text-anchor: end">Sensitivity</text>
-          <text x="170" y="45" style="text-anchor: end" :fill="colorMap['blue-normal']">1st: {{curSensitivity1.toFixed(2)}}</text>
-          <text x="170" y="60" style="text-anchor: end" :fill="colorMap['normal-grey']">2nd: {{curSensitivity2.toFixed(2)}}</text>
+          <text x="170" y="45" style="text-anchor: end" :fill="colorMap['blue-normal']">1st: {{curSensitivity1.toFixed(0)}}</text>
+          <text x="170" y="60" style="text-anchor: end" :fill="colorMap['normal-grey']">2nd: {{curSensitivity2.toFixed(0)}}</text>
           <text x="170" y="200" style="text-anchor: end">Query result</text>
         </svg>
         <svg id="DA_OutputSVG" class="AS_view QueryView">
@@ -370,15 +371,15 @@
           <g class="heatmapLegend" transform="translate(30, 65)" >
             <path d="M2,2 L10,6 L2,10 L6,6 L2,2" style="transform: rotate(-90deg)"></path>
             <line x1="6" x2="6" y1="-5" y2="18" stroke="#777" stroke-width="2px"></line>
-            <text x="-15" y="-25">Deviation interval</text>
-            <text x="-30" y="-12">(Relative to sensitivity)</text>
+<!--            <text x="-15" y="-25">Deviation interval</text>-->
+            <text x="-30" y="-12">Deviation relative to the value</text>
             <line x1="6" x2="36" y1="18" y2="18" stroke="#777" stroke-width="2px"></line>
-            <text x="36" y="20">Succ rate</text>
+            <text x="5" y="32">Weighted successful rate</text>
             <path d="M2,2 L10,6 L2,10 L6,6 L2,2" transform="translate(26, 12)"></path>
             <rect x="8" y="-5" width="20" height="21" :fill="colorMap['normal-grey']"></rect>
           </g>
 
-          <g transform="translate(20, 115)">
+          <g transform="translate(40, 115)">
             <rect v-for="(d, i) in attrRiskLegend"
                   :x="20+0.3*i"
                   :y="5"
@@ -388,17 +389,20 @@
             ></rect>
             <text x="15" y="12" text-anchor="end">0%</text>
             <text x="56" y="12">100%</text>
-            <text x="23" y="25">Num (%)</text>
+            <text x="10" y="25">#Attacks (%)</text>
           </g>
 
-          <g transform="translate(-10, 165)">
+          <g transform="translate(10, 165)">
+            <line x1="30" x2="110" y1="0" y2="0" stroke-dasharray="3 2" :stroke="colorMap['deep-grey']" class="SchemeHistoryLegendLine"></line>
+            <text x="35" y="14">Deviation set</text>
+            <text x="45" y="25">by users</text>
+
+          </g>
+
+          <g transform="translate(20, 205)">
             <line x1="25" x2="25" y1="0" y2="20" :stroke="colorMap['risk']" class="SchemeHistoryLegendLine"></line>
-            <text x="40" y="14">Succ rate threshold</text>
-          </g>
-
-          <g transform="translate(-10, 205)">
-            <line x1="15" x2="35" y1="10" y2="10" :stroke="colorMap['risk']" class="SchemeHistoryLegendLine"></line>
-            <text x="40" y="14">Deviation interval</text>
+            <text x="30" y="10">Threshold set</text>
+            <text x="30" y="20">by users</text>
           </g>
 
         </svg>
@@ -412,6 +416,7 @@
             :cell-class-name="hoverCellClassName"
             @cell-mouse-enter="CellMouseEnter"
             @cell-mouse-leave="CellMouseLeave"
+            @cell-click="HeatmapCellClick"
             :span-method="objectSpanMethod"
             :scrollbar-always-on="true"
             style="width: 540px; height: calc(100% - 30px)">
@@ -438,32 +443,34 @@
                 <svg class="barChart" v-if="(typeof scope.row[attr + '-' + secondaryColumn]) === 'object'">
                   <g class="bodyRectG"
                      v-for="(data, deviationIndex) in scope.row[attr + '-' + secondaryColumn]"
-                     :transform="`translate(${0},${30-3*deviationIndex})`"
+                     :transform="`translate(${0},${60-6*deviationIndex})`"
                   >
                     <rect
                         v-for="(d, i) in data"
                         :x="i*7"
                         :y="0"
                         :width="7"
-                        :height="3"
+                        :height="6"
                         :fill="schemeHistoryRectColorScale(d)"
                     ></rect>
                   </g>
                   <g class="decorationG">
                     <line :x1="7*(Math.floor(sumAttackSRTPercent/10))"
                           :x2="7*(Math.floor(sumAttackSRTPercent/10))"
-                          :y1="30-3*(Math.floor(PrivacyDeviationPercent/10))"
-                          y2="30"
+                          :y1="60-6*(Math.floor(PrivacyDeviationPercent/10))"
+                          y2="60"
                           :stroke="colorMap['risk']"
                           stroke-width="2px"
+
                     ></line>
                     <line x1="0"
-                          :x2="7*(Math.floor(sumAttackSRTPercent/10))"
-                          :y1="30-3*(Math.floor(PrivacyDeviationPercent/10))"
-                          :y2="30-3*(Math.floor(PrivacyDeviationPercent/10))"
+                          :x2="7*10"
+                          :y1="60-6*(Math.floor(PrivacyDeviationPercent/10))"
+                          :y2="60-6*(Math.floor(PrivacyDeviationPercent/10))"
 
-                          :stroke="colorMap['risk']"
+                          :stroke="colorMap['deep-grey']"
                           stroke-width="2px"
+                          stroke-dasharray="3 2"
                     ></line>
                   </g>
                 </svg>
@@ -528,7 +535,6 @@
 import * as d3 from 'd3';
 import DataInput from "./DataInput/DataInput";
 import axios from "axios";
-import saveSvg from 'save-svg-as-png'
 
 export default {
     name: "Main",
@@ -676,7 +682,10 @@ export default {
         minSensitivityMap: {},
         curDifferIndex: 0,
         curQueryNodeD: {},
-        isMinSQL: false
+        isMinSQL: false,
+        curAttributeSetClickNodes: [],
+        curAS_nodes: [],
+        waitDifferTreeMake: -1
       }
     },
     computed: {
@@ -884,11 +893,11 @@ export default {
               }
             }
           })
-
         }
 
       },
       MakeTree(svg, nodes, links) {
+        this.curAS_nodes = nodes;
         let outerRadius = 13;	//外半径
         let innerRadius = 7;	//内半径，为0则中间没有空白
         let that = this;
@@ -1131,6 +1140,7 @@ export default {
       ClickNode(svg, d, resolve=undefined) {
         if(d.depth !== 3) {
           if (d.data.children.length === 0) {
+            this.curAttributeSetClickNodes.push(d)
             // 生成节点
             axios({
               url: 'http://127.0.0.1:8000/RiskTree/RiskTreeData/',
@@ -1160,6 +1170,8 @@ export default {
               }
             })
           } else {
+            // 收起节点中包括 之前点击过的节点可能会存在问题
+            this.curAttributeSetClickNodes.splice(this.curAttributeSetClickNodes.indexOf(d), 1);
             // 收起节点
             d.data.children = [];
             let newTreeData = this.treeFunc(d3.hierarchy(this.treeData).sum(function (d) {
@@ -1174,6 +1186,46 @@ export default {
           }
         }
       },
+      shrinkageAllASNode() {
+        // 收起所有 Attribution set node
+        // 从后往前，避免出现问题
+        let svg = d3.select("#AttributeSetTree");
+        let len = this.curAttributeSetClickNodes.length;
+        for(let i = len-1; i>=0; i--) {
+          this.ClickNode(svg, this.curAttributeSetClickNodes[i]);
+        }
+      },
+      async clickTargetRecord(index, condition) {
+        let svg = d3.select("#AttributeSetTree");
+        let indices = condition.indices;
+        let bitmap = parseInt(condition.bitmap);
+        let curBitmap = 0;
+        let pre_indices = JSON.parse(JSON.stringify(indices))
+        pre_indices.pop();
+        for(let index of pre_indices) {
+          curBitmap += 1 << index;
+          let node = this.curAS_nodes.find(d => d.data.name === curBitmap);
+          // 异步转移
+          await new Promise(resolve => {
+            this.ClickNode(svg, node, resolve);
+          });
+
+          // 关键点在这，这里需要等 新节点画完才能进行下一步
+        }
+        let targetNode = this.curAS_nodes.find(d => d.data.name === bitmap);
+        this.ContextmenuNode(targetNode);
+
+        // 等待 differ query 树生成
+        new Promise(resolve => {
+          this.waitDifferTreeMake = resolve;
+        }).then((queryNodes) => {
+          let targetQueryNode = queryNodes.find(d => {
+            return d.data.index.length === 1 && d.data.index[0] === index;
+          });
+          this.clickQueryNode(targetQueryNode);
+        })
+      },
+
 
       // 查询集树方法
       ContextmenuNode(d) {
@@ -1300,6 +1352,7 @@ export default {
 
         [nodes, keyMap] = this.TreePruning(nodes, keyMap);
         nodes = nodes.filter(d => d.depth > 0)
+
         links = links.filter(d => nodes.includes(d.source) && nodes.includes(d.target))
         // let finalKeyList = this.getFinalKeyList(nodes, keyMap.length);
         let leaves = nodes.filter(d => d.depth === keyMap.length);
@@ -1489,6 +1542,10 @@ export default {
           this.clickQueryNode(defaultNode);
         }
 
+        // 让等待的线程启动
+        if(this.waitDifferTreeMake !== -1) {
+          this.waitDifferTreeMake(nodes);
+        }
 
       },
       TreePruning(nodes, keyMap) {
@@ -2785,7 +2842,8 @@ export default {
           let w = parseFloat(d3.select('#DA_OutputSVG').style('width').split('px')[0]);
           if(text._groups[0][0] !== null) {
             text
-                .attr('fill', this.deviationP1.toFixed(2) > this.AttackSRT ? this.colorMap['risk'] : this.colorMap['black'])
+                .attr('fill', this.colorMap['black'])
+                // .attr('fill', this.deviationP1.toFixed(2) > this.AttackSRT ? this.colorMap['risk'] : this.colorMap['black'])
                 .text(`Succ rate: ${(this.deviationP1*100).toFixed(0)}%`);
             // bgc.attr('width', text.node().getComputedTextLength())
             //     .attr('height', 12)
@@ -2914,6 +2972,7 @@ export default {
               let attr = this.QueryAttrOption[i];
               let data = response.data.data[index];
               let avgRiskP1, attackRiskP1;
+              let maxRiskRecordMap = data['maxRiskRecordMap'];
               if (data['sum'] === '-') {
                 avgRiskP1 = '-';
                 attackRiskP1 = '-';
@@ -2928,6 +2987,7 @@ export default {
               this.SchemeHistory[index]['Sum-Average risk'] = avgRiskP1;
               this.SchemeHistory[index]['Count-Succ rate'] = attackRiskP2.toFixed(2);
               this.SchemeHistory[index]['Count-Average risk'] = avgRiskP2.toFixed(2);
+              this.SchemeHistory[index]['maxRiskRecordMap'] = maxRiskRecordMap;
             }
             
             // 初始化历史线
@@ -3066,6 +3126,7 @@ export default {
           }
           let attackRiskP2 = data['count'][0];
           let avgRiskP2 = data['count'][1];
+          temp['maxRiskRecordMap'] = data['maxRiskRecordMap'];
           temp['Schemes-Sensitivity'] = this.SensitivityCalculationWay === 'Global sensitivity' ? 'Global' : 'Local';
           temp['Sum-Succ rate'] = attackRiskP1;
           temp['Sum-Average risk'] = avgRiskP1;
@@ -3116,11 +3177,25 @@ export default {
             row['Sum-Average risk'] = avgRiskP1;
             row['Count-Succ rate'] = attackRiskP2.toFixed(2);
             row['Count-Average risk'] = avgRiskP2.toFixed(2);
+            row['maxRiskRecordMap'] = data['maxRiskRecordMap'];
+
           })
 
         }
       },
-
+      HeatmapCellClick(row, column, cell, event) {
+        let attr = row['Attribute']
+        if(column.property === 'Sum-Succ rate') {
+          console.log(row['maxRiskRecordMap'])
+          let percent = (this.PrivacyDeviationPercent / 100).toFixed(1);
+          if(row['maxRiskRecordMap'][percent].risk > this.sumAttackSRTPercent / 100) {
+            let index = row['maxRiskRecordMap'][percent].index;
+            let condition = row['maxRiskRecordMap'][percent].condition;
+            this.shrinkageAllASNode();
+            this.clickTargetRecord(index, condition);
+          }
+        }
+      },
 
       hoverRowClassName({ row, rowIndex }) {
         let classNames = []
@@ -3239,13 +3314,17 @@ export default {
             'BSTKeyMap': this.BSTKeyMap,
             'QueryAttr': this.QueryAttr,
             'index': this.curDifferIndex,
-            'attrIndex': this.QueryAttrIndex
+            'attrIndex': this.QueryAttrIndex,
+            'attrRiskMap': this.attrRiskMap
           }
         }).then((response) => {
           let curMinSensitivityMap = response.data.minSensitivityMap;
+          let firstCondition = this.FirstQueryCondition = curMinSensitivityMap.firstSensitivityWay;
+          let secondCondition = this.SecondQueryCondition = curMinSensitivityMap.secondSensitivityWay;
+          let minSensitivityDataIndices = curMinSensitivityMap.minSensitivityDataIndices;
           d3.selectAll('.DDHighlightRect')
               .style('opacity', 0);
-          for(let attr of Object.keys(curMinSensitivityMap.firstSensitivityWay)) {
+          for(let attr of Object.keys(firstCondition)) {
             d3.select(`#DDHighlightRect-${attr}`)
                 .style('opacity', 1);
           }
@@ -3253,9 +3332,7 @@ export default {
 
 
           console.log(this.minSensitivityMap);
-          let firstCondition = this.FirstQueryCondition = curMinSensitivityMap.firstSensitivityWay;
-          let secondCondition = this.SecondQueryCondition = curMinSensitivityMap.secondSensitivityWay;
-          let minSensitivityDataIndices = curMinSensitivityMap.minSensitivityDataIndices;
+
           let firstQueryText = this.condition2Text(firstCondition);
           let secondQueryText = this.condition2Text(secondCondition);
           let maskData = [];
@@ -3691,7 +3768,10 @@ export default {
               })
 
           // 更新Scheme History
-          this.refreshAvgRiskP();
+          if(Object.keys(this.minSensitivityMap).length !== 0) {
+            this.refreshAvgRiskP();
+          }
+
         },
         deep: true,
         immediate: false
@@ -4045,10 +4125,10 @@ export default {
 
   .convertSQLBtn {
     position: absolute;
-    right: 20px;
+    right: 10px;
     top: 0;
-    height: 20px;
-    width: 25px;
+    height: 24px;
+    width: 90px;
   }
 
 
@@ -4120,14 +4200,14 @@ export default {
   .barChart {
     margin-top: 8px;
     width: 70px;
-    height: 30px;
+    height: 60px;
     margin-left: -2px;
   }
 
   .lineChart {
     margin-top: 8px;
     width: 70px;
-    height: 30px;
+    height: 60px;
     margin-left: -2px;
   }
 
@@ -4183,7 +4263,7 @@ export default {
     right: 10px;
     bottom: 0px;
 
-    width: 150px;
+    width: 170px;
     height: 250px;
   }
 
@@ -4255,7 +4335,11 @@ export default {
 
 
   .Panel .el-icon {
-    font-size: 20px !important;
+    font-size: 16px !important;
+  }
+
+  .convertSQLBtn .el-icon {
+    font-size: 16px !important;
   }
 
   .percentDeviationInput .el-input__inner {

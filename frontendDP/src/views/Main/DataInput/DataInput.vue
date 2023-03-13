@@ -67,7 +67,8 @@
         editProp: ['Search Range', 'Minimum Granularity', 'Leakage Probability'],
         columnWidth: [130, 120, 160, 120, 140, 170, 170],
         // 保存进入编辑的cell
-        clickCellMap: {}
+        clickCellMap: {},
+        lastCell: 0
       }
     },
     computed: {
@@ -137,17 +138,22 @@
       handleCellEnter (row, column, cell, event) {
         const property = column.property
         if (this.editProp.includes(property)) {
-          cell.querySelector('.item__input').style.display = 'block'
-          cell.querySelector('.item__txt').style.display = 'none'
+          if(this.lastCell !== 0 && this.lastCell !== cell) {
+            this.lastCell.querySelector('.item__input').style.display = 'none'
+            this.lastCell.querySelector('.item__txt').style.display = 'block'
+          }
+          cell.querySelector('.item__input').style.display = 'block';
+          cell.querySelector('.item__txt').style.display = 'none';
+          this.lastCell = cell;
         }
       },
       /** 鼠标移出cell */
       handleCellLeave (row, column, cell, event) {
-        const property = column.property
-        if (this.editProp.includes(property)) {
-          cell.querySelector('.item__input').style.display = 'none'
-          cell.querySelector('.item__txt').style.display = 'block'
-        }
+        // const property = column.property
+        // if (this.editProp.includes(property)) {
+        //   cell.querySelector('.item__input').style.display = 'none'
+        //   cell.querySelector('.item__txt').style.display = 'block'
+        // }
       }
     },
     mounted() {
