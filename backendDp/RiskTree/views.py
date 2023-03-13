@@ -304,8 +304,8 @@ def curMinSensitivityMap(request):
     minSensitivityMap = getMinLocalSensitivityMap(AttrsKeyMap, BSTKeyMap, attrOption, filename, QueryAttr, index, attrIndex)
 
     # 处理数据方便前端使用
-    bitmaps = minSensitivityMap[index]['sensitivity'].keys()
-    bitmap = max(minSensitivityMap[index]['sensitivity'], key=minSensitivityMap[index]['sensitivity'].get)
+    # 查找最小value的键
+    bitmap = min(minSensitivityMap[index]['sensitivity'], key=minSensitivityMap[index]['sensitivity'].get)
     # 默认选用敏感度最大的那个
     minSensitivityMap[index]['sensitivity'] = minSensitivityMap[index]['sensitivity'][bitmap]
     minSensitivityMap[index]['firstSensitivityWay'] = minSensitivityMap[index]['firstSensitivityWay'][bitmap]
