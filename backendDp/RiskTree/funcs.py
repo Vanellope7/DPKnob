@@ -278,8 +278,7 @@ def getMinLocalSensitivityMap(AttrsKeyMap, BSTKeyMap, attrOption, filename, attr
                     for n_attr, condition in zip(normalAttr, normalCondition):
                         secondQueryCondition[n_attr] = [condition]
                         firstQueryCondition[n_attr] = [condition]
-                    dfp = DFProcessor(filename, attr,
-                                      secondQueryCondition, 'Local sensitivity')
+                    dfp = DFProcessor(filename, attr, secondQueryCondition, 'Local sensitivity')
                     sensitivity = dfp.getCurSensitivity('sum')
                     dataIndices = dfp.getCurDataIndices()
                     if sensitivity == 'None':
@@ -362,12 +361,14 @@ def getAvgRiskP(filename, attr, attrParams, epsilon, attrOption, sensitivity, at
                 if attrIndex in indices:
                     continue
                 for index in BSTMap[bitmap]:
+                    if index == 1241 or index == 1047:
+                        print('1241')
                     minAttrRiskP = 1
                     if attrRisk.get(str(bitmap), -1) != -1:
                         minAttrRiskP = attrRisk[str(bitmap)]
                     else:
-                        for attrIndex in indices:
-                            minAttrRiskP = min(minAttrRiskP, attrRisk[str(1 << attrIndex)])
+                        for attrI in indices:
+                            minAttrRiskP = min(minAttrRiskP, attrRisk[str(1 << attrI)])
                     # deviation = sensitivity['sum'] * deviationRatio
                     deviation = attrR[index] * deviationRatio
                     if SensitivityCalculationWay == 'Local sensitivity':

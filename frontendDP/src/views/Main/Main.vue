@@ -208,7 +208,7 @@
         <el-input-number
             v-model="epsilon"
             :min="0.01"
-            :max="10"
+            :max="50"
             :step="0.01"
             precision="2"
             class="EpsilonInput"
@@ -1493,9 +1493,9 @@ export default {
               else {
                 return nodeColorScale(num)
               }
-            });
-            // .append('title')
-            // .text(d => d.data.index);
+            })
+            .append('title')
+            .text(d => d.data.index);
         NodesG.append('text')
               .style('text-anchor', 'middle')
               .attr('x', 0)
@@ -2804,7 +2804,7 @@ export default {
           ret = this.attrRiskMap[bitmap]
         }
         else {
-          ret = Math.max(...indices.map(index => this.attrRiskMap[1 <<  index]));
+          ret = Math.min(...indices.map(index => this.attrRiskMap[1 <<  index]));
         }
         return ret
       },
@@ -2980,8 +2980,8 @@ export default {
                 avgRiskP1 = data['sum']['avgRiskList'];
                 attackRiskP1 = data['sum']['attackRiskList'];
               }
-              let attackRiskP2 = data['count'][0];
-              let avgRiskP2 = data['count'][1];
+              let attackRiskP2 = data['count'][1];
+              let avgRiskP2 = data['count'][0];
               this.SchemeHistory[index]['Schemes-Sensitivity'] = this.SensitivityCalculationWay === 'Global sensitivity' ? 'Global' : 'Local';
               this.SchemeHistory[index]['Sum-Succ rate'] = attackRiskP1;
               this.SchemeHistory[index]['Sum-Average risk'] = avgRiskP1;
@@ -3124,8 +3124,8 @@ export default {
             avgRiskP1 = data['sum']['avgRiskList'];
             attackRiskP1 = data['sum']['attackRiskList'];
           }
-          let attackRiskP2 = data['count'][0];
-          let avgRiskP2 = data['count'][1];
+          let attackRiskP2 = data['count'][1];
+          let avgRiskP2 = data['count'][0];
           temp['maxRiskRecordMap'] = data['maxRiskRecordMap'];
           temp['Schemes-Sensitivity'] = this.SensitivityCalculationWay === 'Global sensitivity' ? 'Global' : 'Local';
           temp['Sum-Succ rate'] = attackRiskP1;
@@ -3170,8 +3170,8 @@ export default {
               avgRiskP1 = data['sum']['avgRiskList'];
               attackRiskP1 = data['sum']['attackRiskList'];
             }
-            let attackRiskP2 = data['count'][0];
-            let avgRiskP2 = data['count'][1];
+            let attackRiskP2 = data['count'][1];
+            let avgRiskP2 = data['count'][0];
             row['Schemes-Sensitivity'] = this.SensitivityCalculationWay === 'Global sensitivity' ? 'Global' : 'Local';
             row['Sum-Succ rate'] = attackRiskP1;
             row['Sum-Average risk'] = avgRiskP1;
@@ -3215,9 +3215,18 @@ export default {
           return 'hover-cell'
         }
       },
+
       deleteSchemeHistoryRow(index, row) {
-        delete this.SchemeHistoryEpsilon[this.SchemeHistory[index].Epsilon]
+        let attr = this.SchemeHistory[index]['Attribute'];
+        delete this.AccuracyEpsilonHistory[attr][parseFloat(this.SchemeHistory[index]['Schemes-\u03B5'])]
         this.SchemeHistory.splice(index, 1);
+        this.SchemeHistoryAttrNumMap[attr] -= 1;
+        let pos = this.SchemeHistoryAttrPosMap[attr];
+        for(let attr in this.SchemeHistoryAttrPosMap) {
+          if(this.SchemeHistoryAttrPosMap[attr] > pos) {
+            this.SchemeHistoryAttrPosMap[attr] -= 1;
+          }
+        }
       },
       CellMouseEnter(row, column, cell, event) {
         this.hoverRowAttr = row['Attribute'];
