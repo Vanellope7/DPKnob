@@ -18,6 +18,10 @@ def getGap(left, right):
     gap_str = str(gap).split('.')
     if gap > 1:
         bit = len(gap_str[0]) - 1
+        if gap > 5 and gap < 10:
+            return gap // 5 * 5, 5
+        else:
+            return 10 ** bit, bit
     else:
         bit = len(gap_str[1]) - 1
         if bit == 0:

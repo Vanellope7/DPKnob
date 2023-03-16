@@ -2,7 +2,7 @@
   <div id="Container">
     <div class="RowPartMain">
       <div id="DifferentialRiskIdentification" class="BaseMain">
-        <div class="MainLabel">Potential Victim Exploration</div>
+        <div class="MainLabel">Potential Victim List</div>
 
         <div id="TreeView">
           <div id="AttributeSet">
@@ -40,27 +40,31 @@
           <el-divider direction="vertical" border-style="dashed" style="height: 100%"/>
 
           <div id="DifferentialQueryList">
-            <div class="SecondaryLabel">Query Condition List</div>
+            <div class="SecondaryLabel">Potential Victim Description</div>
             <svg id="DifferentialQueryTreeLegend">
 <!--              <rect x="30" y="0" width="10" height="10" :fill="colorMap['normal-grey']"></rect>-->
 <!--              <text x="45" y="9">Normal query condition</text>-->
-              <rect x="30" y="5" width="10" height="10" :fill="colorMap['risk']"></rect>
-              <text x="45" y="14">Differential query condition</text>
+              <rect x="78" y="5" width="10" height="10" :fill="colorMap['risk']"></rect>
+              <text x="93" y="14">Differential basis</text>
               <rect v-for="(d, i) in queryNumLegend"
-                    :x="45+1.2*i"
+                    :x="93+0.7*i"
                     :y="22"
-                    width="1.5"
+                    width="1.2"
                     height="10"
                     :fill="d"
               ></rect>
-              <text x="40" y="31" text-anchor="end">{{MinRecordsNum}}</text>
-              <text x="170" y="31">{{MaxRecordsNum}}</text>
-              <text x="34" y="41"># Records in the query result</text>
+              <text x="83" y="31" text-anchor="end">{{MinRecordsNum}}</text>
+              <text x="171" y="31">{{MaxRecordsNum}}</text>
+              <text x="96" y="42">#Individuals</text>
             </svg>
             <svg id="DQTreeAttrTitle"></svg>
             <div id="DQTreeContainer">
               <el-scrollbar :always="true">
                 <svg id="DifferentialQueryTree"></svg>
+                <img src="individual.png"
+                     v-for="pos in IndividualIconPosList"
+                     :style="{left: `${pos[0]}px`, top: `${pos[1]}px`}"
+                     class="individualIcon">
               </el-scrollbar>
             </div>
             <el-divider border-style="dashed" style="margin: 0; margin-top: 10px" />
@@ -97,9 +101,9 @@
           @click="switch2DataDistribution">Data distribution</el-button>
         </el-button-group>
 
-        <svg id="DataExplorationLegend">
+        <svg id="DataExplorationLegend" v-show="DataExplorationStatus === 'DD'">
           <line x1="5" x2="35" y1="8" y2="8" :stroke="colorMap['risk']" class="legendLine"></line>
-          <text x="40" y="13">Differential record</text>
+          <text x="40" y="13">Potential victim</text>
           <line x1="5" x2="35" y1="29" y2="29" :stroke="colorMap['blue-normal']" class="legendLine"></line>
           <text x="40" y="33">Queried group: {{OtherRecordNum}}</text>
 
@@ -111,7 +115,7 @@
             </g>
         </svg>
 
-        <div class="tickSwitch">
+        <div class="tickSwitch" v-show="DataExplorationStatus === 'DD'">
           <el-switch
               size="small"
               v-model="DE_tick"
@@ -128,6 +132,7 @@
                   :row-style="rowStyle"
                   :header-cell-style="headerCellStyle"
                   border
+                  class="RecordTable"
                   style="width: 100%; height: calc(100% - 43px)"
                   v-show="DataExplorationStatus !== 'DD'"
         >
@@ -367,16 +372,18 @@
           </el-select>
         </div>
 
+        <img src="example.png" class="examplePng">
+
         <svg id="SchemeHistoryLegend">
           <g class="heatmapLegend" transform="translate(30, 65)" >
             <path d="M2,2 L10,6 L2,10 L6,6 L2,2" style="transform: rotate(-90deg)"></path>
             <line x1="6" x2="6" y1="-5" y2="18" stroke="#777" stroke-width="2px"></line>
-<!--            <text x="-15" y="-25">Deviation interval</text>-->
-            <text x="-30" y="-12">Deviation relative to the value</text>
-            <line x1="6" x2="36" y1="18" y2="18" stroke="#777" stroke-width="2px"></line>
+            <text x="0" y="-25">Deviation</text>
+            <text x="0" y="-12">(relative to the value)</text>
+            <line x1="6" x2="56" y1="18" y2="18" stroke="#777" stroke-width="2px"></line>
             <text x="5" y="32">Weighted successful rate</text>
-            <path d="M2,2 L10,6 L2,10 L6,6 L2,2" transform="translate(26, 12)"></path>
-            <rect x="8" y="-5" width="20" height="21" :fill="colorMap['normal-grey']"></rect>
+            <path d="M2,2 L10,6 L2,10 L6,6 L2,2" transform="translate(46, 12)"></path>
+<!--            <rect x="8" y="-5" width="20" height="21" :fill="colorMap['normal-grey']"></rect>-->
           </g>
 
           <g transform="translate(40, 115)">
@@ -419,11 +426,11 @@
             @cell-click="HeatmapCellClick"
             :span-method="objectSpanMethod"
             :scrollbar-always-on="true"
-            style="width: 540px; height: calc(100% - 30px)">
+            style="width: 570px; height: calc(100% - 30px)">
           <el-table-column
               label="Attribute"
               prop="Attribute"
-              width="130"
+              width="150"
               align="center">
           </el-table-column>
           <el-table-column
@@ -441,32 +448,42 @@
 
               <template #default="scope" v-if="attr === 'Sum' && secondaryColumn === 'Succ rate'">
                 <svg class="barChart" v-if="(typeof scope.row[attr + '-' + secondaryColumn]) === 'object'">
-                  <g class="bodyRectG"
-                     v-for="(data, deviationIndex) in scope.row[attr + '-' + secondaryColumn]"
-                     :transform="`translate(${0},${60-6*deviationIndex})`"
-                  >
-                    <rect
-                        v-for="(d, i) in data"
-                        :x="i*7"
-                        :y="0"
-                        :width="7"
-                        :height="6"
-                        :fill="schemeHistoryRectColorScale(d)"
+                  <g class="background">
+                    <rect x="0" y="0" width="75" height="45"
+                          fill="none"
+                          :stroke="colorMap['normal-grey']"
+                          stroke-width="1px"
                     ></rect>
                   </g>
-                  <g class="decorationG">
+                  <g class="bodyG" transform="translate(2, -2)">
+                    <g class="bodyRectG"
+                       v-for="(data, deviationIndex) in scope.row[attr + '-' + secondaryColumn]"
+                       :transform="`translate(${0},${40-4*deviationIndex})`"
+                    >
+                      <rect
+                          v-for="(d, i) in data"
+                          :x="i*7"
+                          :y="0"
+                          :width="7"
+                          :height="4"
+                          :fill="schemeHistoryRectColorScale(d)"
+                      ></rect>
+                    </g>
+                  </g>
+
+                  <g class="decorationG" transform="translate(2, 3)">
                     <line :x1="7*(Math.floor(sumAttackSRTPercent/10))"
                           :x2="7*(Math.floor(sumAttackSRTPercent/10))"
-                          :y1="60-6*(Math.floor(PrivacyDeviationPercent/10))"
-                          y2="60"
+                          :y1="40-4*(Math.floor(PrivacyDeviationPercent/10))"
+                          y2="40"
                           :stroke="colorMap['risk']"
                           stroke-width="2px"
 
                     ></line>
                     <line x1="0"
                           :x2="7*10"
-                          :y1="60-6*(Math.floor(PrivacyDeviationPercent/10))"
-                          :y2="60-6*(Math.floor(PrivacyDeviationPercent/10))"
+                          :y1="40-4*(Math.floor(PrivacyDeviationPercent/10))"
+                          :y2="40-4*(Math.floor(PrivacyDeviationPercent/10))"
 
                           :stroke="colorMap['deep-grey']"
                           stroke-width="2px"
@@ -484,6 +501,45 @@
                   ></path>
                 </svg>
                 <span v-else>-</span>
+              </template>
+
+              <template #default="scope" v-if="attr === 'Count' && secondaryColumn === 'Succ rate'">
+                <svg class="barChart" v-if="(typeof scope.row[attr + '-' + secondaryColumn]) === 'object'">
+                  <text x="40" y="14" style="text-anchor: middle">{{ (scope.row[attr + '-' + secondaryColumn][0] * 100).toFixed(0) + '%'}}</text>
+                  <g class="background">
+                    <rect x="0" y="22" width="75" height="20"
+                          fill="none"
+                          :stroke="colorMap['normal-grey']"
+                          stroke-width="1px"
+                    ></rect>
+                  </g>
+                  <g class="bodyG" transform="translate(2, 25)">
+                    <g class="bodyRectG"
+                       :transform="`translate(${0},${0})`"
+                    >
+                      <rect
+                          v-for="(d, i) in scope.row[attr + '-' + secondaryColumn][1]"
+                          :x="i*7"
+                          :y="0"
+                          :width="7"
+                          :height="15"
+                          :fill="schemeHistoryRectColorScale(d)"
+                      ></rect>
+                    </g>
+                  </g>
+
+                  <g class="decorationG" transform="translate(2, 5)">
+                    <line :x1="7*(Math.floor(sumAttackSRTPercent/10))"
+                          :x2="7*(Math.floor(sumAttackSRTPercent/10))"
+                          :y1="20"
+                          y2="35"
+                          :stroke="colorMap['risk']"
+                          stroke-width="2px"
+
+                    ></line>
+                  </g>
+                </svg>
+                <span v-if="(typeof scope.row[attr + '-' + secondaryColumn]) === 'string'">{{scope.row[attr + '-' + secondaryColumn]}}</span>
               </template>
             </el-table-column>
 
@@ -544,7 +600,9 @@ export default {
     data() {
       return {
         colorMap: {'blue-normal':      'rgba(52, 152, 219,1.0)',
+                   'blue-normal-opacity':'rgba(52, 152, 219,0.7)',
                    'risk':             'rgba(234,120,119, 1.0)',
+                   'risk-opacity':     'rgba(234,120,119, 0.7)',
                    'deep-red':         'rgb(241,68,68)',
                    'light-grey':      'rgb(220,220,220)',
                    'normal-grey':      'rgb(176,176,176)',
@@ -650,9 +708,9 @@ export default {
 
         SchemeHistory: [],
         SchemeHistoryColumn: ['Schemes', 'Count', 'Sum'],
-        SchemeHistoryColumnWidth: [160,198,200],
+        SchemeHistoryColumnWidth: [170,198,200],
         SchemeHistorySecondaryColumn: {'Schemes': ['\u03B5', 'Sensitivity'], 'Sum': ['Succ rate'], 'Count': ['Succ rate']},
-        SchemeHistorySecondaryColumnWidth: [[55,100], [90,110], [90,110]],
+        SchemeHistorySecondaryColumnWidth: [[70,100], [90,110], [90,110]],
         SchemeHistoryColumnSensitivity: {},
         SchemeHistoryEpsilon: {},
         AccuracyEpsilonHistory: {},
@@ -685,7 +743,11 @@ export default {
         isMinSQL: false,
         curAttributeSetClickNodes: [],
         curAS_nodes: [],
-        waitDifferTreeMake: -1
+        waitDifferTreeMake: -1,
+        IndividualIconPosList: [],
+
+
+        DescriptionNum: 3
       }
     },
     computed: {
@@ -769,8 +831,8 @@ export default {
       attrInterval() {
         let index = this.attrList.findIndex(d => d.Name === this.QueryAttr);
         if(this.attrList[index].Type === 'numerical') {
-          let scope = this.attrList[index].Range.split('~').map(d => parseFloat(d));
-          [this.IntervalLeft, this.IntervalRight] = scope;
+          let scope = this.attrList[index]['Search Range'].split('~').map(d => parseFloat(d));
+          [this.IntervalLeft, this.IntervalRight] = [scope[0], scope[0] + this.attrList[index]['Minimum Granularity']];
           return scope;
         }
         else {
@@ -813,7 +875,8 @@ export default {
     },
     methods: {
       //属性集树方法
-      initializeTree([data, curFile, attrList]) {
+      initializeTree([data, curFile, attrList, DescriptionNum]) {
+        this.DescriptionNum = DescriptionNum;
         this.riskRecord = data.riskRecord;
         console.log(this.riskRecord)
         this.BSTMap = data.BSTMap;
@@ -871,29 +934,29 @@ export default {
         let treeData = this.treeFunc(hierarchyData);
         let nodes = treeData.descendants();
         let links = treeData.links();
-        [nodes, links] = this.PruningAndLayout(nodes, links, width, height, 3)
+        [nodes, links] = this.PruningAndLayout(nodes, links, width, height, this.DescriptionNum)
         this.MakeTree(svg, nodes, links);
 
-        let findRisk = false;
-        for(let node of nodes) {
-          if(node.data.curNodeRiskPie[0] !== 0) {
-            this.ContextmenuNode(node)
-            findRisk = true;
-            break;
-          }
-        }
-        if(!findRisk) {
-          new Promise(resolve => {
-            this.ClickNode(svg, nodes[0], resolve);
-          }).then((newNodes) => {
-            for(let node of newNodes) {
-              if(node.data.curNodeRiskPie[0] !== 0) {
-                this.ContextmenuNode(node)
-                break;
-              }
-            }
-          })
-        }
+        // let findRisk = false;
+        // for(let node of nodes) {
+        //   if(node.data.curNodeRiskPie[0] !== 0) {
+        //     this.ContextmenuNode(node)
+        //     findRisk = true;
+        //     break;
+        //   }
+        // }
+        // if(!findRisk) {
+        //   new Promise(resolve => {
+        //     this.ClickNode(svg, nodes[0], resolve);
+        //   }).then((newNodes) => {
+        //     for(let node of newNodes) {
+        //       if(node.data.curNodeRiskPie[0] !== 0) {
+        //         this.ContextmenuNode(node)
+        //         break;
+        //       }
+        //     }
+        //   })
+        // }
 
       },
       MakeTree(svg, nodes, links) {
@@ -1138,7 +1201,7 @@ export default {
         return [nodes, links]
       },
       ClickNode(svg, d, resolve=undefined) {
-        if(d.depth !== 3) {
+        if(d.depth !== this.DescriptionNum) {
           if (d.data.children.length === 0) {
             this.curAttributeSetClickNodes.push(d)
             // 生成节点
@@ -1149,7 +1212,8 @@ export default {
                 'filename': this.curFile,
                 'attrList': this.attrList,
                 'indices': d.data.indices,
-                'RiskRatioMap': this.RiskRatioMap
+                'RiskRatioMap': this.RiskRatioMap,
+                'DescriptionNum': this.DescriptionNum
               }
             }).then((response) => {
               d.data.children = response.data.treeData.children;
@@ -1163,7 +1227,7 @@ export default {
               let height = parseFloat(svg.style('height').split('px')[0]);
               let Nodes = newTreeData.descendants();
               let Links = newTreeData.links();
-              [Nodes, Links] = this.PruningAndLayout(Nodes, Links, width, height, 3)
+              [Nodes, Links] = this.PruningAndLayout(Nodes, Links, width, height, this.DescriptionNum)
               this.MakeTree(svg, Nodes, Links);
               if(resolve) {
                 resolve(Nodes);
@@ -1181,7 +1245,7 @@ export default {
             let height = parseFloat(svg.style('height').split('px')[0]);
             let Nodes = newTreeData.descendants();
             let Links = newTreeData.links();
-            [Nodes, Links] = this.PruningAndLayout(Nodes, Links, width, height, 3)
+            [Nodes, Links] = this.PruningAndLayout(Nodes, Links, width, height, this.DescriptionNum)
             this.MakeTree(svg, Nodes, Links);
           }
         }
@@ -1378,11 +1442,15 @@ export default {
             .domain([this.MinRecordsNum, this.MaxRecordsNum])
             .range(this.greyGradient)
 
-
+        this.IndividualIconPosList = []
         for(let i in nodes) {
           let dim = nodes[i].data.dim;
           nodes[i].x = Xscale(indices[dim]);
           nodes[i].y = YScale(nodes[i].yIndex);
+          // 叶子节点
+          if(dim === indices.length-1) {
+            this.IndividualIconPosList.push([nodes[i].x + 50, nodes[i].y - 10])
+          }
         }
         let generator = d3
             .linkHorizontal()
@@ -1526,7 +1594,7 @@ export default {
 
 
                //
-               return `translate(${37 - px}, ${5})`
+               return `translate(${42 - px}, ${5})`
               })
              .append('polygon')
              .attr('points', '0,10 10,10 5, 0')
@@ -2117,10 +2185,10 @@ export default {
       rowStyle({row, rowIndex}) {
         let style;
         if(rowIndex === 0) {
-          style = {"background": `${this.colorMap['risk']} !important`};
+          style = {"background": `${this.colorMap['risk-opacity']} !important`};
         }
         else {
-          style = {"background": `${this.colorMap['blue-normal']} !important`};
+          style = {"background": `${this.colorMap['blue-normal-opacity']} !important`};
         }
         return style;
       },
@@ -2219,7 +2287,7 @@ export default {
            .attr('class', 'LinePath')
            .attr("d", d => d.pathD)
            .attr("stroke", this.colorMap["normal-grey"])
-           .attr('stroke-opacity', 0.7)
+           .attr('stroke-opacity', 0.1)
            .attr("stroke-width", 1)
            .attr("fill", "none");
 
@@ -2629,13 +2697,14 @@ export default {
         if(!epsilonArray.includes(this.epsilon)) {
           epsilonArray.push(this.epsilon)
         }
-        epsilonArray.sort((x, y) => y-x)
+        epsilonArray.sort((x, y) => x-y)
+        let maxEpsilon = epsilonArray[epsilonArray.length - 1];
         this.curEpsilonArray = epsilonArray;
 
         let func = this.generalQueryFunc = (d, epsilon) => this.laplace_P([-d, d], 1 / epsilon);
-        let xDomain = [0, func(1, epsilonArray[0]) + 0.1];
+        let xDomain = [0, func(1, maxEpsilon) + 0.1];
         // let xDomain = [0, 1.05];
-        let xScale = this.GQueryXscale = d3.scaleLinear(xDomain, [padding, width / 4 * 3 - padding / 2]);
+        let xScale = this.GQueryXscale = d3.scaleLinear(xDomain, [padding * 3 / 2, width / 4 * 3]);
         let yScale = this.GQueryYscale = d3.scaleLinear([0, 1.2], [height - padding, padding / 4 * 3]);
         let cg = d3.line()
             .x(d => xScale(d[0]))
@@ -2644,7 +2713,8 @@ export default {
         svg.selectAll('.curPointG > *').remove();
         let curPointG = svg.select('.curPointG');
         let container = svg.append('g')
-            .attr('class', 'container');
+            .attr('class', 'container')
+            // .attr('transform', 'translate(15, 0)');
 
         for(let deviation = 0 ; deviation <= 1.0; deviation += 0.01) {
           let curDeviation = curS * deviation;
@@ -2669,7 +2739,7 @@ export default {
             .tickFormat(d => `${d * 100}%`);
         container.append("g")
             .attr("class", "y axis")
-            .attr("transform", `translate(${padding}, 0)`)
+            .attr("transform", `translate(${xScale.range()[0]}, 0)`)
             .call(yAxis);
 
         // deviation threshold 标度线
@@ -2695,8 +2765,9 @@ export default {
 
         container.append('text')
             .attr('class', 'DeviationThresholdText')
-            .attr('x', this.GQueryXscale.range()[1] - 110)
-            .attr('y', this.GQueryYscale(this.AccuracyDeviationPercent / 100) + 15)
+            .attr('epsilon', this.epsilon)
+            .attr('x', this.GQueryXscale.range()[0] + 10)
+            .attr('y', this.GQueryYscale(this.AccuracyDeviationPercent / 100) - 10)
             .style('fill', this.colorMap["black"])
             .text(`Deviation threshold`)
 
@@ -2740,6 +2811,7 @@ export default {
           //     .attr('fill', 'none')
           //     .attr('stroke', this.colorMap["normal-grey"]);
           container.append('text')
+              .attr('epsilon', epsilonArray[i])
               .attr('x', xScale.range()[1] + 20 + 2)
               .attr('y', historyYScale(i))
               .text('\u03B5: ' +  epsilonArray[i]);
@@ -2981,11 +3053,12 @@ export default {
                 attackRiskP1 = data['sum']['attackRiskList'];
               }
               let attackRiskP2 = data['count'][1];
+              let attackRiskListP2 = data['count'][2];
               let avgRiskP2 = data['count'][0];
               this.SchemeHistory[index]['Schemes-Sensitivity'] = this.SensitivityCalculationWay === 'Global sensitivity' ? 'Global' : 'Local';
               this.SchemeHistory[index]['Sum-Succ rate'] = attackRiskP1;
               this.SchemeHistory[index]['Sum-Average risk'] = avgRiskP1;
-              this.SchemeHistory[index]['Count-Succ rate'] = attackRiskP2.toFixed(2);
+              this.SchemeHistory[index]['Count-Succ rate'] = [attackRiskP2.toFixed(2), attackRiskListP2];
               this.SchemeHistory[index]['Count-Average risk'] = avgRiskP2.toFixed(2);
               this.SchemeHistory[index]['maxRiskRecordMap'] = maxRiskRecordMap;
             }
@@ -3043,7 +3116,8 @@ export default {
               .attr('x1', this.GQueryXscale(this.generalQueryFunc(this.AccuracyDeviationPercent / 100, e)))
               .attr('y1', this.GQueryYscale(this.AccuracyDeviationPercent / 100))
           svg.select(`.historyDeviationText[epsilon='${e}']`)
-              .text('Accuracy:' +  this.generalQueryFunc(this.AccuracyDeviationPercent / 100, e).toFixed(2));
+              .text('Acc: ' +  (this.generalQueryFunc(this.AccuracyDeviationPercent / 100, e) * 100).toFixed(0) + '%')
+              // .text('Acc:' +  this.generalQueryFunc(this.AccuracyDeviationPercent / 100, e).toFixed(2));
 
         }
       },
@@ -3061,7 +3135,7 @@ export default {
         // this.SchemeHistoryEpsilon[attr].push(this.epsilon.toFixed(2));
         this.AccuracyEpsilonHistory[attr][this.epsilon] = this.generalQueryLineData;
         let svg = d3.select("#GeneralQuery")
-        svg.select('.historyPath > *').remove();
+        svg.selectAll('.historyPath > *').remove();
         let container = svg.select('.historyPath');
         svg.selectAll('.historyPointG > *').remove();
         let historyPointG = svg.select('.historyPointG');
@@ -3125,12 +3199,13 @@ export default {
             attackRiskP1 = data['sum']['attackRiskList'];
           }
           let attackRiskP2 = data['count'][1];
+          let attackRiskListP2 = data['count'][2];
           let avgRiskP2 = data['count'][0];
           temp['maxRiskRecordMap'] = data['maxRiskRecordMap'];
           temp['Schemes-Sensitivity'] = this.SensitivityCalculationWay === 'Global sensitivity' ? 'Global' : 'Local';
           temp['Sum-Succ rate'] = attackRiskP1;
           temp['Sum-Average risk'] = avgRiskP1;
-          temp['Count-Succ rate'] = attackRiskP2.toFixed(2);
+          temp['Count-Succ rate'] = [attackRiskP2.toFixed(2), attackRiskListP2];
           temp['Count-Average risk'] = avgRiskP2.toFixed(2);
 
         })
@@ -3171,11 +3246,12 @@ export default {
               attackRiskP1 = data['sum']['attackRiskList'];
             }
             let attackRiskP2 = data['count'][1];
+            let attackRiskListP2 = data['count'][2];
             let avgRiskP2 = data['count'][0];
             row['Schemes-Sensitivity'] = this.SensitivityCalculationWay === 'Global sensitivity' ? 'Global' : 'Local';
             row['Sum-Succ rate'] = attackRiskP1;
             row['Sum-Average risk'] = avgRiskP1;
-            row['Count-Succ rate'] = attackRiskP2.toFixed(2);
+            row['Count-Succ rate'] = [attackRiskP2.toFixed(2), attackRiskListP2];
             row['Count-Average risk'] = avgRiskP2.toFixed(2);
             row['maxRiskRecordMap'] = data['maxRiskRecordMap'];
 
@@ -3218,7 +3294,11 @@ export default {
 
       deleteSchemeHistoryRow(index, row) {
         let attr = this.SchemeHistory[index]['Attribute'];
-        delete this.AccuracyEpsilonHistory[attr][parseFloat(this.SchemeHistory[index]['Schemes-\u03B5'])]
+        let e = parseFloat(this.SchemeHistory[index]['Schemes-\u03B5']);
+        delete this.AccuracyEpsilonHistory[attr][e]
+        // 删除历史线
+        d3.selectAll(`#GeneralQuery [epsilon="${e}"]`).remove();
+
         this.SchemeHistory.splice(index, 1);
         this.SchemeHistoryAttrNumMap[attr] -= 1;
         let pos = this.SchemeHistoryAttrPosMap[attr];
@@ -3246,6 +3326,9 @@ export default {
 
       schemeHistoryRectColorScale(x) {
         const colorScale = d3.scaleLinear([0,1], ['#efefef', '#777']);
+        if(x === 0) {
+          return '#fff'
+        }
         return colorScale(x);
       },
       schemeHistoryPathDGenerator(data) {
@@ -3291,11 +3374,13 @@ export default {
         return `${left}~${right}`;
       },
       convert2word(num) {
-        if(num > 10000) {
+        let sign = num < 0 ? '-' : '';
+        let absNum = Math.abs(num)
+        if(absNum > 10000) {
           let t = num % 10000 === 0 ? 0 : 2;
           return (num / 10000).toFixed(t) + 'w'
         }
-        else if(num > 1000) {
+        else if(absNum > 1000) {
           let t = num % 1000 === 0 ? 0 : 2;
           return (num / 1000).toFixed(t) + 'k'
         }
@@ -3324,7 +3409,10 @@ export default {
             'QueryAttr': this.QueryAttr,
             'index': this.curDifferIndex,
             'attrIndex': this.QueryAttrIndex,
-            'attrRiskMap': this.attrRiskMap
+            'attrRiskMap': this.attrRiskMap,
+            'epsilon': this.epsilon,
+            'deviation': this.PrivacyDeviationVal,
+            'privateVal': this.privateVal
           }
         }).then((response) => {
           let curMinSensitivityMap = response.data.minSensitivityMap;
@@ -3681,19 +3769,27 @@ export default {
             this.initializeSchemeHistory();
 
             // 初始化 minSensitivityMap
-            axios({
-              url: 'http://127.0.0.1:8000/RiskTree/minSensitivityMap/',
-              method: 'post',
-              data: {
-                'filename': this.curFile,
-                'attrList': this.attrList,
-                'attrOption': this.QueryAttrOption,
-                'AttrsKeyMap': this.AttrsKeyMap,
-                'BSTKeyMap': this.BSTKeyMap
-              }
-            }).then((response) => {
-              this.minSensitivityMap = response.data.minSensitivityMap;
-            })
+            this.minSensitivityMap = {}
+            for(let attrParams of this.attrList) {
+              let attr = attrParams.Name;
+              let type = attrParams.Type;
+              if(type !== 'numerical') continue
+              axios({
+                url: 'http://127.0.0.1:8000/RiskTree/minSensitivityMap/',
+                method: 'post',
+                data: {
+                  'filename': this.curFile,
+                  'attrList': this.attrList,
+                  'attrOption': this.QueryAttrOption,
+                  'AttrsKeyMap': this.AttrsKeyMap,
+                  'BSTKeyMap': this.BSTKeyMap,
+                  'attr': attr,
+                }
+              }).then((response) => {
+                this.minSensitivityMap[attr] = response.data.data;
+              })
+            }
+
           })
 
         },
@@ -3971,6 +4067,7 @@ export default {
   .SQLText {
     font-size: 10px;
     width: calc(75% - 30px);
+    padding: 5px 0;
   }
 
   .paddingLeft5px {
@@ -4090,6 +4187,12 @@ export default {
     top: 10px;
   }
 
+  .individualIcon {
+    width: 20px;
+    height: 20px;
+    position: absolute;
+  }
+
 
 
   /**********************************************/
@@ -4168,12 +4271,12 @@ export default {
   .SystemName {
     text-align: center;
     font-size: 50px;
-    margin-top: 8vh;
+    margin-top: 6vh;
   }
 
   .DataInput {
     width: 72%;
-    height: 70vh;
+    height: 75vh;
     margin: 0 auto;
     margin-top: 15px;
     padding: 20px;
@@ -4208,16 +4311,18 @@ export default {
 
   .barChart {
     margin-top: 8px;
-    width: 70px;
-    height: 60px;
-    margin-left: -2px;
+    width: 75px;
+    height: 45px;
+    margin-left: -5px;
+    margin-bottom: 2px;
   }
 
   .lineChart {
     margin-top: 8px;
     width: 70px;
-    height: 60px;
+    height: 25px;
     margin-left: -2px;
+    padding: 5px 0;
   }
 
   .lockRow {
@@ -4265,6 +4370,13 @@ export default {
 
   .hidden {
     visibility: hidden;
+  }
+
+  .examplePng {
+    width: 40px;
+    position: absolute;
+    bottom: 170px;
+    right: 100px;
   }
 
   #SchemeHistoryLegend {
@@ -4393,5 +4505,13 @@ export default {
   .el-input-number.is-controls-right .el-input__wrapper {
     padding-right: 25px !important;
     padding-left: 0 !important;
+  }
+
+  #DQTreeContainer .el-scrollbar__view {
+    position: relative;
+  }
+
+  .RecordTable tbody tr {
+    pointer-events: none;
   }
 </style>

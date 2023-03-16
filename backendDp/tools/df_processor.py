@@ -15,7 +15,13 @@ class DFProcessor:
         # if type(self.attrParams) == list:
 
         self.attr = attr
+        self.sensitivityWay = sensitivityWay
         self.sensitivityDF = self._df if sensitivityWay == 'Global sensitivity' else self._queryDF
+
+    def resetParams(self, attr, QueryCondition):
+        self.attr = attr
+        self._queryDF = self.getSliceDF(self._df, QueryCondition)
+        self.sensitivityDF = self._df if self.sensitivityWay == 'Global sensitivity' else self._queryDF
 
     def getSliceDF(self, df, QueryCondition):
         queryList = []

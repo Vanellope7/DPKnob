@@ -4,7 +4,7 @@
       action="http://127.0.0.1:8000/RiskTree/FileReceive/"
       v-model:file-list="fileList"
       :limit="1"
-      style="margin: 10px;height: calc(50% - 30px)"
+      style="margin: 10px;height: calc(50% - 30px - 40px)"
       :show-file-list="false"
       :on-success="uploadSuccess"
   >
@@ -13,6 +13,18 @@
       Drop file here or <em>click to upload</em>
     </div>
   </el-upload>
+  <div class="DescriptionNum">
+    <span style="padding-right: 20px">Maximum number of attributes used in a query condition:</span>
+    <el-input-number
+        v-model="DescriptionNum"
+        :min="1"
+        :max="attrList.length === 0 ? 5 : attrList.length"
+        :step="1"
+        controls-position="right"
+        class="DescriptionNumInput"
+        size="small"
+    />
+  </div>
 
   <el-table
       table-layout="fixed"
@@ -31,7 +43,7 @@
         align="center">
       <template #default="scope">
         <div class="item">
-          <el-input class="item__input" v-model="scope.row[attr]" placeholder="请输入内容"></el-input>
+          <el-input class="item__input" v-model="scope.row[attr]"></el-input>
           <div :class="{item__txt: true, 'item__txt--hover': editProp.includes(attr)}">{{scope.row[attr]}}</div>
         </div>
       </template>
@@ -65,10 +77,11 @@
 
         // 需要编辑的属性
         editProp: ['Search Range', 'Minimum Granularity', 'Leakage Probability'],
-        columnWidth: [130, 120, 160, 120, 140, 170, 170],
+        columnWidth: [140, 130, 200, 160, 190, 190],
         // 保存进入编辑的cell
         clickCellMap: {},
-        lastCell: 0
+        lastCell: 0,
+        DescriptionNum: 3
       }
     },
     computed: {
@@ -107,11 +120,11 @@
                 data: {
                   'filename': this.curFile,
                   'attrList': this.multipleSelection,
-                  'indices': []
+                  'indices': [],
+                  'DescriptionNum': this.DescriptionNum
                 }
               }).then((response) => {
                 resolve(response)
-
               })
             }),
             new Promise(resolve => {
@@ -127,7 +140,7 @@
               })
             })
         ]).then(result => {
-          this.$emit('inputData', [result[0].data, this.curFile, this.attrList])
+          this.$emit('inputData', [result[0].data, this.curFile, this.attrList, this.DescriptionNum])
           this.$emit('drawPCP', result[1])
         })
       },
@@ -206,5 +219,11 @@
     border: 1px solid #dddddd;
     border-radius: 4px;
     cursor: text;
+  }
+
+  .DescriptionNum {
+    text-align: center;
+    margin-bottom: 10px;
+    vertical-align: center;
   }
 </style>

@@ -105,10 +105,10 @@ def GenerateCandidateTupleIndex(q, n, childrenMap, BSTMap, RiskRatioMap):
     return CandidateTuple
 
 
-def getNodeRisk(values):
+def getNodeRisk(values, DescriptionNum):
     # values 是编码后的表格
     m, n = len(values[0]), len(values)
-    lattice = ConstructLattice(m, 3)
+    lattice = ConstructLattice(m, DescriptionNum)
     BSTMap = {}
     BSTKeyMap = defaultdict(list)
     riskRecord = set()
@@ -149,13 +149,13 @@ def getNodeRisk(values):
     return BSTMap, BSTKeyMap, RiskRatioMap, riskRecord
 
 
-def getChildNodeRiskRatio(bitmaps, RiskRatioMap, m):
+def getChildNodeRiskRatio(bitmaps, RiskRatioMap, m, DescriptionNum):
     ChildNodeRiskRatio = {}
-    lattice = ConstructLattice(m, 3)
+    lattice = ConstructLattice(m, DescriptionNum)
     for target in bitmaps:
         ChildNodeRiskRatio[target] = [0, 0]
         for q in lattice:
-            if len(getCubeByIndices(q)) == 3 and binaryInclusion(q, target):
+            if len(getCubeByIndices(q)) == DescriptionNum and binaryInclusion(q, target):
                 ChildNodeRiskRatio[target][0] += RiskRatioMap[str(q)][0]
                 ChildNodeRiskRatio[target][1] += RiskRatioMap[str(q)][1]
     return ChildNodeRiskRatio

@@ -18,6 +18,7 @@ from RiskTree.NodeRiskFunc import getNodeRisk
 from RiskTree.funcs import classifyAttr, getRiskRecord, getCubeByIndices, getDataCoder, key2string, indices2bitmap, \
     getAvgRiskP, getMinLocalSensitivityMap
 from tools.df_processor import DFProcessor
+from tools.utils import laplace_DV_P, laplace_DV_P2
 
 
 def fileReceive(request):
@@ -46,7 +47,7 @@ def fileReceive(request):
                 'Name': attr,
                 'Type': 'categorical',
                 'Range': Range,
-                'Range Width': len(Range),
+                # 'Range Width': len(Range),
                 'Search Range': '-',
                 'Minimum Granularity': '-',
                 'Leakage Probability': '100%'
@@ -63,7 +64,7 @@ def fileReceive(request):
                 'Name': attr,
                 'Type': 'numerical',
                 'Range': "{0}~{1}".format(Min, Max),
-                'Range Width': Max - Min,
+                # 'Range Width': Max - Min,
                 'Search Range': '{0}~{1}'.format(MinEdge, MaxEdge),
                 'Minimum Granularity': width,
                 'Leakage Probability': '100%'
@@ -77,9 +78,9 @@ def riskTree(request):
     filename = postData['filename']
     attrList = postData['attrList']
     indices = postData['indices']
+    DescriptionNum = postData['DescriptionNum']
     RiskRatioMap = postData.get('RiskRatioMap', -1)
-    json_data = getRiskRecord(filename, attrList, indices, RiskRatioMap)
-
+    json_data = getRiskRecord(filename, attrList, indices, RiskRatioMap, DescriptionNum)
     return JsonResponse(json_data, encoder=JsonEncoder)
 
 
@@ -287,11 +288,31 @@ def minSensitivityMap(request):
     attrList = postData['attrList']
     filename, attrOption = postData['filename'], postData['attrOption']
     AttrsKeyMap, BSTKeyMap = postData['AttrsKeyMap'], postData['BSTKeyMap']
-    minSensitivityMap = {}
-    for attr, attrParams in zip(attrOption, attrList):
-        if attrParams['Type'] == 'numerical':
-            minSensitivityMap[attr] = getMinLocalSensitivityMap(AttrsKeyMap, BSTKeyMap, attrOption, filename, attr)
-    return JsonResponse({'minSensitivityMap': minSensitivityMap})
+    attr = postData['attr']
+    # 让数据只读一次
+    dfp = DFProcessor(filename, '', {}, 'Local sensitivity')
+    minSensitivityMap = getMinLocalSensitivityMap(dfp, AttrsKeyMap, BSTKeyMap, attrOption, filename, attr, attrOption.index(attr))
+    ret = {'data': minSensitivityMap}
+    return JsonResponse(ret)
+
+
+def calcRiskP(s1, s2, epsilon, deviation):
+    if s1 == s2:
+        p = laplace_DV_P([-deviation, deviation], s1 / epsilon)
+    else:
+        p = laplace_DV_P2([-deviation, deviation], s1 / epsilon, s2 / epsilon)
+    return p
+
+
+def calcAttrRisk(attrRiskMap, k):
+    indices = getCubeByIndices(k)
+    attrRisk = 1
+    if attrRiskMap.get(str(k), -1) != -1:
+        attrRisk = attrRiskMap[str(k)]
+    else:
+        for attrIndex in indices:
+            attrRisk = min(attrRisk, attrRiskMap[str(1 << attrIndex)])
+    return attrRisk
 
 
 def curMinSensitivityMap(request):
@@ -300,16 +321,21 @@ def curMinSensitivityMap(request):
     index, attrIndex = postData['index'], postData['attrIndex']
     filename, attrOption = postData['filename'], postData['attrOption']
     AttrsKeyMap, BSTKeyMap = postData['AttrsKeyMap'], postData['BSTKeyMap']
-    attrRiskMap = postData['attrRiskMap']
-    minSensitivityMap = getMinLocalSensitivityMap(AttrsKeyMap, BSTKeyMap, attrOption, filename, QueryAttr, index, attrIndex)
+    attrRiskMap, epsilon = postData['attrRiskMap'], postData['epsilon']
+    deviation, privateVal = postData['deviation'], postData['privateVal']
+    # 让数据只读一次
+    dfp = DFProcessor(filename, '', {}, 'Local sensitivity')
+    minSensitivityMap = getMinLocalSensitivityMap(dfp, AttrsKeyMap, BSTKeyMap, attrOption, filename, QueryAttr, attrIndex, index)
 
     # 处理数据方便前端使用
     # 查找最小value的键
-    bitmap = min(minSensitivityMap[index]['sensitivity'], key=minSensitivityMap[index]['sensitivity'].get)
+    sMap = minSensitivityMap[index]['sensitivity']
+
+    bitmap = max(sMap, key=lambda k: calcRiskP(sMap[k], max(sMap[k], privateVal), epsilon, deviation) * calcAttrRisk(
+        attrRiskMap, k))
     # 默认选用敏感度最大的那个
     minSensitivityMap[index]['sensitivity'] = minSensitivityMap[index]['sensitivity'][bitmap]
     minSensitivityMap[index]['firstSensitivityWay'] = minSensitivityMap[index]['firstSensitivityWay'][bitmap]
     minSensitivityMap[index]['secondSensitivityWay'] = minSensitivityMap[index]['secondSensitivityWay'][bitmap]
     minSensitivityMap[index]['minSensitivityDataIndices'] = minSensitivityMap[index]['minSensitivityDataIndices'][bitmap]
-
     return JsonResponse({'minSensitivityMap': minSensitivityMap[index]})

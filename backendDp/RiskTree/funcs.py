@@ -166,7 +166,7 @@ def indices2bitmap(indices):
     return ret
 
 
-def getRiskRecord(filename, attrList, indices, RiskRatioMap):
+def getRiskRecord(filename, attrList, indices, RiskRatioMap, DescriptionNum):
     R = pd.read_csv('data/{0}'.format(filename))
     keepAttr = map(lambda d: d['Name'], attrList)
     BSTMap = {}
@@ -183,9 +183,9 @@ def getRiskRecord(filename, attrList, indices, RiskRatioMap):
     lattice = ConstructLattice(bitmap, m)
     riskRecord = set()
     if RiskRatioMap == -1:
-        BSTMap, BSTKeyMap, RiskRatioMap, riskRecord = getNodeRisk(values)  # 遍历了全部记录
+        BSTMap, BSTKeyMap, RiskRatioMap, riskRecord = getNodeRisk(values, DescriptionNum)  # 遍历了全部记录
     riskRecord = list(riskRecord)
-    childNodeRiskRatio = getChildNodeRiskRatio(lattice, RiskRatioMap, m)
+    childNodeRiskRatio = getChildNodeRiskRatio(lattice, RiskRatioMap, m, DescriptionNum)
     print(RiskRatioMap, '\n', childNodeRiskRatio)
     tree = {
         'indices': indices,
@@ -230,9 +230,10 @@ def keys2condition(AttrsKeyMap, dc_indices, dc_keys):
     return conditions, otherConditions
 
 
-def getMinLocalSensitivityMap(AttrsKeyMap, BSTKeyMap, attrOption, filename, attr, index=-1, attrIndex=-1):
-    minSensitivityMap = defaultdict(dict)
+def getMinLocalSensitivityMap(dfp, AttrsKeyMap, BSTKeyMap, attrOption, filename, attr, attrIndex, index=-1, ):
+    minSensitivityMap = {}
     group = BSTKeyMap.keys() if index == -1 else [str(index)]
+
     for bstIndex in group:
         minSensitivityDict = {}
         firstSensitivityWayDict = {}
@@ -244,27 +245,11 @@ def getMinLocalSensitivityMap(AttrsKeyMap, BSTKeyMap, attrOption, filename, attr
             firstSensitivityWay = {}
             secondSensitivityWay = {}
             minSensitivityDataIndices = []
-
-
-
             dc_indices = dc['indices']
             if attrIndex in dc_indices:
                 continue
             dc_keys = dc['keys']
             dcConditions, otherConditions = keys2condition(AttrsKeyMap, dc_indices, dc_keys)
-
-            # 选择差分属性的other条件任意组合(时间复杂度极高
-            # attrs = [attrOption[index] for index in dc_indices]
-            # QueryCondition = {}
-            # for conditions in itertools.product(*otherConditions.values()):
-            #     for conditionAttr, condition in zip(attrs, conditions):
-            #         QueryCondition[conditionAttr] = [condition]
-            #     dfp = DFProcessor(filename, attr, QueryCondition, 'Local sensitivity')
-            #     sensitivity = dfp.getCurSensitivity('sum')
-            #     if sensitivity == 'None':
-            #         continue
-            #     else:
-            #         minSensitivity = min(minSensitivity, sensitivity)
 
             # 选定不同的属性作为差分条件时
             for dc_index, dc_key in zip(dc_indices, dc_keys):
@@ -278,7 +263,7 @@ def getMinLocalSensitivityMap(AttrsKeyMap, BSTKeyMap, attrOption, filename, attr
                     for n_attr, condition in zip(normalAttr, normalCondition):
                         secondQueryCondition[n_attr] = [condition]
                         firstQueryCondition[n_attr] = [condition]
-                    dfp = DFProcessor(filename, attr, secondQueryCondition, 'Local sensitivity')
+                    dfp.resetParams(attr, secondQueryCondition)
                     sensitivity = dfp.getCurSensitivity('sum')
                     dataIndices = dfp.getCurDataIndices()
                     if sensitivity == 'None':
@@ -291,7 +276,7 @@ def getMinLocalSensitivityMap(AttrsKeyMap, BSTKeyMap, attrOption, filename, attr
                             minSensitivityDataIndices = dataIndices
 
             bitmap = indices2bitmap(dc['indices'])
-            minSensitivityDict[bitmap] = minSensitivity
+            minSensitivityDict[bitmap] = 99999999 if minSensitivity == float('inf') else minSensitivity
             firstSensitivityWayDict[bitmap] = firstSensitivityWay
             secondSensitivityWayDict[bitmap] = secondSensitivityWay
             minSensitivityDataIndicesDict[bitmap] = minSensitivityDataIndices
@@ -326,6 +311,10 @@ def getAvgRiskP(filename, attr, attrParams, epsilon, attrOption, sensitivity, at
     if attrParams['Type'] != 'numerical':  # 类别型数据
         attackRisk = laplace_DV_P([0, 0.5], sensitivity['count'] / epsilon) + 0.5
         sumRisk = 0
+        countRiskList = []
+        countBarChart = {}
+        for i in range(10):
+            countBarChart[i] = 0
         cnt = 0
         for bitmap in BSTMap:
             indices = getCubeByIndices(int(bitmap))
@@ -339,11 +328,17 @@ def getAvgRiskP(filename, attr, attrParams, epsilon, attrOption, sensitivity, at
                     for attrIndex in indices:
                         minAttrRiskP = min(minAttrRiskP, attrRisk[str(1 << attrIndex)])
                 sumRisk += minAttrRiskP * attackRisk
+                countRiskList.append(minAttrRiskP * attackRisk)
                 cnt += 1
-        return {'sum': '-', 'count': [attackRisk, sumRisk / cnt],  'maxRiskRecordMap': maxRiskRecordMap}
+        for countRisk in countRiskList:
+            key = min(math.floor(countRisk * 100) // 10, 9)
+            countBarChart[key] += 1
+        for i in range(10):
+            countBarChart[i] /= len(countRiskList)
+        return {'sum': '-', 'count': [attackRisk, sumRisk / cnt, list(countBarChart.values())],  'maxRiskRecordMap': maxRiskRecordMap}
     else:  # 数值型数据
         sumRet = {'avgRiskList': [], 'attackRiskList': []}
-        for deviationRatio in np.linspace(0, 1, 11):
+        for deviationRatio in np.linspace(0.1, 1, 10):
             ratioStr = str(round(deviationRatio, 1))
             maxRiskRecordMap[ratioStr] = {
                 'index': -1,
@@ -393,6 +388,9 @@ def getAvgRiskP(filename, attr, attrParams, epsilon, attrOption, sensitivity, at
                     maxRiskRecordMap[ratioStr]['risk'] = p
                     maxRiskRecordMap[ratioStr]['condition'] = conditionMap[index]
                 key = min(math.floor(p * 100) // 10, 9)
+
+                if (round(p, 2) * 100) % 10 == 0 and key >= 1:
+                    key -= 1
                 barData[key] += 1
                 riskNum += 1
             sumRet['avgRiskList'].append(math.fsum(pMap.values()) / len(pMap))
@@ -402,6 +400,10 @@ def getAvgRiskP(filename, attr, attrParams, epsilon, attrOption, sensitivity, at
         attackRisk = laplace_DV_P([0, 0.5], sensitivity['count'] / epsilon) + 0.5
         sumRisk = 0
         cnt = 0
+        countRiskList = []
+        countBarChart = {}
+        for i in range(10):
+            countBarChart[i] = 0
         for bitmap in BSTMap:
             indices = getCubeByIndices(int(bitmap))
             if attrIndex in indices:
@@ -414,5 +416,11 @@ def getAvgRiskP(filename, attr, attrParams, epsilon, attrOption, sensitivity, at
                     for attrIndex in indices:
                         minAttrRiskP = min(minAttrRiskP, attrRisk[str(1 << attrIndex)])
                 sumRisk += minAttrRiskP * attackRisk
+                countRiskList.append(minAttrRiskP * attackRisk)
                 cnt += 1
-        return {'sum': sumRet, 'count': [attackRisk, sumRisk / cnt], 'maxRiskRecordMap': maxRiskRecordMap}
+        for countRisk in countRiskList:
+            key = min(math.floor(countRisk * 100) // 10, 9)
+            countBarChart[key] += 1
+        for i in range(10):
+            countBarChart[i] /= len(countRiskList)
+        return {'sum': sumRet, 'count': [attackRisk, sumRisk / cnt, list(countBarChart.values())], 'maxRiskRecordMap': maxRiskRecordMap}
