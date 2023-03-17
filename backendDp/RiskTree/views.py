@@ -257,7 +257,7 @@ def AvgRiskP(request):
     filename, attrOption = postData['filename'], postData['attrOption']
     attrParams, attr, epsilon = postData['attrParams'], postData['attr'], postData['epsilon']
     BSTMap, sensitivity, attrRisk = postData['BSTMap'], postData['sensitivity'], postData['attrRisk']
-    minSensitivityMap = postData['minSensitivityMap']
+    minSensitivityMap = postData['minSensitivityMap'] if attrParams['Type'] == 'numerical' else 1
     SensitivityCalculationWay, AttrsKeyMap, BSTKeyMap = postData['SensitivityCalculationWay'], postData['AttrsKeyMap'], postData['BSTKeyMap']
     avgRiskP = getAvgRiskP(filename, attr, attrParams, epsilon, attrOption, sensitivity, attrRisk, BSTMap, SensitivityCalculationWay, AttrsKeyMap, BSTKeyMap, minSensitivityMap)
     return JsonResponse({'data': avgRiskP})

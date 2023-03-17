@@ -31,6 +31,7 @@
       :data="attrList"
       ref="multipleTable"
       @selection-change="handleSelectionChange"
+      @cell-click="handleCellClick"
       @cell-mouse-enter="handleCellEnter"
       @cell-mouse-leave="handleCellLeave"
       style="width: 100%; height: calc(50% - 30px)">
@@ -81,6 +82,7 @@
         // 保存进入编辑的cell
         clickCellMap: {},
         lastCell: 0,
+        lastEnterCell: 0,
         DescriptionNum: 3
       }
     },
@@ -148,7 +150,7 @@
 
 
       // 表格方法
-      handleCellEnter (row, column, cell, event) {
+      handleCellClick (row, column, cell, event) {
         const property = column.property
         if (this.editProp.includes(property)) {
           if(this.lastCell !== 0 && this.lastCell !== cell) {
@@ -158,6 +160,18 @@
           cell.querySelector('.item__input').style.display = 'block';
           cell.querySelector('.item__txt').style.display = 'none';
           this.lastCell = cell;
+        }
+      },
+      handleCellEnter(row, column, cell, event) {
+        const property = column.property
+        if (this.editProp.includes(property)) {
+          if(this.lastEnterCell !== 0 && this.lastEnterCell !== cell && this.lastEnterCell !== this.lastCell) {
+            this.lastEnterCell.querySelector('.item__input').style.display = 'none'
+            this.lastEnterCell.querySelector('.item__txt').style.display = 'block'
+          }
+          cell.querySelector('.item__input').style.display = 'block';
+          cell.querySelector('.item__txt').style.display = 'none';
+          this.lastEnterCell = cell;
         }
       },
       /** 鼠标移出cell */

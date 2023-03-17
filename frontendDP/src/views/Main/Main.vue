@@ -2,7 +2,7 @@
   <div id="Container">
     <div class="RowPartMain">
       <div id="DifferentialRiskIdentification" class="BaseMain">
-        <div class="MainLabel">Potential Victim List</div>
+        <div class="MainLabel">Potential Victim Exploration</div>
 
         <div id="TreeView">
           <div id="AttributeSet">
@@ -14,33 +14,37 @@
               <text x="45" y="30">Risk</text>
 
               <rect v-for="(d, i) in attrRiskLegend"
-                    :x="110+0.8*i"
+                    :x="120+0.7*i"
                     :y="5"
-                    width="2"
+                    width="1.2"
                     height="10"
                     :fill="d"
               ></rect>
-              <text x="105" y="14" text-anchor="end">0</text>
+              <text x="115" y="14" text-anchor="end">0</text>
               <text x="195" y="14">1</text>
               <g class="attrRiskSlider" transform="translate(0,0)">
-                <line x1="105" x2="115" y1="2" y2="2" stroke="#666" stroke-width="2px"></line>
-                <line x1="110" x2="110" y1="2" y2="18" stroke="#666" stroke-width="3px"></line>
-                <line x1="105" x2="115" y1="18" y2="18" stroke="#666" stroke-width="2px"></line>
+                <line x1="115" x2="125" y1="2" y2="2" stroke="#666" stroke-width="2px"></line>
+                <line x1="120" x2="120" y1="2" y2="18" stroke="#666" stroke-width="3px"></line>
+                <line x1="115" x2="125" y1="18" y2="18" stroke="#666" stroke-width="2px"></line>
               </g>
-              <text x="98" y="30">Leakage probability (p)</text>
+              <g transform="translate(20, 0)">
+                <text x="118" y="30">P</text>
+                <text x="125" y="32" style="font-size: 9px">set_leak</text>
+<!--                <text x="108" y="30">of disclosure</text>-->
+              </g>
             </svg>
 
             <svg id="AttributeSetTree"></svg>
-            <el-input v-model="curAttrRiskStr"  class="attrRiskInput"
-                      style="position: absolute; width: 60px; height: 20px">
-              <template #prepend>p:</template>
+            <el-input v-model="curAttrRiskStr"  class="attrRiskInput hidden"
+                      style="position: absolute; width: 62px; height: 20px;">
+              <template #prepend>P:</template>
             </el-input>
           </div>
 
           <el-divider direction="vertical" border-style="dashed" style="height: 100%"/>
 
           <div id="DifferentialQueryList">
-            <div class="SecondaryLabel">Potential Victim Description</div>
+            <div class="SecondaryLabel">Potential Victim List</div>
             <svg id="DifferentialQueryTreeLegend">
 <!--              <rect x="30" y="0" width="10" height="10" :fill="colorMap['normal-grey']"></rect>-->
 <!--              <text x="45" y="9">Normal query condition</text>-->
@@ -150,7 +154,7 @@
       <div class="MainLabel" style="margin-bottom: 10px">Data Query Simulation</div>
 
       <div id="QT_Panel" class="Panel">
-        <div style="margin-right: 3px">Query Test</div>
+        <div style="margin-right: 3px">Query Content</div>
         <el-divider direction="vertical" border-style="dashed" class="PanelTextDivider"/>
         <span>Attribute: </span>
         <el-select class="marginLeft10px" v-model="QueryAttr" placeholder="Select" size="small" style="width: 100px">
@@ -196,7 +200,7 @@
         </div>
         <div v-if="QueryType === 'count' && QueryAttrType === 'categorical'">
           <span style="padding-left: 20px">Category: </span>
-          <el-select v-model="QueryCountCondition" placeholder="Select" style="width: 100px">
+          <el-select v-model="QueryCountCondition" placeholder="Select" style="width: 100px" size="small">
             <el-option
                 v-for="item in attrList[QueryAttrIndex].Range"
                 :key="item"
@@ -207,12 +211,12 @@
         </div>
       </div>
       <div id="DPS_Panel" class="Panel">
-        <div>DP Scheme</div>
+        <div style="margin-right: 17px">DP Scheme</div>
         <el-divider direction="vertical" border-style="dashed" class="PanelTextDivider"/>
         <span>&epsilon;: </span>
         <el-input-number
             v-model="epsilon"
-            :min="0.01"
+            :min="0"
             :max="50"
             :step="0.01"
             precision="2"
@@ -239,9 +243,9 @@
       <div class="flexLayout">
         <div id="AS_Panel" class="Panel halfPanel">
 <!--          <el-divider direction="vertical" border-style="dashed" class="TextDivider"/>-->
-          <div v-if="QueryType !== 'count'" class="relativeDiv">
-            <span class="paddingRight5px" style="color: rgba(241,68,68, 0.7)">Deviation interval:</span>
-            <span class="RelativeToDiv" style="color: rgba(241,68,68, 0.7)">(Relative to the value)</span>
+          <div v-if="QueryType !== 'count'" class="relativeDiv deviationIntervalPanel">
+            <span class="paddingRight5px relativeTop5px" style="color: rgba(241,68,68, 0.7)">Deviation interval:</span>
+            <span class="RelativeToDiv" style="color: rgba(241,68,68, 0.7)">Relative to the value</span>
             <span class="paddingLeft10px">&plusmn;</span>
             <el-input-number
                 v-model="PrivacyDeviation"
@@ -260,11 +264,24 @@
             </el-button>
 
           </div>
-          <div class="flexLayout" v-if="QueryType === 'sum'">
-            <span>Succ rate threshold: </span>
+          <div class="flexLayout relativeDiv thresholdPanel" v-if="QueryType === 'sum'">
+            <span class="relativeTop5px">Succ rate threshold: </span>
+            <svg class="RelativeToDiv SuccTextSvg">
+              <text x="0" y="20" style="font-size: 12px">P</text>
+              <text x="6" y="23" style="font-size: 9px">set_leak</text>
+              <text x="44" y="20" style="font-size: 12px">({{ curAttrRiskStr }})</text>
+              <text :x="curAttrRiskStr === '100%' ? 85 : 81" y="22 ">&times;</text>
+
+              <g transform="translate(95, 0)">
+                <text x="0" y="20" style="font-size: 12px">P</text>
+                <text x="6" y="23" style="font-size: 9px">infer_succ</text>
+                <text x="51" y="20" style="font-size: 12px">({{ (deviationP1 * 100).toFixed(0) + '%' }})</text>
+              </g>
+            </svg>
+<!--            <span class="RelativeToDiv" style="width: 400px">P<sub>set_leak</sub> ({{ curAttrRiskStr }})	&times; P<sub>infer_suc</sub> ({{ deviationP1.toFixed(2) * 100 + '%' }})</span>-->
             <el-input-number
                 v-model="sumAttackSRTPercent"
-                :min="0.01"
+                :min="0"
                 :max="100"
                 :step="0.01"
                 controls-position="right"
@@ -273,11 +290,23 @@
             />
             <span class="percentageMasker">%</span>
           </div>
-          <div class="flexLayout" v-else>
-            <span>Succ rate threshold: </span>
+          <div class="flexLayout relativeDiv" v-else>
+            <span class="relativeTop5px">Succ rate threshold: </span>
+            <svg class="RelativeToDiv SuccTextSvg">
+              <text x="0" y="20" style="font-size: 12px">P</text>
+              <text x="6" y="23" style="font-size: 9px">set_leak</text>
+              <text x="44" y="20" style="font-size: 12px">({{ curAttrRiskStr }})</text>
+              <text :x="curAttrRiskStr === '100%' ? 85 : 81" y="22 ">&times;</text>
+
+              <g transform="translate(95, 0)">
+                <text x="0" y="20" style="font-size: 12px">P</text>
+                <text x="6" y="23" style="font-size: 9px">infer_succ</text>
+                <text x="51" y="20" style="font-size: 12px">({{ (deviationP1 * 100).toFixed(0) + '%' }})</text>
+              </g>
+            </svg>
             <el-input-number
                 v-model="countAttackSRTPercent"
-                :min="0.01"
+                :min="0"
                 :max="100"
                 :step="0.01"
                 controls-position="right"
@@ -291,8 +320,8 @@
         <div id="GQS_Panel" class="Panel halfPanel">
 <!--          <el-divider direction="vertical" border-style="dashed" class="TextDivider"/>-->
           <div class="relativeDiv">
-            <span class="paddingRight5px">Deviation interval:</span>
-            <span class="RelativeToDiv">(Relative to sensitivity)</span>
+            <span class="paddingRight5px relativeTop5px">Deviation interval:</span>
+            <span class="RelativeToDiv">Relative to sensitivity</span>
             <span class="paddingLeft10px">&plusmn;</span>
             <el-input-number
                 v-model="AccuracyDeviation"
@@ -305,20 +334,21 @@
                 size="small"
             />
             <span style="top: 1.5px" class="percentageMasker" :class="{hidden: !isPercentage2}">%</span>
-            <el-button type="primary" @click="switchPercentage2" class="refreshBtn blueBtn">
-              <el-icon><Refresh /></el-icon>
-              <span class="oppositeDeviation">{{ isPercentage2 ? AccuracyDeviationVal.toFixed(0) : AccuracyDeviationPercent + '%' }}</span>
-            </el-button>
+<!--            <el-button type="primary" @click="switchPercentage2" class="refreshBtn blueBtn">-->
+<!--              <el-icon><Refresh /></el-icon>-->
+<!--              <span class="oppositeDeviation">{{ isPercentage2 ? (QueryType === 'count' ? AccuracyDeviationVal : AccuracyDeviationVal.toFixed(0)) : AccuracyDeviationPercent + '%' }}</span>-->
+<!--            </el-button>-->
           </div>
           <div class="flexLayout">
             <span>Accuracy threshold: </span>
             <el-input-number
                 v-model="AccuracySRTPercent"
-                :min="0.01"
+                :min="0"
                 :max="100"
                 :step="0.01"
                 controls-position="right"
                 class="thresholdInput"
+                style="margin-left: 10px"
                 size="small"
             />
             <span class="percentageMasker">%</span>
@@ -332,7 +362,7 @@
 <!--          <text x="5" y="15">Attack queries</text>-->
           <text x="5" y="15">{{'Probability density (*10^-' + this.QueryPDensityPrecision + ')'}}</text>
           <text x="170" y="30" style="text-anchor: end">Sensitivity</text>
-          <text x="170" y="45" style="text-anchor: end" :fill="colorMap['blue-normal']">1st: {{curSensitivity1.toFixed(0)}}</text>
+          <text x="170" y="45" style="text-anchor: end" :fill="colorMap['deep-grey']">1st: {{curSensitivity1.toFixed(0)}}</text>
           <text x="170" y="60" style="text-anchor: end" :fill="colorMap['normal-grey']">2nd: {{curSensitivity2.toFixed(0)}}</text>
           <text x="170" y="200" style="text-anchor: end">Query result</text>
         </svg>
@@ -341,7 +371,7 @@
           <text x="35" y="15">{{'Probability density (*10^-' + this.AttackPDensityPrecision + ')'}}</text>
 <!--          <text x="105" y="40" :fill="deviationP1 > AttackSRT ? colorMap['risk'] : colorMap['deep-grey']" style="text-anchor: middle">{{'Succ rate: ' + deviationP1.toFixed(3)}}</text>-->
           <line x1="28" y1="20" x2="28" y2="190" stroke-dasharray="3 2" stroke="#dcdfe6" stroke-width="1px" />
-          <text x="200" y="200" style="text-anchor: end">Attack result</text>
+          <text x="200" y="200" style="text-anchor: end">Inference result</text>
         </svg>
         <svg id="GeneralQuery" class="GQS_view QueryView">
           <text x="15" y="15">Deviation / sensitivity</text>
@@ -379,7 +409,7 @@
             <path d="M2,2 L10,6 L2,10 L6,6 L2,2" style="transform: rotate(-90deg)"></path>
             <line x1="6" x2="6" y1="-5" y2="18" stroke="#777" stroke-width="2px"></line>
             <text x="0" y="-25">Deviation</text>
-            <text x="0" y="-12">(relative to the value)</text>
+            <text x="0" y="-12" style="fill: #777">Relative to the value</text>
             <line x1="6" x2="56" y1="18" y2="18" stroke="#777" stroke-width="2px"></line>
             <text x="5" y="32">Weighted successful rate</text>
             <path d="M2,2 L10,6 L2,10 L6,6 L2,2" transform="translate(46, 12)"></path>
@@ -449,7 +479,7 @@
               <template #default="scope" v-if="attr === 'Sum' && secondaryColumn === 'Succ rate'">
                 <svg class="barChart" v-if="(typeof scope.row[attr + '-' + secondaryColumn]) === 'object'">
                   <g class="background">
-                    <rect x="0" y="0" width="75" height="45"
+                    <rect x="0" y="0" width="75" height="43"
                           fill="none"
                           :stroke="colorMap['normal-grey']"
                           stroke-width="1px"
@@ -493,19 +523,9 @@
                 </svg>
                 <span v-if="(typeof scope.row[attr + '-' + secondaryColumn]) === 'string'">{{scope.row[attr + '-' + secondaryColumn]}}</span>
               </template>
-              <template #default="scope" v-if="attr === 'Sum' && secondaryColumn === 'Average risk'">
-                <svg class="lineChart" v-if="(typeof scope.row[attr + '-' + secondaryColumn]) === 'object'">
-                  <path :d="schemeHistoryPathDGenerator(scope.row[attr + '-' + secondaryColumn])"
-                        :stroke="colorMap['normal-grey']"
-                        stroke-width="1px"
-                  ></path>
-                </svg>
-                <span v-else>-</span>
-              </template>
-
               <template #default="scope" v-if="attr === 'Count' && secondaryColumn === 'Succ rate'">
                 <svg class="barChart" v-if="(typeof scope.row[attr + '-' + secondaryColumn]) === 'object'">
-                  <text x="40" y="14" style="text-anchor: middle">{{ (scope.row[attr + '-' + secondaryColumn][0] * 100).toFixed(0) + '%'}}</text>
+                  <text x="40" y="14" style="text-anchor: middle; font-size: 14px">{{ (scope.row[attr + '-' + secondaryColumn][0] * 100).toFixed(0) + '%'}}</text>
                   <g class="background">
                     <rect x="0" y="22" width="75" height="20"
                           fill="none"
@@ -541,6 +561,14 @@
                 </svg>
                 <span v-if="(typeof scope.row[attr + '-' + secondaryColumn]) === 'string'">{{scope.row[attr + '-' + secondaryColumn]}}</span>
               </template>
+              <template #default="scope" v-if="attr === 'Scheme'">
+                <span>{{scope.row[attr + '-' + secondaryColumn]}}</span>
+                <svg class="unLockBgc"
+                     v-if="this.AttrLockMap[scope.row['Attribute']] !== -1 && scope.$index !== this.AttrLockMap[scope.row['Attribute']]"
+                     :width="secondaryColumn === 'Sensitivity' ? 100 : 70" height="60">
+                  <rect x="0" y="0" width="100" height="60" fill="#efefef" fill-opacity="0.7"></rect>
+                </svg>
+              </template>
             </el-table-column>
 
           </el-table-column>
@@ -550,10 +578,10 @@
               <el-button size="small" class="lockRow"
                          @click="lockScheme(scope.row['Attribute'], scope.$index)"
                          v-if="AttrLockMap[scope.row['Attribute']] !== scope.$index">
-                <el-icon><Unlock /></el-icon></el-button>
+                <img src="unlock.png" style="width: 12px;"></el-button>
               <el-button size="small" class="lockRow"
                          @click="unlockScheme(scope.row['Attribute'])"
-                         v-else><el-icon><Lock /></el-icon></el-button>
+                         v-else><img src="lock.png" style="width: 12px;"></el-button>
             </template>
           </el-table-column>
 
@@ -572,7 +600,7 @@
 
 
   <div class="InitialOverLay" v-if="DataInputVisible">
-    <div class="SystemName">SystemName</div>
+    <div class="SystemName">DPKnob</div>
     <div class="DataInput">
       <DataInput
           @inputData="initializeTree"
@@ -600,9 +628,9 @@ export default {
     data() {
       return {
         colorMap: {'blue-normal':      'rgba(52, 152, 219,1.0)',
-                   'blue-normal-opacity':'rgba(52, 152, 219,0.7)',
+                   'blue-normal-opacity':'rgba(52, 152, 219,0.5)',
                    'risk':             'rgba(234,120,119, 1.0)',
-                   'risk-opacity':     'rgba(234,120,119, 0.7)',
+                   'risk-opacity':     'rgba(234,120,119, 0.5)',
                    'deep-red':         'rgb(241,68,68)',
                    'light-grey':      'rgb(220,220,220)',
                    'normal-grey':      'rgb(176,176,176)',
@@ -675,7 +703,7 @@ export default {
         IntervalRight: 35,
         PrivacyDeviation: 80,
         sumAttackSRTPercent: 20,
-        countAttackSRTPercent: 40,
+        countAttackSRTPercent: 60,
         AccuracyDeviation: 20,
         AccuracySRTPercent: 50,
         privateVal: 0,
@@ -707,9 +735,9 @@ export default {
         ExactVal: {'firstQuery': 0, 'secondQuery': 0},
 
         SchemeHistory: [],
-        SchemeHistoryColumn: ['Schemes', 'Count', 'Sum'],
+        SchemeHistoryColumn: ['Scheme', 'Count', 'Sum'],
         SchemeHistoryColumnWidth: [170,198,200],
-        SchemeHistorySecondaryColumn: {'Schemes': ['\u03B5', 'Sensitivity'], 'Sum': ['Succ rate'], 'Count': ['Succ rate']},
+        SchemeHistorySecondaryColumn: {'Scheme': ['\u03B5', 'Sensitivity'], 'Sum': ['Succ rate'], 'Count': ['Succ rate']},
         SchemeHistorySecondaryColumnWidth: [[70,100], [90,110], [90,110]],
         SchemeHistoryColumnSensitivity: {},
         SchemeHistoryEpsilon: {},
@@ -839,9 +867,9 @@ export default {
           return []
         }
       },
-      isFreshSimulationView({ QueryType, QueryAttr, IntervalLeft, IntervalRight, QueryCountCondition, FirstQueryCondition, epsilon, SensitivityCalculationWay}) {
+      isFreshSimulationView({ QueryType, QueryAttr, IntervalLeft, IntervalRight, QueryCountCondition, SecondQueryCondition, epsilon, SensitivityCalculationWay, curAttrRisk}) {
         // 集合Simulation View 刷新的变量 用于watch
-        return { QueryType, QueryAttr, IntervalLeft, IntervalRight, QueryCountCondition, FirstQueryCondition, epsilon, SensitivityCalculationWay};
+        return { QueryType, QueryAttr, IntervalLeft, IntervalRight, QueryCountCondition, SecondQueryCondition, epsilon, SensitivityCalculationWay, curAttrRisk};
       },
       attrRisk() {
         return this.getAttrRisk(this.curIndices);
@@ -937,26 +965,6 @@ export default {
         [nodes, links] = this.PruningAndLayout(nodes, links, width, height, this.DescriptionNum)
         this.MakeTree(svg, nodes, links);
 
-        // let findRisk = false;
-        // for(let node of nodes) {
-        //   if(node.data.curNodeRiskPie[0] !== 0) {
-        //     this.ContextmenuNode(node)
-        //     findRisk = true;
-        //     break;
-        //   }
-        // }
-        // if(!findRisk) {
-        //   new Promise(resolve => {
-        //     this.ClickNode(svg, nodes[0], resolve);
-        //   }).then((newNodes) => {
-        //     for(let node of newNodes) {
-        //       if(node.data.curNodeRiskPie[0] !== 0) {
-        //         this.ContextmenuNode(node)
-        //         break;
-        //       }
-        //     }
-        //   })
-        // }
 
       },
       MakeTree(svg, nodes, links) {
@@ -1277,11 +1285,11 @@ export default {
           // 关键点在这，这里需要等 新节点画完才能进行下一步
         }
         let targetNode = this.curAS_nodes.find(d => d.data.name === bitmap);
-        this.ContextmenuNode(targetNode);
 
         // 等待 differ query 树生成
         new Promise(resolve => {
           this.waitDifferTreeMake = resolve;
+          this.ContextmenuNode(targetNode);7
         }).then((queryNodes) => {
           let targetQueryNode = queryNodes.find(d => {
             return d.data.index.length === 1 && d.data.index[0] === index;
@@ -1301,6 +1309,7 @@ export default {
         d3.select('.attrRiskInput')
             .style('left', `${this.chosenNodePos.x + 45}px`)
             .style('top', `${this.chosenNodePos.y + 48}px`)
+            .classed('hidden', false);
 
         let minP = 1;
         let bitmap = d.data.indices.reduce((prev, cur) => {
@@ -1412,6 +1421,7 @@ export default {
         let NodeHeight = 20;
         let NodePadding = 10;
         let DimensionTextHeight = NodeHeight;
+        let iconWidth = 40;
 
 
         [nodes, keyMap] = this.TreePruning(nodes, keyMap);
@@ -1445,7 +1455,7 @@ export default {
         this.IndividualIconPosList = []
         for(let i in nodes) {
           let dim = nodes[i].data.dim;
-          nodes[i].x = Xscale(indices[dim]);
+          nodes[i].x = Xscale(indices[dim]) - iconWidth / 2;
           nodes[i].y = YScale(nodes[i].yIndex);
           // 叶子节点
           if(dim === indices.length-1) {
@@ -1467,7 +1477,7 @@ export default {
         let DimensionNodeG = DimensionG_DATA.enter()
             .append("g")
             .attr("class", 'DimensionNodeG')
-            .attr("transform", d => `translate(${Xscale(d)}, 10)`)
+            .attr("transform", d => `translate(${Xscale(d) - iconWidth / 2}, 10)`)
             .call(this.AttrDrag(DimensionG_width / 2, width, indices.length))
         this.curAttrPos = indices.map((d, i) => i);
         console.log(this.curAttrPos)
@@ -1600,8 +1610,8 @@ export default {
              .attr('points', '0,10 10,10 5, 0')
              .attr('fill', '#333')
 
-        // 自动选取默认攻击目标
-        if(leaves.length > 0) {
+        // 自动选取默认攻击目标  if 并没有其他线程在等待
+        if(leaves.length > 0 && this.waitDifferTreeMake === -1) {
           let defaultNode = leaves[0];
           // 获取真正的风险节点
           while(defaultNode.parent.data.isBST) {
@@ -1613,6 +1623,7 @@ export default {
         // 让等待的线程启动
         if(this.waitDifferTreeMake !== -1) {
           this.waitDifferTreeMake(nodes);
+          this.waitDifferTreeMake = -1;
         }
 
       },
@@ -2442,7 +2453,7 @@ export default {
                 .attr('x',(d, i) => this.DA_OutputXscale(i))
                 .attr('y', d => rectYScale(d) - 5)
                 .style('text-anchor', 'middle')
-                .text((d, i) => d > 0.5 ? `Yes (${(d*100*this.curAttrRisk).toFixed(0)}%)` : `No (${(d*100*this.curAttrRisk).toFixed(0)}%)`);
+                .text((d, i) => d > 0.5 ? `Yes (${(d*100).toFixed(0)}%)` : `No (${(d*100).toFixed(0)}%)`);
                 // .attr('fill', (d, i) => d > 0.5 ? this.colorMap["risk"] : this.colorMap["normal-grey"]);
 
 
@@ -2517,7 +2528,7 @@ export default {
         }
         container.append('path')
             .attr('d', cg(lineData))
-            .attr('stroke', this.colorMap["blue-normal"])
+            .attr('stroke', externalData.length !== 0 ? this.colorMap["deep-grey"] : this.colorMap["blue-normal"])
             .attr('stroke-width', 2)
             .attr('fill', 'none');
 
@@ -2544,7 +2555,7 @@ export default {
 
         let trueVal = (lineData[0][0] + lineData[lineDataLen - 1][0]) / 2;
 
-        let xAxis = d3.axisBottom().scale(x).tickSizeOuter(0).ticks(3).tickFormat(d => this.convert2word(d));
+        let xAxis = d3.axisBottom().scale(x).tickSizeOuter(0).ticks(2).tickFormat(d => this.convert2word(d));
         container.append("g")
             .attr("class", "x axis")
             .attr("transform", `translate(0, ${h - padding})`)
@@ -2909,7 +2920,7 @@ export default {
             'b2': this.curB2
           }
         }).then(response => {
-          this.deviationP1 = response.data.dp * this.attrRisk;
+          this.deviationP1 = response.data.dp; //* this.attrRisk;
           let text = d3.select('#DA_OutputSVG .deviationText')
           let w = parseFloat(d3.select('#DA_OutputSVG').style('width').split('px')[0]);
           if(text._groups[0][0] !== null) {
@@ -3018,7 +3029,7 @@ export default {
           // this.SchemeHistoryAttrDeviationMap[attr] = '50%';
           this.SchemeHistory.push({
             'Attribute': attr,
-            'Schemes-\u03B5': this.epsilon.toFixed(2).toString()
+            'Scheme-\u03B5': this.epsilon.toFixed(2).toString()
           });
 
         }
@@ -3045,6 +3056,7 @@ export default {
               let data = response.data.data[index];
               let avgRiskP1, attackRiskP1;
               let maxRiskRecordMap = data['maxRiskRecordMap'];
+              let countMaxRiskRecord = data['countMaxRiskRecord'];
               if (data['sum'] === '-') {
                 avgRiskP1 = '-';
                 attackRiskP1 = '-';
@@ -3055,12 +3067,14 @@ export default {
               let attackRiskP2 = data['count'][1];
               let attackRiskListP2 = data['count'][2];
               let avgRiskP2 = data['count'][0];
-              this.SchemeHistory[index]['Schemes-Sensitivity'] = this.SensitivityCalculationWay === 'Global sensitivity' ? 'Global' : 'Local';
+              this.SchemeHistory[index]['Scheme-Sensitivity'] = this.SensitivityCalculationWay === 'Global sensitivity' ? 'Global' : 'Local';
               this.SchemeHistory[index]['Sum-Succ rate'] = attackRiskP1;
               this.SchemeHistory[index]['Sum-Average risk'] = avgRiskP1;
               this.SchemeHistory[index]['Count-Succ rate'] = [attackRiskP2.toFixed(2), attackRiskListP2];
               this.SchemeHistory[index]['Count-Average risk'] = avgRiskP2.toFixed(2);
               this.SchemeHistory[index]['maxRiskRecordMap'] = maxRiskRecordMap;
+              this.SchemeHistory[index]['countMaxRiskRecord'] = countMaxRiskRecord;
+
             }
             
             // 初始化历史线
@@ -3167,7 +3181,7 @@ export default {
         let attrParams = this.attrList.find(d => d.Name === attr);
         this.SchemeHistory.splice(insertPos, 0, {
           'Attribute': attr,
-          'Schemes-\u03B5': this.epsilon.toFixed(2)
+          'Scheme-\u03B5': this.epsilon.toFixed(2)
         })
         let temp = this.SchemeHistory[insertPos];
         axios({
@@ -3202,11 +3216,12 @@ export default {
           let attackRiskListP2 = data['count'][2];
           let avgRiskP2 = data['count'][0];
           temp['maxRiskRecordMap'] = data['maxRiskRecordMap'];
-          temp['Schemes-Sensitivity'] = this.SensitivityCalculationWay === 'Global sensitivity' ? 'Global' : 'Local';
+          temp['Scheme-Sensitivity'] = this.SensitivityCalculationWay === 'Global sensitivity' ? 'Global' : 'Local';
           temp['Sum-Succ rate'] = attackRiskP1;
           temp['Sum-Average risk'] = avgRiskP1;
           temp['Count-Succ rate'] = [attackRiskP2.toFixed(2), attackRiskListP2];
           temp['Count-Average risk'] = avgRiskP2.toFixed(2);
+          temp['countMaxRiskRecord'] = data['countMaxRiskRecord'];
 
         })
 
@@ -3215,7 +3230,7 @@ export default {
       refreshAvgRiskP() {
         for(let i = 0;i<this.SchemeHistory.length;i++) {
           let row = this.SchemeHistory[i];
-          let epsilon = parseFloat(row['Schemes-\u03B5']);
+          let epsilon = parseFloat(row['Scheme-\u03B5']);
           let attr = row['Attribute'];
           let attrType = this.attrList.find(d => d.Name === attr).Type;
           let attrParams = this.attrList.find(d => d.Name === attr);
@@ -3248,13 +3263,13 @@ export default {
             let attackRiskP2 = data['count'][1];
             let attackRiskListP2 = data['count'][2];
             let avgRiskP2 = data['count'][0];
-            row['Schemes-Sensitivity'] = this.SensitivityCalculationWay === 'Global sensitivity' ? 'Global' : 'Local';
+            row['Scheme-Sensitivity'] = this.SensitivityCalculationWay === 'Global sensitivity' ? 'Global' : 'Local';
             row['Sum-Succ rate'] = attackRiskP1;
             row['Sum-Average risk'] = avgRiskP1;
             row['Count-Succ rate'] = [attackRiskP2.toFixed(2), attackRiskListP2];
             row['Count-Average risk'] = avgRiskP2.toFixed(2);
             row['maxRiskRecordMap'] = data['maxRiskRecordMap'];
-
+            row['countMaxRiskRecord'] = data['countMaxRiskRecord']
           })
 
         }
@@ -3271,6 +3286,14 @@ export default {
             this.clickTargetRecord(index, condition);
           }
         }
+        else if(column.property === 'Count-Succ rate') {
+          if(row['countMaxRiskRecord'].risk > this.sumAttackSRTPercent / 100) {
+            let index = row['countMaxRiskRecord'].index;
+            let condition = row['countMaxRiskRecord'].condition;
+            this.shrinkageAllASNode();
+            this.clickTargetRecord(index, condition);
+          }
+        }
       },
 
       hoverRowClassName({ row, rowIndex }) {
@@ -3278,23 +3301,23 @@ export default {
         if (row['Attribute'] === this.hoverRowAttr && this.hoverColumn === 'Attribute') {
           classNames.push('hover-row');
         }
-        if(this.AttrLockMap[row['Attribute']] !== -1 && rowIndex !== this.AttrLockMap[row['Attribute']]) {
-          classNames.push('unlock-row');
-        }
+        // if(this.AttrLockMap[row['Attribute']] !== -1 && rowIndex !== this.AttrLockMap[row['Attribute']]) {
+        //   classNames.push('unlock-row');
+        // }
         return classNames.join(' ');
       },
       hoverCellClassName({ row, column, rowIndex, columnIndex }) {
         if(row['Attribute'] === this.hoverRowAttr && (this.hoverColumn && this.hoverColumn !== 'Attribute') && columnIndex === 0) {
           return 'hover-cell'
         }
-        else if(row['Attribute'] + '-' + row['Schemes-\u03B5'] === this.hoverRowProp) {
+        else if(row['Attribute'] + '-' + row['Scheme-\u03B5'] === this.hoverRowProp) {
           return 'hover-cell'
         }
       },
 
       deleteSchemeHistoryRow(index, row) {
         let attr = this.SchemeHistory[index]['Attribute'];
-        let e = parseFloat(this.SchemeHistory[index]['Schemes-\u03B5']);
+        let e = parseFloat(this.SchemeHistory[index]['Scheme-\u03B5']);
         delete this.AccuracyEpsilonHistory[attr][e]
         // 删除历史线
         d3.selectAll(`#GeneralQuery [epsilon="${e}"]`).remove();
@@ -3311,7 +3334,7 @@ export default {
       CellMouseEnter(row, column, cell, event) {
         this.hoverRowAttr = row['Attribute'];
         this.hoverColumn = column.label;
-        this.hoverRowProp = row['Attribute'] + '-' + row['Schemes-\u03B5'];
+        this.hoverRowProp = row['Attribute'] + '-' + row['Scheme-\u03B5'];
       },
       CellMouseLeave(row, column) {
         this.hoverRowAttr = '';
@@ -3377,11 +3400,11 @@ export default {
         let sign = num < 0 ? '-' : '';
         let absNum = Math.abs(num)
         if(absNum > 10000) {
-          let t = num % 10000 === 0 ? 0 : 2;
+          let t = num % 10000 === 0 ? 0 : 3;
           return (num / 10000).toFixed(t) + 'w'
         }
         else if(absNum > 1000) {
-          let t = num % 1000 === 0 ? 0 : 2;
+          let t = num % 1000 === 0 ? 0 : 3;
           return (num / 1000).toFixed(t) + 'k'
         }
         return num.toString();
@@ -3712,12 +3735,7 @@ export default {
       'isFreshSimulationView': {
         handler(newVal, oldVal) {
           if(Object.keys(this.curAttackTarget).length !== 0) {
-            // if (this.QueryAttrType !== 'numerical' && this.QueryType === 'sum') {
-            //
-            // }
-            // else {
-              this.initializeAttackSimulationViews(this.curAttackTarget);
-            // }
+            this.initializeAttackSimulationViews(this.curAttackTarget);
           }
         },
         deep: true,
@@ -3832,14 +3850,14 @@ export default {
         handler(newVal, oldVal) {
           this.curAttrRisk = parseFloat(newVal.split('%')) / 100
           d3.select('.attrRiskSlider')
-            .attr('transform', `translate(${this.curAttrRisk * 80}, 0)`);
+            .attr('transform', `translate(${this.curAttrRisk * 70}, 0)`);
           // 初始化的时候存在一点问题,关于this.curIndices
           // 需要等 this.indices 修改后
           let bitmap = this.curIndices.reduce((prev, d) => {
             return prev += 1 << d;
           }, 0);
           this.attrRiskMap[bitmap] = this.curAttrRisk;
-
+          this.UpdateEpsilonWithPrivacy();
         },
         deep: true,
         immediate: false
@@ -4110,6 +4128,7 @@ export default {
     display: flex;
     align-items: center;
   }
+
   /***************** 树视图style ******************/
   #AttributeSet {
     width: 50%;
@@ -4183,8 +4202,12 @@ export default {
 
   .RelativeToDiv {
     position: absolute;
-    left: -7px;
-    top: 10px;
+    left: 0px;
+    top: 6px;
+  }
+
+  .SuccTextSvg text{
+    fill: #666;
   }
 
   .individualIcon {
@@ -4193,9 +4216,21 @@ export default {
     position: absolute;
   }
 
+  .relativeTop5px {
+    position: relative;
+    top: -5px;
+  }
+
 
 
   /**********************************************/
+  .deviationIntervalPanel {
+    /*padding: 7px 0 0 0;*/
+  }
+  /*.thresholdPanel {*/
+  /*  padding: 0 0 7px 0;*/
+  /*}*/
+
 
   .AS_view {
     /*flex: 1;*/
@@ -4314,7 +4349,13 @@ export default {
     width: 75px;
     height: 45px;
     margin-left: -5px;
-    margin-bottom: 2px;
+    margin-bottom: 0;
+  }
+
+  .unLockBgc {
+    position: absolute;
+    top: 0;
+    left: 0;
   }
 
   .lineChart {
@@ -4354,7 +4395,7 @@ export default {
 
   .thresholdInput {
     width: 60px;
-    margin-left: 10px;
+    margin-left: 75px;
   }
 
   .deviationInput, .percentDeviationInput{
@@ -4407,7 +4448,7 @@ export default {
 <style>
   svg text {
     font-size: 12px;
-    color: rgba(104, 104, 104,1.0);
+    /*fill: #666;*/
     font-family: "Helvetica Neue",Helvetica,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","微软雅黑",Arial,sans-serif;
   }
 
@@ -4444,15 +4485,20 @@ export default {
     stroke: rgba(236, 204, 104,1.0);
   }
   .el-table__body .el-table__row.hover-row td{
-    background-color: rgba(236, 204, 104,0.5);
+    background-color: #fff;
   }
   .el-table__body .hover-cell {
-    background-color: rgba(236, 204, 104,0.5) !important;
+    background-color: #fff;
   }
 
-  .el-table__body .el-table__row.unlock-row td{
-    background-color: rgb(220,220,220) !important;
+  .el-table tbody tr:hover>td {
+    background-color:#fff !important;
   }
+
+
+  /*.el-table__body .el-table__row.unlock-row td{*/
+  /*  background-color: #fff !important;*/
+  /*}*/
 
 
   .Panel .el-icon {

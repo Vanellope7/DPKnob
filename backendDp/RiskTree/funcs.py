@@ -304,6 +304,7 @@ def getAvgRiskP(filename, attr, attrParams, epsilon, attrOption, sensitivity, at
     attrIndex = attrOption.index(attr)
     barData = {}
     maxRiskRecordMap = {}
+
     # query2S = 0
     # if SensitivityCalculationWay == 'Local sensitivity' and getNewMinSensitivity:
     #     minSensitivityMap = getMinLocalSensitivityMap(AttrsKeyMap, BSTKeyMap, attrOption, filename, attr)
@@ -316,6 +317,10 @@ def getAvgRiskP(filename, attr, attrParams, epsilon, attrOption, sensitivity, at
         for i in range(10):
             countBarChart[i] = 0
         cnt = 0
+        curCountRisk = 0
+        countRiskMap = {}
+        countMaxRiskRecord = defaultdict(int)
+        countConditionMap = {}
         for bitmap in BSTMap:
             indices = getCubeByIndices(int(bitmap))
             if attrIndex in indices:
@@ -324,18 +329,36 @@ def getAvgRiskP(filename, attr, attrParams, epsilon, attrOption, sensitivity, at
                 minAttrRiskP = 1
                 if attrRisk.get(str(bitmap), -1) != -1:
                     minAttrRiskP = attrRisk[str(bitmap)]
+                    if minAttrRiskP == 0.1:
+                        print('xxx')
                 else:
-                    for attrIndex in indices:
-                        minAttrRiskP = min(minAttrRiskP, attrRisk[str(1 << attrIndex)])
-                sumRisk += minAttrRiskP * attackRisk
-                countRiskList.append(minAttrRiskP * attackRisk)
-                cnt += 1
+                    for attrI in indices:
+                        minAttrRiskP = min(minAttrRiskP, attrRisk[str(1 << attrI)])
+                        if minAttrRiskP == 0.1:
+                            print('xxx')
+                if attackRisk * minAttrRiskP >= countMaxRiskRecord[index]:
+                    countMaxRiskRecord[index] = attackRisk * minAttrRiskP
+                    countConditionMap[index] = {
+                        'indices': indices,
+                        'bitmap': bitmap
+                    }
+        for index, p in countMaxRiskRecord.items():
+            if p > curCountRisk:
+                curCountRisk = p
+                countRiskMap['index'] = index
+                countRiskMap['risk'] = p
+                countRiskMap['condition'] = countConditionMap[index]
+            sumRisk += p
+            countRiskList.append(p)
+            cnt += 1
         for countRisk in countRiskList:
             key = min(math.floor(countRisk * 100) // 10, 9)
+            if (round(countRisk, 2) * 100) % 10 == 0 and key >= 1:
+                key -= 1
             countBarChart[key] += 1
         for i in range(10):
             countBarChart[i] /= len(countRiskList)
-        return {'sum': '-', 'count': [attackRisk, sumRisk / cnt, list(countBarChart.values())],  'maxRiskRecordMap': maxRiskRecordMap}
+        return {'sum': '-', 'count': [attackRisk, sumRisk / cnt, list(countBarChart.values())],  'maxRiskRecordMap': maxRiskRecordMap, 'countMaxRiskRecord': countRiskMap}
     else:  # 数值型数据
         sumRet = {'avgRiskList': [], 'attackRiskList': []}
         for deviationRatio in np.linspace(0.1, 1, 10):
@@ -356,8 +379,7 @@ def getAvgRiskP(filename, attr, attrParams, epsilon, attrOption, sensitivity, at
                 if attrIndex in indices:
                     continue
                 for index in BSTMap[bitmap]:
-                    if index == 1241 or index == 1047:
-                        print('1241')
+
                     minAttrRiskP = 1
                     if attrRisk.get(str(bitmap), -1) != -1:
                         minAttrRiskP = attrRisk[str(bitmap)]
@@ -404,6 +426,11 @@ def getAvgRiskP(filename, attr, attrParams, epsilon, attrOption, sensitivity, at
         countBarChart = {}
         for i in range(10):
             countBarChart[i] = 0
+        cnt = 0
+        curCountRisk = 0
+        countRiskMap = {}
+        countMaxRiskRecord = defaultdict(int)
+        countConditionMap = {}
         for bitmap in BSTMap:
             indices = getCubeByIndices(int(bitmap))
             if attrIndex in indices:
@@ -413,14 +440,28 @@ def getAvgRiskP(filename, attr, attrParams, epsilon, attrOption, sensitivity, at
                 if attrRisk.get(str(bitmap), -1) != -1:
                     minAttrRiskP = attrRisk[str(bitmap)]
                 else:
-                    for attrIndex in indices:
-                        minAttrRiskP = min(minAttrRiskP, attrRisk[str(1 << attrIndex)])
-                sumRisk += minAttrRiskP * attackRisk
-                countRiskList.append(minAttrRiskP * attackRisk)
-                cnt += 1
+                    for attrI in indices:
+                        minAttrRiskP = min(minAttrRiskP, attrRisk[str(1 << attrI)])
+                if attackRisk * minAttrRiskP >= countMaxRiskRecord[index]:
+                    countMaxRiskRecord[index] = attackRisk * minAttrRiskP
+                    countConditionMap[index] = {
+                        'indices': indices,
+                        'bitmap': bitmap
+                    }
+        for index, p in countMaxRiskRecord.items():
+            if p > curCountRisk:
+                curCountRisk = p
+                countRiskMap['index'] = index
+                countRiskMap['risk'] = p
+                countRiskMap['condition'] = countConditionMap[index]
+            sumRisk += p
+            countRiskList.append(p)
+            cnt += 1
         for countRisk in countRiskList:
             key = min(math.floor(countRisk * 100) // 10, 9)
+            if (round(countRisk, 2) * 100) % 10 == 0 and key >= 1:
+                key -= 1
             countBarChart[key] += 1
         for i in range(10):
             countBarChart[i] /= len(countRiskList)
-        return {'sum': sumRet, 'count': [attackRisk, sumRisk / cnt, list(countBarChart.values())], 'maxRiskRecordMap': maxRiskRecordMap}
+        return {'sum': sumRet, 'count': [attackRisk, sumRisk / cnt, list(countBarChart.values())], 'maxRiskRecordMap': maxRiskRecordMap, 'countMaxRiskRecord': countRiskMap}
