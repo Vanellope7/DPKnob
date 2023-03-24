@@ -1,4 +1,5 @@
 import json
+import time
 
 import numpy as np
 from django.http import JsonResponse
@@ -11,11 +12,14 @@ from tools.utils import laplace_P, laplace_DV_P, laplace_DP_f2
 
 def GetNoisyDataDistribution(request):
     postData = json.loads(request.body)
+
     dfp = DFProcessor(postData['FileName'], postData['QueryAttr'],
                       postData['QueryCondition'], postData['sensitivityWay'], postData['Interval'])
+
     res = float(eval("dfp.{0}()".format(postData['QueryType'])))
     sensitivities = dfp.getSensitivity(postData['QueryType'])
     sensitivity = dfp.getCurSensitivity(postData['QueryType'])
+
     b = float(sensitivity / postData['epsilon'])
     L = Laplace(b)
     D = []
@@ -31,16 +35,11 @@ def GetPrivacyDistribution(request):
     postData = json.loads(request.body)
     b1 = postData['b1']
     b2 = postData['b2']
-    GlobalS = postData['GlobalS']
+    scope = postData['scope']
     targetResult = postData['targetResult']
-    gapwidth = 2 if targetResult == 0 else GlobalS * 1.2
+
     ret = {}
-    if GlobalS != 1:
-        leftInterval = targetResult - gapwidth
-        rightInterval = targetResult + gapwidth
-    else:
-        leftInterval = -1
-        rightInterval = 2
+    if scope == [-1, 2]:
         if targetResult == 0:
             p1 = laplace_DV_P([-0.5, 0], b1) + 0.5
             ret['deduceBar'] = [p1, 1-p1]
@@ -51,7 +50,7 @@ def GetPrivacyDistribution(request):
     L = Laplace(b1)
     D = []
     dv_func = L.Laplace_DV_f if b1 == b2 else lambda d: laplace_DP_f2(d, b1, b2)
-    for x in np.linspace(leftInterval, rightInterval, 1000):
+    for x in np.linspace(scope[0], scope[1], 1000):
         D.append([x, dv_func(x - targetResult)])
     ret['distribution'] = D
     return JsonResponse(ret)

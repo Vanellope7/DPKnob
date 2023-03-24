@@ -12,72 +12,10 @@
     <rect class="dragRect" fill="blue" stroke="black" fill-opacity="0.5"></rect>
   </svg>
   <script>
-    let scale = d3.scaleLinear().domain([0, 2]).range([20, 220]);
-    let scale2 = d3.scaleBand().domain([0, 2, 3]).range([20, 220]);
-    // console.log(scale2.invert(20))
-    let data = [0,1,2];
-    let pos = [0,1,2]
-    d3.selectAll('rect')
-      .data(data)
-      .join('rect')
-      .attr('class', 'dragRect')
-      .attr('id', d => 'dragRect' + d)
-      .attr('x', d => scale(d))
-      .attr('y', 20)
-      .attr('width', 100)
-      .attr('height', 100)
-    var drag = d3.drag()
-        .on("drag", dragmove)
-        .on('end', dragEnd);
-
-    function dragmove(event, d) {
-      let newX = event.x;
-      d3.select(this)
-          .attr("x", newX - 50);
-      let preIndex = pos[d];
-      let curIndex = Math.round(scale.invert(newX - 50))
-      if (curIndex > 2) {
-        curIndex = 2
-      }
-      if(curIndex < 0) {
-        curIndex = 0
-      }
-      if (preIndex < curIndex) {
-        // 右移
-        pos.forEach((d, i) => {
-          if (d === curIndex) {
-            pos[i] -= 1;
-          }
-          if (d === preIndex) {
-            pos[i] = curIndex
-          }
-        });
-        d3.selectAll('.dragRect')
-            .attr('x', d => scale(pos[d]))
-      } else {
-        if (preIndex > curIndex) {
-          // 左移
-          pos.forEach((d, i) => {
-            if (d === curIndex) {
-              pos[i] += 1;
-            }
-            if (d === preIndex) {
-              pos[i] = curIndex
-            }
-          });
-          d3.selectAll('.dragRect')
-              .attr('x', d => scale(pos[d]))
-        }
-      }
-    }
-    function dragEnd() {
-      d3.selectAll('.dragRect')
-          .attr('x', d => scale(pos[d]))
-    }
-    d3.selectAll('.dragRect')
-      .call(drag);
-
-
+    d3.json('abc.json')
+      .then((data, error) => {
+        console.log(data, error)
+      })
   </script>
 </body>
 </html>

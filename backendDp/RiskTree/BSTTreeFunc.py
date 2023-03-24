@@ -17,10 +17,10 @@ def getGap(left, right):
     gap = float((right - left) / 5)
     gap_str = str(gap).split('.')
     if gap > 1:
-        bit = len(gap_str[0]) - 1
         if gap >= 5 and gap < 10:
             return gap // 5 * 5, 5
         else:
+            bit = len(gap_str[0]) - 1
             return 10 ** bit, bit
     else:
         bit = len(gap_str[1]) - 1
@@ -49,10 +49,10 @@ def getCodedData(data, DCs):
 def DFS_OUTER(input, d, bitmap, depth, dim, R):
     global values
     values = R
-    return DFS(input, d, bitmap, depth, dim)
+    return DFS(input, d, bitmap, depth, dim, True)
 
 
-def DFS(input, d, bitmap, depth, dim):
+def DFS(input, d, bitmap, depth, dim, show=True):
     ret = []
     if depth > dim - 1:
         return []
@@ -77,8 +77,9 @@ def DFS(input, d, bitmap, depth, dim):
                 'val': 1 if depth == dim - 1 else 0,
                 'isBST': True,
                 'index': [BST],
+                'show': show,
                 'num': subgroup_size,
-                'children': DFS(GroupMap[key], d + 1, bitmap + (1 << d), depth + 1, dim)
+                'children': DFS(GroupMap[key], d + 1, bitmap + (1 << d), depth + 1, dim, False)
             })
 
         else:
@@ -88,6 +89,7 @@ def DFS(input, d, bitmap, depth, dim):
                 'key': key,
                 'isBST': False,
                 'index': subgroup,
+                'show': show,
                 'num': subgroup_size,
                 'children': DFS(GroupMap[key], d + 1, bitmap + (1 << d), depth + 1, dim)
             })

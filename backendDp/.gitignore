@@ -19,3 +19,4 @@ test.py
 *.sln
 *.pyc
 *.sw?
+*.cash.json

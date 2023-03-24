@@ -86,7 +86,8 @@ def getDataCoder(data, attrList):
         else:
             category_map = {}
             category_rmap = {}
-            categories = set(data[column].tolist())
+            categories = list(set(data[column].tolist()))
+            categories.sort() # 这里需要统一，已经发现了这里常常多次运行时不统一导致出现问题
             for (index, category) in enumerate(categories):
                 category_map[category] = index
                 category_rmap[index] = category
@@ -216,13 +217,15 @@ def getRiskRecord(filename, attrList, indices, RiskRatioMap, DescriptionNum):
 def keys2condition(AttrsKeyMap, dc_indices, dc_keys):
     conditions = {}
     otherConditions = {}
+    conditionKeyMap = {}
     for dc_index, dc_key in zip(dc_indices, dc_keys):
+        conditionKeyMap[dc_index] = {}
         keyMap = AttrsKeyMap[dc_index]
         keys, texts, type = keyMap['data'], keyMap['text'], keyMap['type']
         dc_text = texts[keys.index(int(float(dc_key)))]
         if type == 'numerical':
-            conditions[dc_index] = list(map(lambda d: float(d), dc_text.split('~')))
-            otherConditions[dc_index] = [list(map(lambda d: float(d), text.split('~'))) for text in texts if
+            conditions[dc_index] = tuple(map(lambda d: float(d), dc_text.split('~')))
+            otherConditions[dc_index] = [tuple(map(lambda d: float(d), text.split('~'))) for text in texts if
                                          text != dc_text]
         else:
             conditions[dc_index] = dc_text
@@ -230,10 +233,22 @@ def keys2condition(AttrsKeyMap, dc_indices, dc_keys):
     return conditions, otherConditions
 
 
+def getConditionKeyMap(AttrsKeyMap):
+    ConditionKeyMap = {}
+    for index in range(len(AttrsKeyMap)):
+        ConditionKeyMap[index] = {}
+        attrType = AttrsKeyMap[index]['type']
+        for key, text in zip(AttrsKeyMap[index]['data'], AttrsKeyMap[index]['text']):
+            condition = tuple(map(lambda d: float(d), text.split('~'))) if attrType == 'numerical' else text
+            ConditionKeyMap[index][condition] = key
+    return ConditionKeyMap
+
+
 def getMinLocalSensitivityMap(dfp, AttrsKeyMap, BSTKeyMap, attrOption, filename, attr, attrIndex, index=-1, ):
     minSensitivityMap = {}
     group = BSTKeyMap.keys() if index == -1 else [str(index)]
-
+    conditionKeyMap = getConditionKeyMap(AttrsKeyMap)
+    codeSensitivityMap = {}
     for bstIndex in group:
         minSensitivityDict = {}
         firstSensitivityWayDict = {}
@@ -253,33 +268,95 @@ def getMinLocalSensitivityMap(dfp, AttrsKeyMap, BSTKeyMap, attrOption, filename,
 
             # 选定不同的属性作为差分条件时
             for dc_index, dc_key in zip(dc_indices, dc_keys):
-                normalCondition = [dcConditions[index] for index in dc_indices if index != dc_index]
+                normalCondition = [(index, dcConditions[index]) for index in dc_indices if index != dc_index]
                 normalAttr = [attrOption[index] for index in dc_indices if index != dc_index]
                 dcCondition = otherConditions[dc_index]
+
                 dcAttr = attrOption[dc_index]
+                # 这里考虑的是一个【属性条件】不同 其他相同的情况
                 for dcc in dcCondition:
                     secondQueryCondition = {dcAttr: [dcc]}
                     firstQueryCondition = {dcAttr: [dcc, dcConditions[dc_index]]}
-                    for n_attr, condition in zip(normalAttr, normalCondition):
+                    codeList = ['{0}-{1}'.format(dcAttr, conditionKeyMap[dc_index][dcc])]
+                    for n_attr, (index, condition) in zip(normalAttr, normalCondition):
                         secondQueryCondition[n_attr] = [condition]
                         firstQueryCondition[n_attr] = [condition]
-                    dfp.resetParams(attr, secondQueryCondition)
-                    sensitivity = dfp.getCurSensitivity('sum')
-                    dataIndices = dfp.getCurDataIndices()
+                        codeList.append('{0}-{1}'.format(n_attr, conditionKeyMap[index][condition]))
+                    code = '*'.join(codeList)
+                    if codeSensitivityMap.get(code, -1) == -1:
+                        dfp.resetParams(attr, secondQueryCondition)
+                        sensitivity = dfp.getCurSensitivity('sum')
+                        if sensitivity == 'None':
+                            continue
+                        dataIndices = dfp.getCurDataIndices()
+                        codeSensitivityMap[code] = {
+                            'sensitivity': sensitivity,
+                            'dataIndices': dataIndices
+                        }
+                    else:
+                        sensitivity = codeSensitivityMap.get(code)['sensitivity']
+                        dataIndices = codeSensitivityMap.get(code)['dataIndices']
                     if sensitivity == 'None':
                         continue
                     else:
                         if minSensitivity > sensitivity:
                             minSensitivity = sensitivity
-                            firstSensitivityWay = firstQueryCondition
-                            secondSensitivityWay = secondQueryCondition
-                            minSensitivityDataIndices = dataIndices
+                            firstSensitivityWay = firstQueryCondition.copy()
+                            secondSensitivityWay = secondQueryCondition.copy()
+                            minSensitivityDataIndices = dataIndices.copy()
+                # 对于三属性的还有一种情况是 一个【属性条件】相同  其他不同的情况 这里进行补充，3属性以上不考虑
+
+                # if len(dc_indices) == 3:
+                #     curNormalCondition = dcConditions[dc_index]
+                #     curDcConditions = [(index, otherConditions[index]) for index in dc_indices if index != dc_index]
+                #     i1, dcc1s = curDcConditions[0]
+                #     for dcc1 in dcc1s:
+                #         attr1 = attrOption[i1]
+                #         normal_dcc1 = dcConditions[i1]
+                #         secondQueryCondition = {dcAttr: [curNormalCondition]}
+                #         firstQueryCondition = {dcAttr: [curNormalCondition]}
+                #         codeList = ['{0}-{1}'.format(dcAttr, curNormalCondition)]
+                #         secondQueryCondition[attr1] = [dcc1]
+                #         firstQueryCondition[attr1] = [dcc1, normal_dcc1]
+                #         codeList.append('{0}-{1}'.format(attr1, conditionKeyMap[i1][dcc1]))
+                #         i2, dcc2s = curDcConditions[1]
+                #         for dcc2 in dcc2s:
+                #             temp = codeList.copy()
+                #             attr2 = attrOption[i2]
+                #             normal_dcc2 = dcConditions[i2]
+                #             secondQueryCondition[attr2] = [dcc2]
+                #             firstQueryCondition[attr2] = [dcc2, normal_dcc2]
+                #             temp.append('{0}-{1}'.format(attr2, conditionKeyMap[i2][dcc2]))
+                #
+                #             code = '*'.join(temp)
+                #             if codeSensitivityMap.get(code, -1) == -1:
+                #                 dfp.resetParams(attr, secondQueryCondition)
+                #                 sensitivity = dfp.getCurSensitivity('sum')
+                #                 if sensitivity == 'None':
+                #                     continue
+                #                 dataIndices = dfp.getCurDataIndices()
+                #                 codeSensitivityMap[code] = {
+                #                     'sensitivity': sensitivity,
+                #                     'dataIndices': dataIndices
+                #                 }
+                #             else:
+                #                 sensitivity = codeSensitivityMap.get(code)['sensitivity']
+                #                 dataIndices = codeSensitivityMap.get(code)['dataIndices']
+                #             if sensitivity == 'None':
+                #                 continue
+                #             else:
+                #                 if minSensitivity > sensitivity:
+                #                     minSensitivity = sensitivity
+                #                     firstSensitivityWay = firstQueryCondition.copy()
+                #                     secondSensitivityWay = secondQueryCondition.copy()
+                #                     minSensitivityDataIndices = dataIndices.copy()
 
             bitmap = indices2bitmap(dc['indices'])
             minSensitivityDict[bitmap] = 99999999 if minSensitivity == float('inf') else minSensitivity
             firstSensitivityWayDict[bitmap] = firstSensitivityWay
             secondSensitivityWayDict[bitmap] = secondSensitivityWay
             minSensitivityDataIndicesDict[bitmap] = minSensitivityDataIndices
+
         minSensitivityMap[int(bstIndex)] = {
             'sensitivity': minSensitivityDict,
             'firstSensitivityWay': firstSensitivityWayDict,
@@ -329,13 +406,9 @@ def getAvgRiskP(filename, attr, attrParams, epsilon, attrOption, sensitivity, at
                 minAttrRiskP = 1
                 if attrRisk.get(str(bitmap), -1) != -1:
                     minAttrRiskP = attrRisk[str(bitmap)]
-                    if minAttrRiskP == 0.1:
-                        print('xxx')
                 else:
                     for attrI in indices:
                         minAttrRiskP = min(minAttrRiskP, attrRisk[str(1 << attrI)])
-                        if minAttrRiskP == 0.1:
-                            print('xxx')
                 if attackRisk * minAttrRiskP >= countMaxRiskRecord[index]:
                     countMaxRiskRecord[index] = attackRisk * minAttrRiskP
                     countConditionMap[index] = {

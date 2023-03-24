@@ -16,7 +16,7 @@ from RiskTree.BSTTreeFunc import getCodedData
 from RiskTree.Class import JsonEncoder
 from RiskTree.NodeRiskFunc import getNodeRisk
 from RiskTree.funcs import classifyAttr, getRiskRecord, getCubeByIndices, getDataCoder, key2string, indices2bitmap, \
-    getAvgRiskP, getMinLocalSensitivityMap
+    getAvgRiskP, getMinLocalSensitivityMap, keys2condition
 from tools.df_processor import DFProcessor
 from tools.utils import laplace_DV_P, laplace_DV_P2
 
@@ -37,6 +37,34 @@ def fileReceive(request):
     # 获取非ID属性名列表供用户选择
     attr = df.columns.tolist()
     non_id_attr = attr # classifyAttr(df, attr) 区分非主键属性还存在缺陷 (像一些数值型数据的重复率也是0，无法判别，手动判别）
+
+    AttrMap = {
+        'case1.csv': {
+            'privateAttr': ['charges'],
+            'personalFeatureAttr': ['age', 'bmi', 'children'],
+            'personalStateAttr': [],
+            'personalAccessAttr': [],
+        },
+        'case2.csv': {
+            'PrivateAttr': ['Disease'],
+            'ImplicitDescription': ['MentalH', 'GenH', ],
+            'NormalDescription': ['SleepH'],
+            'ExplicitDescription': ['BMI', 'PhysicalH', 'PhysicalA'],
+        },
+        'case3.csv': {
+            'privateAttr': ['Income'],
+            'personalFeatureAttr': ['Birth_Y', 'Recency', 'Complain'],
+            'personalStateAttr': [],
+            'personalAccessAttr': []
+        },
+    }
+    # privateAttr = ['HeartDisease']
+    # unusualAttr = ['BMI', 'PhysicalHealth', 'MentalHealth', 'PhysicalActivity', 'SleepTime']
+    # privateAttr = ['Income']
+    # unusualAttr = ['Year_Birth', 'Age_Customer']
+    # privateAttr = ['charges']
+    # unusualAttr = ['age', 'bmi', 'children']
+    filename = file.name
     for attr in non_id_attr:
         dtype = df[attr].dtype
         if dtype == 'object':
@@ -50,7 +78,10 @@ def fileReceive(request):
                 # 'Range Width': len(Range),
                 'Search Range': '-',
                 'Minimum Granularity': '-',
-                'Leakage Probability': '100%'
+                'Leakage Probability': '80%' if attr in AttrMap[filename]['ExplicitDescription'] else
+                ('70%' if attr in AttrMap[filename]['NormalDescription'] else
+                 ('50%' if attr in AttrMap[filename]['ImplicitDescription'] else
+                 ('30%' if attr in AttrMap[filename]['PrivateAttr'] else '100%')))
             })
         else:
             # 数值型
@@ -67,7 +98,10 @@ def fileReceive(request):
                 # 'Range Width': Max - Min,
                 'Search Range': '{0}~{1}'.format(MinEdge, MaxEdge),
                 'Minimum Granularity': width,
-                'Leakage Probability': '100%'
+                'Leakage Probability': '80%' if attr in AttrMap[filename]['ExplicitDescription'] else
+                ('70%' if attr in AttrMap[filename]['NormalDescription'] else
+                 ('50%' if attr in AttrMap[filename]['ImplicitDescription'] else
+                 ('30%' if attr in AttrMap[filename]['PrivateAttr'] else '100%')))
             })
     return JsonResponse({'data': AttrList})
 
@@ -80,7 +114,21 @@ def riskTree(request):
     indices = postData['indices']
     DescriptionNum = postData['DescriptionNum']
     RiskRatioMap = postData.get('RiskRatioMap', -1)
-    json_data = getRiskRecord(filename, attrList, indices, RiskRatioMap, DescriptionNum)
+    # 如果是第一次查询，那么将查看是否存在缓存
+    if RiskRatioMap == -1:
+        cashPath = 'RiskTree/cash/{0}/rt-{1}.cash.json'.format(filename.split('.')[0], filename)
+        if os.path.exists(cashPath):
+            with open(cashPath, 'r') as f:
+                json_data = json.load(f)
+        else:
+            json_data = getRiskRecord(filename, attrList, indices, RiskRatioMap, DescriptionNum)
+            with open(cashPath, 'w+') as f:
+                json.dump(json_data, f, cls=JsonEncoder)
+    else:
+        json_data = getRiskRecord(filename, attrList, indices, RiskRatioMap, DescriptionNum)
+
+    #存入缓存
+
     return JsonResponse(json_data, encoder=JsonEncoder)
 
 
@@ -115,7 +163,6 @@ def QueryWheres(request):
         temp['isBST'] = len(GroupMap[key]) == 1
         json_data.append(temp)
     json_data.sort(key=lambda d: d['num'])
-    print(json_data)
     return JsonResponse({'data': json_data, 'attr': cur_keepAttr})
 
 
@@ -180,59 +227,75 @@ def DataDistribution(request):
     postData = json.loads(request.body)
     filename = postData['filename']
     attrList = postData['attrList']
-    R = pd.read_csv('data/' + filename)
-    attrs = map(lambda d: d['Name'], attrList)
-    R = R[attrs]
-    R.fillna(0, inplace=True)
-    m = R.shape[1]
-    n = R.shape[0]
-    DCs = getDataCoder(R, attrList)
-    ScaleData = []
 
-    for i, attr in enumerate(attrList):
-        if attr['Type'] == 'numerical':
-            padding = (DCs[i].params['Max'] - DCs[i].params['Min']) / 100
-            ScaleData.append({
-                'name': attr['Name'],
-                'type': attr['Type'],
-                'domain': [DCs[i].params['Min'] - padding, DCs[i].params['Max'] + padding]
-            })
-        else:
-            ScaleData.append({
-                'name': attr['Name'],
-                'type': attr['Type'],
-                'domain': list(DCs[i].params['map'].keys())
-            })
-    TableData = []
-    for index, row in R.iterrows():
-        TableData.append(row.to_dict())
+    cashPath = 'RiskTree/cash/{0}/dd-{1}.cash.json'.format(filename.split('.')[0], filename)
+    if os.path.exists(cashPath):
+        with open(cashPath, 'r') as f:
+            ret = json.load(f)
+    else:
+        R = pd.read_csv('data/' + filename)
+        attrs = map(lambda d: d['Name'], attrList)
+        R = R[attrs]
+        R.fillna(0, inplace=True)
+        m = R.shape[1]
+        n = R.shape[0]
+        DCs = getDataCoder(R, attrList)
+        ScaleData = []
 
-    getCodedData(R, DCs)
-    values = R.values
-    AttrsKeyMap = []
-    for d in range(m):
-        temp = {'data': []}
-        for i in range(n):
-            temp['data'].append(values[i][d])
-        temp['data'] = list(set(temp['data'])) # 去重
-        temp['data'].sort()
-        temp['text'] = list(map(lambda key: key2string(int(float(key)), DCs[d]), temp['data']))
-        temp['type'] = DCs[d].type
+        for i, attr in enumerate(attrList):
+            if attr['Type'] == 'numerical':
+                SearchRange = attr['Search Range'].split('~')
+                Search_Min = float(SearchRange[0])
+                Search_Max = float(SearchRange[1])
+                Granularity = attr['Minimum Granularity']
+                Tick_Values = [Search_Min + i * Granularity for i in range(100) if Search_Min + i * Granularity <= Search_Max]
+                padding = (Search_Max - Search_Min) / 20
+                ScaleData.append({
+                    'name': attr['Name'],
+                    'type': attr['Type'],
+                    'domain': [Search_Min - padding, Search_Max + padding],
+                    'Tick_Values': Tick_Values
+                })
+            else:
+                ScaleData.append({
+                    'name': attr['Name'],
+                    'type': attr['Type'],
+                    'domain': list(DCs[i].params['map'].keys())
+                })
+        TableData = []
+        for index, row in R.iterrows():
+            TableData.append(row.to_dict())
 
-        AttrsKeyMap.append(temp)
+        getCodedData(R, DCs)
+        values = R.values
+        AttrsKeyMap = []
+        for d in range(m):
+            temp = {'data': []}
+            for i in range(n):
+                temp['data'].append(values[i][d])
+            temp['data'] = list(set(temp['data']))  # 去重
+            temp['data'].sort()
+            temp['text'] = list(map(lambda key: key2string(int(float(key)), DCs[d]), temp['data']))
+            temp['type'] = DCs[d].type
 
-    MaxMap = {}
-    for i, attr in enumerate(attrList):
-        if attr['Type'] == 'numerical':
-            MaxMap[attr['Name']] = DCs[i].params['Max']
-        else:
-            MaxMap[attr['Name']] = max(R[attr['Name']].value_counts().tolist())
-    return JsonResponse({'ScaleData': ScaleData,
-                         'TableData': TableData,
-                         'TableKeyData': values,
-                         'MaxMap': MaxMap,
-                         'AttrsKeyMap': AttrsKeyMap},
-                        encoder=JsonEncoder)
+            AttrsKeyMap.append(temp)
+
+        MaxMap = {}
+        for i, attr in enumerate(attrList):
+            if attr['Type'] == 'numerical':
+                MaxMap[attr['Name']] = DCs[i].params['Max']
+            else:
+                MaxMap[attr['Name']] = max(R[attr['Name']].value_counts().tolist())
+
+        ret = {'ScaleData': ScaleData,
+               'TableData': TableData,
+               'TableKeyData': values,
+               'MaxMap': MaxMap,
+               'AttrsKeyMap': AttrsKeyMap}
+        with open(cashPath, 'w+') as f:
+            json.dump(ret, f, cls=JsonEncoder)
+
+    return JsonResponse(ret, encoder=JsonEncoder)
 
 
 def getSensitivity(request):
@@ -257,8 +320,8 @@ def AvgRiskP(request):
     filename, attrOption = postData['filename'], postData['attrOption']
     attrParams, attr, epsilon = postData['attrParams'], postData['attr'], postData['epsilon']
     BSTMap, sensitivity, attrRisk = postData['BSTMap'], postData['sensitivity'], postData['attrRisk']
-    minSensitivityMap = postData['minSensitivityMap'] if attrParams['Type'] == 'numerical' else 1
     SensitivityCalculationWay, AttrsKeyMap, BSTKeyMap = postData['SensitivityCalculationWay'], postData['AttrsKeyMap'], postData['BSTKeyMap']
+    minSensitivityMap = postData['minSensitivityMap'] if attrParams['Type'] == 'numerical' and SensitivityCalculationWay == 'Local sensitivity' else 1
     avgRiskP = getAvgRiskP(filename, attr, attrParams, epsilon, attrOption, sensitivity, attrRisk, BSTMap, SensitivityCalculationWay, AttrsKeyMap, BSTKeyMap, minSensitivityMap)
     return JsonResponse({'data': avgRiskP})
 
@@ -270,29 +333,36 @@ def initializeSchemeHistory(request):
     BSTMap, attrRisk = postData['BSTMap'], postData['attrRisk']
     SensitivityCalculationWay, AttrsKeyMap, BSTKeyMap = postData['SensitivityCalculationWay'], postData['AttrsKeyMap'], \
                                                         postData['BSTKeyMap']
-    ret = []
+    curAttr = postData['curAttr']
+    avgRiskP = {}
     for attr, attrParams in zip(attrOption, attrList):
-        sensitivity = postData['sensitivity'][attr]
-        avgRiskP = getAvgRiskP(filename, attr, attrParams, epsilon, attrOption, sensitivity, attrRisk, BSTMap,
-                               SensitivityCalculationWay, AttrsKeyMap, BSTKeyMap)
-        # 计算 accuracy
-        # b = sensitivity / epsilon
-        # d = postData['Deviation']  # 偏差值
-        # dp = laplace_P([-d, d], b)
-        ret.append(avgRiskP)
-    return JsonResponse({'data': ret})
+        if curAttr == attr:
+            sensitivity = postData['sensitivity'][attr]
+            avgRiskP = getAvgRiskP(filename, attr, attrParams, epsilon, attrOption, sensitivity, attrRisk, BSTMap,
+                                   SensitivityCalculationWay, AttrsKeyMap, BSTKeyMap)
+    return JsonResponse({'data': avgRiskP})
 
 
 def minSensitivityMap(request):
     postData = json.loads(request.body)
-    attrList = postData['attrList']
     filename, attrOption = postData['filename'], postData['attrOption']
     AttrsKeyMap, BSTKeyMap = postData['AttrsKeyMap'], postData['BSTKeyMap']
     attr = postData['attr']
-    # 让数据只读一次
-    dfp = DFProcessor(filename, '', {}, 'Local sensitivity')
-    minSensitivityMap = getMinLocalSensitivityMap(dfp, AttrsKeyMap, BSTKeyMap, attrOption, filename, attr, attrOption.index(attr))
-    ret = {'data': minSensitivityMap}
+
+    cashPath = 'RiskTree/cash/{0}/ms-{1}-{2}.cash.json'.format(filename.split('.')[0], filename, attr)
+    if os.path.exists(cashPath):
+        with open(cashPath, 'r') as f:
+            ret = json.load(f)
+    else:
+        dfp = DFProcessor(filename, '', {}, 'Local sensitivity')
+        minSensitivityMap = getMinLocalSensitivityMap(dfp, AttrsKeyMap, BSTKeyMap, attrOption, filename, attr,
+                                                      attrOption.index(attr))
+        ret = {'data': minSensitivityMap}
+        with open(cashPath, 'w+') as f:
+            json.dump(ret, f, cls=JsonEncoder)
+
+
+
     return JsonResponse(ret)
 
 
@@ -315,7 +385,7 @@ def calcAttrRisk(attrRiskMap, k):
     return attrRisk
 
 
-def curMinSensitivityMap(request):
+def curHighRiskSQL(request):
     postData = json.loads(request.body)
     attrList, QueryAttr = postData['attrList'], postData['QueryAttr']
     index, attrIndex = postData['index'], postData['attrIndex']
@@ -323,16 +393,52 @@ def curMinSensitivityMap(request):
     AttrsKeyMap, BSTKeyMap = postData['AttrsKeyMap'], postData['BSTKeyMap']
     attrRiskMap, epsilon = postData['attrRiskMap'], postData['epsilon']
     deviation, privateVal = postData['deviation'], postData['privateVal']
+    SensitivityCalculationWay, sensitivity = postData['SensitivityCalculationWay'], postData['sensitivity']
     # 让数据只读一次
     dfp = DFProcessor(filename, '', {}, 'Local sensitivity')
-    minSensitivityMap = getMinLocalSensitivityMap(dfp, AttrsKeyMap, BSTKeyMap, attrOption, filename, QueryAttr, attrIndex, index)
+    if SensitivityCalculationWay == 'Local sensitivity':
+        minSensitivityMap = getMinLocalSensitivityMap(dfp, AttrsKeyMap, BSTKeyMap, attrOption, filename, QueryAttr, attrIndex, index)
+    else:
+        minSensitivityMap = {}
+        minSensitivityMap[index] = {
+            'sensitivity': {},
+            'firstSensitivityWay': {},
+            'secondSensitivityWay': {},
+            'minSensitivityDataIndices': {}
+        }
+        for dc in BSTKeyMap[str(index)]:
+            dc_indices = dc['indices']
+            if attrIndex in dc_indices:
+                continue
+            dc_keys = dc['keys']
+            dcConditions, otherConditions = keys2condition(AttrsKeyMap, dc_indices, dc_keys)
+            secondQueryCondition = {}
+            firstQueryCondition = {}
+            for dc_index in dc_indices:
+                if dc_index == dc_indices[-1]:
+                    dcAttr = attrOption[dc_index]
+                    secondQueryCondition[dcAttr] = otherConditions[dc_index]
+                else:
+                    normalAttr = attrOption[dc_index]
+                    firstQueryCondition[normalAttr] = [dcConditions[dc_index]]
+                    secondQueryCondition[normalAttr] = [dcConditions[dc_index]]
+            curBitmap = indices2bitmap(dc['indices'])
+            dfp.resetParams(QueryAttr, secondQueryCondition)
+            dataIndices = dfp.getCurDataIndices()
+            minSensitivityMap[index]['sensitivity'][curBitmap] = sensitivity
+            minSensitivityMap[index]['firstSensitivityWay'][curBitmap] = firstQueryCondition
+            minSensitivityMap[index]['secondSensitivityWay'][curBitmap] = secondQueryCondition
+            minSensitivityMap[index]['minSensitivityDataIndices'][curBitmap] = dataIndices
+
 
     # 处理数据方便前端使用
     # 查找最小value的键
+    compareVal = privateVal if SensitivityCalculationWay == 'Local sensitivity' else sensitivity
     sMap = minSensitivityMap[index]['sensitivity']
+    bitmap = max(sMap,
+                 key=lambda k: calcRiskP(sMap[k], max(sMap[k], compareVal), epsilon, deviation) * calcAttrRisk(
+                     attrRiskMap, k))
 
-    bitmap = max(sMap, key=lambda k: calcRiskP(sMap[k], max(sMap[k], privateVal), epsilon, deviation) * calcAttrRisk(
-        attrRiskMap, k))
     # 默认选用敏感度最大的那个
     minSensitivityMap[index]['sensitivity'] = minSensitivityMap[index]['sensitivity'][bitmap]
     minSensitivityMap[index]['firstSensitivityWay'] = minSensitivityMap[index]['firstSensitivityWay'][bitmap]

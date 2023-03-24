@@ -27,7 +27,7 @@ class DFProcessor:
         queryList = []
         for attr in QueryCondition.keys():
             # 数值型
-            if isinstance(QueryCondition[attr][0], list):
+            if isinstance(QueryCondition[attr][0], (list, tuple)):
                 # 可能有多个条件
                 temp = []  # 先收集, 最后再join
                 for scope in QueryCondition[attr]:
@@ -61,7 +61,7 @@ class DFProcessor:
 
     def getCurDataIndices(self):
         df = self.sensitivityDF
-        return df.index.tolist();
+        return df.index.tolist()
 
     def getSensitivity(self, way):
         dfs = [self._df, self._queryDF]

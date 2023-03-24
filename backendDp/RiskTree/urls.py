@@ -12,5 +12,5 @@ urlpatterns = [
     path('AvgRiskP/', views.AvgRiskP),
     path('initializeSchemeHistory/', views.initializeSchemeHistory),
     path('minSensitivityMap/', views.minSensitivityMap),
-    path('curMinSensitivityMap/', views.curMinSensitivityMap)
+    path('curHighRiskSQL/', views.curHighRiskSQL)
 ]

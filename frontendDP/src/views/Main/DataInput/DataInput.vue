@@ -114,6 +114,7 @@
         }
       },
       ConfirmAttr() {
+
         Promise.all([
             new Promise(resolve => {
               axios({
@@ -135,14 +136,14 @@
                 method: 'post',
                 data: {
                   'filename': this.curFile,
-                  'attrList': this.attrList,
+                  'attrList': this.multipleSelection,
                 }
               }).then(response => {
                 resolve(response)
               })
             })
         ]).then(result => {
-          this.$emit('inputData', [result[0].data, this.curFile, this.attrList, this.DescriptionNum])
+          this.$emit('inputData', [result[0].data, this.curFile, this.multipleSelection, this.DescriptionNum])
           this.$emit('drawPCP', result[1])
         })
       },
