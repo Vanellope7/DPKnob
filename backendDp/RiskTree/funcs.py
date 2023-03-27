@@ -426,7 +426,7 @@ def getAvgRiskP(filename, attr, attrParams, epsilon, attrOption, sensitivity, at
             cnt += 1
         for countRisk in countRiskList:
             key = min(math.floor(countRisk * 100) // 10, 9)
-            if (round(countRisk, 2) * 100) % 10 == 0 and key >= 1:
+            if round(countRisk, 2) != 1 and (round(countRisk, 2) * 100) % 10 == 0 and key >= 1:
                 key -= 1
             countBarChart[key] += 1
         for i in range(10):
@@ -484,7 +484,7 @@ def getAvgRiskP(filename, attr, attrParams, epsilon, attrOption, sensitivity, at
                     maxRiskRecordMap[ratioStr]['condition'] = conditionMap[index]
                 key = min(math.floor(p * 100) // 10, 9)
 
-                if (round(p, 2) * 100) % 10 == 0 and key >= 1:
+                if round(p, 2) != 1 and(round(p, 2) * 100) % 10 == 0 and key >= 1:
                     key -= 1
                 barData[key] += 1
                 riskNum += 1
@@ -532,7 +532,7 @@ def getAvgRiskP(filename, attr, attrParams, epsilon, attrOption, sensitivity, at
             cnt += 1
         for countRisk in countRiskList:
             key = min(math.floor(countRisk * 100) // 10, 9)
-            if (round(countRisk, 2) * 100) % 10 == 0 and key >= 1:
+            if round(countRisk, 2) != 1 and (round(countRisk, 2) * 100) % 10 == 0 and key >= 1:
                 key -= 1
             countBarChart[key] += 1
         for i in range(10):

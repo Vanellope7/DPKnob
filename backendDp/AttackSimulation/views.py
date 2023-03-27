@@ -15,6 +15,7 @@ def GetNoisyDataDistribution(request):
 
     dfp = DFProcessor(postData['FileName'], postData['QueryAttr'],
                       postData['QueryCondition'], postData['sensitivityWay'], postData['Interval'])
+    privateVal = postData['privateVal']
 
     res = float(eval("dfp.{0}()".format(postData['QueryType'])))
     sensitivities = dfp.getSensitivity(postData['QueryType'])
@@ -23,7 +24,7 @@ def GetNoisyDataDistribution(request):
     b = float(sensitivity / postData['epsilon'])
     L = Laplace(b)
     D = []
-    scope = [res - sensitivity * 2, res + sensitivity * 2] if postData['scope'] == -1 else postData['scope']
+    scope = [res - privateVal * 2, res + privateVal] if postData['scope'] == -1 else postData['scope']
     for x in np.linspace(scope[0], scope[1], 1000):
         D.append([x, L.laplace_f(x - res)])
     ret = {'distribution': D, 'b': b, 'sensitivity': sensitivity, 'ExactVal': res, 'sensitivities': sensitivities, 'scope': scope}

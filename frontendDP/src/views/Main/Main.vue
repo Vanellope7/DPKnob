@@ -44,13 +44,15 @@
           <el-divider direction="vertical" border-style="dashed" style="height: 100%"/>
 
           <div id="DifferentialQueryList">
-            <div class="SecondaryLabel">Risk Description List</div>
+            <div class="SecondaryLabel">Risky Description List</div>
             <svg id="DifferentialQueryTreeLegend">
 <!--              <rect x="30" y="0" width="10" height="10" :fill="colorMap['normal-grey']"></rect>-->
-              <text x="50" y="14.1">1</text>
-              <rect x="58" y="5" width="10" height="10" :fill="colorMap['risk']"></rect>
+              <g :transform="`translate(${MinRecordsNum !== MaxRecordsNum ? -5 : 72}, 0)`">
+                <text x="50" y="14.1">1</text>
+                <rect x="58" y="5" width="10" height="10" :fill="colorMap['risk']"></rect>
+              </g>
 <!--              <text x="93" y="14">Differential basis</text>-->
-              <g transform="translate(-5, 0)">
+              <g transform="translate(-5, 0)" v-if="MinRecordsNum !== MaxRecordsNum">
                 <rect v-for="(d, i) in queryNumLegend"
                       :x="93+0.7*i"
                       :y="5"
@@ -61,6 +63,11 @@
                 <text x="90" y="14.1" text-anchor="end">{{MinRecordsNum}}</text>
                 <text x="165" y="14.1">{{MaxRecordsNum}}</text>
                 <text x="80" y="25">#Individuals</text>
+              </g>
+              <g v-else transform="translate(72,0)">
+                <rect x="93" y="5" width="10" height="10" fill="#b3b3b3"></rect>
+                <text x="90" y="14.1" text-anchor="end">{{MinRecordsNum}}</text>
+                <text x="47" y="25">#Individuals</text>
               </g>
 
             </svg>
@@ -90,7 +97,9 @@
                 <div id="secondQuery" class="SQL">
                   <span id="secondSqlTitle" class="SqlTitle">2nd query</span>
                   <el-divider direction="vertical" border-style="dashed" class="TextDivider"/>
-                  <div id="SecondQueryText" class="SQLText"></div>
+                  <div id="SecondQueryText" class="SQLText" ></div>
+                  <el-icon v-show="!availableSQL2"
+                           class="notAvailableIcon"><CircleCloseFilled /></el-icon>
                 </div>
               </div>
             </div>
@@ -705,8 +714,8 @@ export default {
         firstQueryData: [],
         secondQueryData: [],
         generalQueryLineData: [],
-        curB: 0,
-        curB2: 0, // the Laplace parameter b of the second query
+        curB: 1,
+        curB2: 1, // the Laplace parameter b of the second query
         curSensitivity1: 0,
         curSensitivity2: 0,
         SensitivityList: [0, 0],
@@ -795,7 +804,9 @@ export default {
         IndividualIconPosList: [],
 
         deduceData: [0],
-        DescriptionNum: 3
+        DescriptionNum: 3,
+        availableSQL2: true,
+        curDifferIndices: []
       }
     },
     computed: {
@@ -982,7 +993,7 @@ export default {
         [nodes, links] = this.PruningAndLayout(nodes, links, width, height, this.DescriptionNum)
         this.MakeTree(svg, nodes, links);
 
-
+        this.initializeGeneralQuerySimulationView();
       },
       MakeTree(svg, nodes, links) {
         this.curAS_nodes = nodes;
@@ -1002,9 +1013,9 @@ export default {
         let TreeLink_DATA = TreeLinkG
             .selectAll(".TreeLinkPath")
             .data(links);
-        // 移除旧边
+        // remove old edge
         TreeLink_DATA.exit().remove();
-        // 添加新边
+        // add new edge
         TreeLink_DATA
             .enter()
             .append("path")
@@ -1012,7 +1023,7 @@ export default {
             .attr("fill", "none")
             .attr("stroke", this.colorMap["normal-grey"])
             .attr("stroke-width", 1);
-        // 统一边位置
+        // uniform edge position
         TreeLinkG
             .selectAll(".TreeLinkPath")
             .attr("d", function(d) {
@@ -1046,7 +1057,7 @@ export default {
               return "translate(" + cx + "," + cy + ")";
             })
 
-        // 选中圆stroke
+        // selected background stroke circle
         Pie.append('circle')
             .attr('class', 'strokeCircle')
             .attr('id', d => 'strokeCircle' + d.data.name)
@@ -1060,15 +1071,15 @@ export default {
         let innerPieColor = [this.colorMap["risk"], this.colorMap["normal-grey"]];
 
 
-        let childNodeRiskPie = Pie.selectAll(".childNodeRiskPie_path") //g用于把相关元素进行组合的容器元素
+        let childNodeRiskPie = Pie.selectAll(".childNodeRiskPie_path")
             .data(d => d3.pie().sort(null)(d.data.childNodeRiskPie))
             .enter()
             .append("g")
             .attr('class', 'childNodeRiskPie_path')
             .attr("transform","translate("+ -outerRadius / 2 +","+ 0 +")")
-        let childNodeRiskArc = d3.arc()	//弧生成器
-            .innerRadius(innerRadius + 2)	//设置内半径
-            .outerRadius(outerRadius);	//设置外半径
+        let childNodeRiskArc = d3.arc()
+            .innerRadius(innerRadius + 2)
+            .outerRadius(outerRadius);
         childNodeRiskPie
             .append("path")
             .attr("fill",function(d,i){
@@ -1078,7 +1089,7 @@ export default {
               return childNodeRiskArc(d);
             });
 
-        let curNodeRiskPie = Pie.selectAll(".curNodeRiskPie_path") //g用于把相关元素进行组合的容器元素
+        let curNodeRiskPie = Pie.selectAll(".curNodeRiskPie_path")
             .data(d => {
               let data =  d3.pie().sort(null)(d.data.curNodeRiskPie);
               data[0].key = d.data.indices;
@@ -1089,9 +1100,9 @@ export default {
             .append("g")
             .attr('class', 'curNodeRiskPie_path')
             .attr("transform","translate("+ -outerRadius / 2 +","+ 0 +")")
-        let curNodeRiskArc = d3.arc()	//弧生成器
-            .innerRadius(0)	//设置内半径
-            .outerRadius(innerRadius);	//设置外半径
+        let curNodeRiskArc = d3.arc()
+            .innerRadius(0)
+            .outerRadius(innerRadius);
         let greyColorScale = d3.scaleLinear()
                                .domain([0, 99])
                                .range(this.greyGradient)
@@ -1134,8 +1145,8 @@ export default {
             .attr('cx', -outerRadius / 2)
             .attr('cy', 0)
             .attr('fill', 'rgba(255,255,255,0)');
-
-        for (let i = 0; i < nodes.length; i++) { // 取出所有节点默认右键事件
+        // Removes the default right-click event of all nodes
+        for (let i = 0; i < nodes.length; i++) {
           document.getElementsByClassName("eventCircle")[i].oncontextmenu = function () {
             return false;
           };
@@ -1181,7 +1192,7 @@ export default {
                                .attr("transform",`translate(-30,3)`)
 
 
-        //绘制文字
+        //attr name text
         Pie.append("text")
             .attr('id', d => `attrName${d.data.name}`)
             .attr("x", -25)
@@ -1202,13 +1213,14 @@ export default {
                 return '';
               }
             });
+
+        // attr name text highlight rect (only valid for a single attribute)
         highlightText.append('rect')
                      .attr('class', `highlightTextRect`)
                      .attr('id', d => `highlightTextRect${d.data.name}`)
                      .attr('x', d => 5-d3.select(`#attrName${d.data.name}`).node().getComputedTextLength())
                      .attr('y', -12)
                      .attr('width', d => {
-                       // 只针对单属性有效
                        return d3.select(`#attrName${d.data.name}`).node().getComputedTextLength();
                      })
                      .attr('height', 20)
@@ -1220,7 +1232,7 @@ export default {
         nodes = nodes.filter(d => d.depth > 0)
         links = links.filter(d => nodes.includes(d.source) && nodes.includes(d.target))
 
-        // 对 nodes 的外圈比例进行排序
+        // Sort the outer circle proportions of the nodes (if there is no outer circle, use inner circle ratio instead)
         nodes.sort((a, b) => {
           let x, y;
           x = (a.data.childNodeRiskPie[0] === 0 && a.data.childNodeRiskPie[1] === 0) ? a.data.curNodeRiskPie : a.data.childNodeRiskPie;
@@ -1250,7 +1262,7 @@ export default {
         if(d.depth !== this.DescriptionNum) {
           if (d.data.children.length === 0) {
             this.curAttributeSetClickNodes.push(d)
-            // 生成节点
+            // generate node
             axios({
               url: 'http://127.0.0.1:8000/RiskTree/RiskTreeData/',
               method: 'post',
@@ -1280,9 +1292,9 @@ export default {
               }
             })
           } else {
-            // 收起节点中包括 之前点击过的节点可能会存在问题
+            // delete the expansion node record
             this.curAttributeSetClickNodes.splice(this.curAttributeSetClickNodes.indexOf(d), 1);
-            // 收起节点
+            // shrinkage node
             d.data.children = [];
             let newTreeData = this.treeFunc(d3.hierarchy(this.treeData).sum(function (d) {
               return d.val;
@@ -1297,8 +1309,8 @@ export default {
         }
       },
       shrinkageAllASNode() {
-        // 收起所有 Attribution set node
-        // 从后往前，避免出现问题
+        // shrinkage all attribute set node
+        // work backwards to avoid problems
         let svg = d3.select("#AttributeSetTree");
         let len = this.curAttributeSetClickNodes.length;
         for(let i = len-1; i>=0; i--) {
@@ -1315,16 +1327,14 @@ export default {
         for(let index of pre_indices) {
           curBitmap += 1 << index;
           let node = this.curAS_nodes.find(d => d.data.name === curBitmap);
-          // 异步转移
           await new Promise(resolve => {
             this.ClickNode(svg, node, resolve);
           });
-
-          // 关键点在这，这里需要等 新节点画完才能进行下一步
+          // The key point is here. Wait for the new node to be drawn before Moving on
         }
         let targetNode = this.curAS_nodes.find(d => d.data.name === bitmap);
 
-        // 等待 differ query 树生成
+        // Wait for the differ query tree to generate
         new Promise(resolve => {
           this.waitDifferTreeMake = resolve;
           this.ContextmenuNode(targetNode);
@@ -1339,7 +1349,7 @@ export default {
       },
 
 
-      // 查询集树方法
+      // Risk Description List (used to be called Differential Query Tree )function
       ContextmenuNode(d) {
         d3.selectAll('.strokeCircle').attr('r', 0);
         d3.select("#strokeCircle" + d.data.name).attr('r', 18);
@@ -1395,16 +1405,16 @@ export default {
               .attr("class", 'container')
           svg.append("marker")
               .attr("id", "arrow")
-              .attr("markerUnits","strokeWidth")//设置为strokeWidth箭头会随着线的粗细发生变化
-              .attr("viewBox", "0 0 12 12")//坐标系的区域
-              .attr("refX", 6)//箭头坐标
+              .attr("markerUnits","strokeWidth")
+              .attr("viewBox", "0 0 12 12") //Region of coordinate system
+              .attr("refX", 6) // Arrow coordinate
               .attr("refY", 6)
               .attr("markerWidth", 12)
               .attr("markerHeight", 12)
-              .attr("orient", "auto")//绘制方向，可设定为：auto（自动确认方向）和 角度值
+              .attr("orient", "auto")
               .append("path")
-              .attr("d", "M2,2 L10,6 L2,10 L6,6 L2,2")//箭头的路径
-              .attr('fill', this.colorMap["normal-grey"]);//箭头颜色
+              .attr("d", "M2,2 L10,6 L2,10 L6,6 L2,2")
+              .attr('fill', this.colorMap["normal-grey"]);
 
           let TreeLinkG = container.append("g").attr("class", 'TreeLinkG');
           let TreeNodeG = container.append("g").attr("class", 'TreeNodeG');
@@ -1482,7 +1492,7 @@ export default {
         svg.style('height', `${height}px`)
 
         this.encodeYIndex(nodes, keyMap.length);
-        // 布局后再筛选掉不合适的节点
+        // Layout and then filter out inappropriate nodes
         nodes = nodes.filter(node => node.data.show)
         links = links.filter(d => nodes.includes(d.source) && nodes.includes(d.target))
 
@@ -1500,7 +1510,7 @@ export default {
           let isBST = nodes[i].data.isBST;
           nodes[i].x = Xscale(indices[dim]) - iconWidth / 2;
           nodes[i].y = YScale(nodes[i].yIndex);
-          // 叶子节点
+          // leaf node show the individual icon
           if(isBST) {
             this.IndividualIconPosList.push([nodes[i].x + 50, nodes[i].y - 10])
           }
@@ -1516,7 +1526,7 @@ export default {
         let DimensionG = d3.select("#DQTreeAttrTitle").style('height', DimensionTextHeight + 10 + 'px');
         DimensionG.selectAll(".DimensionNodeG").remove();
         let DimensionG_DATA = DimensionG.selectAll(".DimensionNodeG").data(indices);
-        let DimensionG_width = NodeWidth;//width / indices.length;
+        let DimensionG_width = NodeWidth; //width / indices.length;
         let DimensionNodeG = DimensionG_DATA.enter()
             .append("g")
             .attr("class", 'DimensionNodeG')
@@ -1547,15 +1557,11 @@ export default {
         let TreeLink_DATA = TreeLinkG
             .selectAll(".TreeLinkPath")
             .data(links);
-        // 移除旧边
         TreeLink_DATA.exit().remove();
-        // 添加新边
         TreeLink_DATA
             .enter()
             .append("path")
             .attr('class', 'TreeLinkPath')
-
-        // 统一边位置
         let TreeLinkPath = TreeLinkG.selectAll(".TreeLinkPath")
             .attr("d", function(d) {
               let start = { x: d.source.x + NodeWidth / 2, y: d.source.y};
@@ -1629,7 +1635,6 @@ export default {
                 return this.convert2shortVersion(this.keyMap[dim].text[index]);
               });
 
-
         NodesG.append('g')
              .attr("transform", (d) => {
                let dim = d.data.dim;
@@ -1655,17 +1660,17 @@ export default {
              .attr('points', '0,10 10,10 5, 0')
              .attr('fill', '#333')
 
-        // 自动选取默认攻击目标  if 并没有其他线程在等待
+        // Automatically selects the default attack target  [if No other thread is waiting]
         if(leaves.length > 0 && this.waitDifferTreeMake === -1) {
           let defaultNode = leaves[0];
-          // 获取真正的风险节点
+          // Get the real risk node [useless for now because the parent-child node does not have two risk nodes]
           while(defaultNode.parent.data.isBST) {
             defaultNode = defaultNode.parent;
           }
           this.clickQueryNode(defaultNode);
         }
 
-        // 让等待的线程启动
+        // let the waiting thread start
         if(this.waitDifferTreeMake !== -1) {
           this.waitDifferTreeMake(nodes);
           this.waitDifferTreeMake = -1;
@@ -1673,7 +1678,7 @@ export default {
 
       },
       TreePruning(nodes, keyMap) {
-        // 对nodes剪枝
+        // Pruning the nodes
         let root = nodes[0];
         let leaves = root.leaves();
         let nodeSet = new Set();
@@ -1688,12 +1693,12 @@ export default {
         nodes = nodes.filter(d => d.depth > 0)
         nodeSet.delete(root)
 
-        // 对keymap剪枝
+        // Prune keymap
         let keepIndex = Array([],[],[]);
         for(let node of nodeSet) {
           keepIndex[node.depth - 1].push(keyMap[node.depth - 1].data.indexOf(node.data.key));
         }
-        for(let i in [0,1,2]) { //去重
+        for(let i in [0,1,2]) { // Remove Duplicates
           this.dimNodeCnt[i] = keepIndex[i].length;
           keepIndex[i] = Array.from(new Set(keepIndex[i]))
         }
@@ -1720,9 +1725,7 @@ export default {
         function dragged(event, d) {
           let pos = that.curAttrPos;
           let newX = event.x;
-          // console.log(newX);
-          // console.log(DimensionG_Pos)
-          // 调整拖动元素位置
+          // adjust the drag element position
           d3.select(this)
               .attr("transform", (d, i) => `translate(${event.x}, 10)`)
           let preIndex = pos[that.curIndices.indexOf(d)];
@@ -1734,9 +1737,9 @@ export default {
           if(curIndex < 0) {
             curIndex = 0
           }
-          console.log(preIndex, curIndex, preIndex < curIndex)
+          // console.log(preIndex, curIndex, preIndex < curIndex)
           if (preIndex < curIndex) {
-            // 右移
+            // right moving
             pos.forEach((d, i) => {
               if (d === curIndex) {
                 pos[i] -= 1;
@@ -1749,7 +1752,7 @@ export default {
                 .attr("transform", (d, i) => `translate(${scale(pos[i])}, 10)`)
           } else {
             if (preIndex > curIndex) {
-              // 左移
+              // left moving
               pos.forEach((d, i) => {
                 if (d === curIndex) {
                   pos[i] += 1;
@@ -1788,24 +1791,24 @@ export default {
         return drag;
       },
 
-      //平行坐标图方法
+      // Parallel coordinate graph method
       clickQueryNode(d) {
         this.isMinSQL = false;
-        // 高亮节点
+        // highlight the query node
         d3.selectAll('.strokeRectNode').attr('stroke-width', 0);
         d3.selectAll('.strokeRectNode').filter(node => {
           return node.finalKey === d.finalKey;
         }).attr('stroke-width', '10px');
 
-        // 高亮平行左边属性
+        // highlight the parallel coordinate attribute name
         d3.selectAll('.DDHighlightRect')
             .style('opacity', 0);
         for(let index of this.curIndices) {
           d3.select(`#DDHighlightRect-${this.QueryAttrOption[index]}`)
               .style('opacity', 1);
         }
-
-        // 修改 curAttrRisk
+        this.curDifferIndices = this.curIndices;
+        // modify curAttrRisk
         let minP = 1;
         let bitmap = this.curIndices.reduce((prev, cur) => {
           return prev += 1 << cur;
@@ -1824,12 +1827,12 @@ export default {
         this.curDifferIndex = d.data.index[0];
         this.curQueryNodeD = d;
 
-        // 先不考虑单节点情况
-        // 蓝色条件下的index集合
+        // (recordIndex) collection in second query condition
         this.curIndex = d.parent.data.index;
         console.log(this.curIndex)
         let temp = [this.TableData[d.data.index[0]]];
         let dataNum = Math.min(this.curIndex.length, 1000);
+        this.availableSQL2 = dataNum > 2;
         for(let i = 0;i<dataNum;i++) {
           let index = this.curIndex[i];
           if(index !== d.data.index[0]) {
@@ -1846,9 +1849,9 @@ export default {
           d['show'] = false;
         }
         let blueLineData = this.curIndex.map((index) => this.LineData[index]);
-        // 过量采样
+        // sampling
         if(blueLineData.length > 500) {
-          // 随机采样
+          // random sampling
           let N = blueLineData.length;
           let sampleNum = 500;//9999 //Math.floor(N * 0.1)
           let posArray = [];
@@ -1904,7 +1907,7 @@ export default {
         keyList.pop();
 
         let FirstQueryText = 'WHERE ';
-        // 条件清空
+        // condition emptying
         this.FirstQueryCondition = {};
         this.SecondQueryCondition = {};
         for(let [i, key] of Object.entries(keyList)) {
@@ -1929,7 +1932,7 @@ export default {
             FirstQueryText += '<br/>AND '
           }
         }
-        // 设置Corresponding SQL Commands
+        // set Corresponding SQL Commands
         if(keyList.length === 0) {
           FirstQueryText = 'WHERE 1=1'
         }
@@ -1953,7 +1956,7 @@ export default {
 
         let SecondQueryText = FirstQueryText;
         this.SecondQueryCondition = JSON.parse(JSON.stringify(this.FirstQueryCondition));
-        // 删除风险节点的key
+        // Delete the key of a node at risk
         finalKeyList.delete(this.TableKeyData[RiskIndex][finalAttr]);
         finalKeyList = Array.from(finalKeyList)
 
@@ -1967,7 +1970,7 @@ export default {
           if (obj.type === 'numerical') {
             upperScope = [text1.split('~')[0], text2.split('~')[1]]
             if(upperScope[0] !== upperScope[1]) {
-              flag = true; //给lower判断是否需要加 or
+              flag = true; // determine whether "or" is necessary for lower part
               SecondQueryText += `<br/>AND <span class="redFont">(${finalAttrName} BETWEEN ${upperScope[0]} AND ${upperScope[1]}</span>`
               this.SecondQueryCondition[finalAttrName] ? '' : this.SecondQueryCondition[finalAttrName] = [];
               this.SecondQueryCondition[finalAttrName].push(upperScope);
@@ -2045,7 +2048,7 @@ export default {
         if(lowerScope[0] === 0 && lowerScope[1] === 0) {
           finalMaskData = [upperScope]
         }
-        // 单独合成最后一个键
+        // Make the last key mask alone
         // let svg = d3.select('#DataDistribution');
         svg.select('.maskG')
             .selectAll('.finalMaskG')
@@ -2061,7 +2064,7 @@ export default {
             });
         let index = d.data.index[0];
         let finalData = this.TableData[index][finalAttrName];
-        // 差分标记点
+        // Differential marker
         svg.select('.finalMaskCircle').remove();
         svg.select('.maskG').append('circle')
             .attr('class', 'finalMaskCircle')
@@ -2093,7 +2096,7 @@ export default {
             .attr('fill', this.colorMap["selected"])
             .style('stroke', 'none')
 
-        // rect 上下边界线
+        // rect Upper and lower boundary
         svg.selectAll('.tickLine > *')
             .remove();
         let finalTickLineG = svg.select('.tickLine')
@@ -2106,7 +2109,7 @@ export default {
               return `translate(${this.scale_Xscale(finalAttr)}, ${this.scaleMap[finalAttrName](x)})`
             });
 
-        // 上边界
+        // Upper boundary
         finalTickLineG.append('line')
             .attr('stroke-width', '2px')
             .attr('x1', 0)
@@ -2128,7 +2131,7 @@ export default {
               }
             })
             .style('stroke', this.colorMap["deep-grey"]);
-        // 中竖线
+        // Center vertical line
         finalTickLineG.append('line')
             .attr('stroke-width', '2px')
             .attr('x1', 0)
@@ -2150,7 +2153,7 @@ export default {
               }
             })
             .style('stroke', this.colorMap["deep-grey"]);
-        // 下边界
+        // lower boundary
         finalTickLineG.append('line')
             .attr('stroke-width', '2px')
             .attr('x1', 0)
@@ -2211,7 +2214,7 @@ export default {
             .attr('fill', this.colorMap["selected"])
             .style('stroke', 'none');
 
-        // rect 上边界线
+        // rect upper boundary line
         svg.select('.tickLine')
             .selectAll('.TickLineG')
             .remove();
@@ -2249,7 +2252,7 @@ export default {
               }
             })
             .style('stroke', this.colorMap["deep-grey"]);
-        // rect 中线
+        // rect middle line
         TickLineG.append('line')
             .attr('stroke-width', '2px')
             .attr('x1', 0)
@@ -2272,7 +2275,7 @@ export default {
             })
             .style('stroke', this.colorMap["deep-grey"]);
 
-        // rect 下边界线
+        // rect lower boundary
         TickLineG.append('line')
             .attr('stroke-width', '2px')
             .attr('x1', 0)
@@ -2299,7 +2302,13 @@ export default {
         console.log(this.FirstQueryCondition);
         console.log(this.SecondQueryCondition);
 
-        this.initializeAttackSimulationViews(d);
+        if(this.availableSQL2) {
+          this.initializeAttackSimulationViews(d);
+        }
+        else {
+          this.cleanAttackSimulationView()
+        }
+
         this.curAttackTarget = d;
       },
       switch2RecordTable() {
@@ -2319,7 +2328,7 @@ export default {
         return style;
       },
       headerCellStyle({ row, column, rowIndex, columnIndex }) {
-        if(this.curIndices.includes(columnIndex)) {
+        if(this.curDifferIndices.includes(columnIndex)) {
           return {'background': `${this.colorMap["selected"]}`};
         }
       },
@@ -2381,7 +2390,7 @@ export default {
             .y(function (d) {
               return d.y;
             });
-        // TableData 转 LineData
+        // TableData convert LineData
         this.LineData = this.TableData.map(d => {
           let temp = []
           for(let [i, key] of Object.entries(Object.keys(d))) {
@@ -2393,9 +2402,9 @@ export default {
           return {'pathD': Line(temp)};
         });
         let riskLineData = this.riskRecord.map(index => this.LineData[index])
-        // 过量采样
+        // sampling
         if(this.TableData.length > 2000) {
-          // 随机采样
+          // random sampling
           let N = this.TableData.length;
           let sampleNum = 2000;//9999 //Math.floor(N * 0.1)
           let posArray = [];
@@ -2428,16 +2437,16 @@ export default {
 
         svg.append("marker")
             .attr("id", "ddarrow")
-            .attr("markerUnits","strokeWidth")//设置为strokeWidth箭头会随着线的粗细发生变化
-            .attr("viewBox", "0 0 12 12")//坐标系的区域
-            .attr("refX", 6)//箭头坐标
+            .attr("markerUnits","strokeWidth")
+            .attr("viewBox", "0 0 12 12")
+            .attr("refX", 6)
             .attr("refY", 6)
             .attr("markerWidth", 12)
             .attr("markerHeight", 12)
-            .attr("orient", "auto")//绘制方向，可设定为：auto（自动确认方向）和 角度值
+            .attr("orient", "auto")
             .append("path")
-            .attr("d", "M2,2 L10,6 L2,10 L6,6 L2,2")//箭头的路径
-            .attr('fill', this.colorMap["deep-grey"]);//箭头颜色
+            .attr("d", "M2,2 L10,6 L2,10 L6,6 L2,2")
+            .attr('fill', this.colorMap["deep-grey"]);
 
 
         this.PCP_tick_func = []
@@ -2541,58 +2550,9 @@ export default {
             .style('opacity', 0);
       },
 
-      // 攻击模拟方法
+      // Attack Simulation method
       initializeAttackSimulationViews(d) {
-              axios({
-                url: 'http://127.0.0.1:8000/AttackSimulation/GetNoisyDataDistribution/',
-                method: 'post',
-                data: {
-                  'FileName': this.curFile,
-                  'QueryType': this.QueryType,
-                  'QueryAttr': this.QueryAttr,
-                  'Interval': this.QueryAttrType === 'numerical' ? [this.IntervalLeft, this.IntervalRight] : this.QueryCountCondition,
-                  'QueryCondition': this.FirstQueryCondition,
-                  'epsilon': this.epsilon,
-                  'sensitivityWay': this.SensitivityCalculationWay,
-                  'scope': -1
-                }
-              }).then(response1 => {
-                console.log(response1);
-                axios({
-                  url: 'http://127.0.0.1:8000/AttackSimulation/GetNoisyDataDistribution/',
-                  method: 'post',
-                  data: {
-                    'FileName': this.curFile,
-                    'QueryType': this.QueryType,
-                    'QueryAttr': this.QueryAttr,
-                    'Interval': this.QueryAttrType === 'numerical' ? [this.IntervalLeft, this.IntervalRight] : this.QueryCountCondition,
-                    'QueryCondition': this.SecondQueryCondition,
-                    'epsilon': this.epsilon,
-                    'sensitivityWay': this.SensitivityCalculationWay,
-                    'scope': response1.data.scope  // 获取第一次得到的范围
-                  }
-                }).then(response2 => {
-                  let data1 = response1.data;
-                  let data2 = response2.data;
-                  // data1 = typeof data1 === 'string' ? JSON.parse(data1) : data1;
-                  // data2 = typeof data2 === 'string' ? JSON.parse(data2) : data2;
-                  this.ExactVal['firstQuery'] = data1.ExactVal;
-                  this.ExactVal['secondQuery'] = data2.ExactVal;
-                  this.curB = data1.b;
-                  this.curB2 = data2.b;
-                  this.SensitivityList = [data1.sensitivities[0], data1.sensitivities[1] + ', ' + data2.sensitivities[1]];
-                  [this.curSensitivity1, this.curSensitivity2] = [data1.sensitivity, data2.sensitivity];
-                  d3.select('#FirstQuerySVG');
-                  this.firstQueryData = data1.distribution;
-                  this.secondQueryData = data2.distribution;
-                  if(d.data.index.length === 1) {
-                    this.setAttackTarget(this.TableData[d.data.index[0]])
-                  }
-                })
-              })
-      },
-      setAttackTarget(data) {
-        // 假设攻击目标满足条件
+        let data = this.TableData[d.data.index[0]];
         if(this.QueryType === 'count') {
           if(this.QueryAttrType === 'numerical') {
             this.privateVal = ((data[this.QueryAttr] > this.IntervalLeft) && (data[this.QueryAttr] < this.IntervalRight)) ? 1 : 0;
@@ -2604,11 +2564,67 @@ export default {
         else {
           this.privateVal = data[this.QueryAttr]
         }
+      axios({
+        url: 'http://127.0.0.1:8000/AttackSimulation/GetNoisyDataDistribution/',
+        method: 'post',
+        data: {
+          'FileName': this.curFile,
+          'QueryType': this.QueryType,
+          'QueryAttr': this.QueryAttr,
+          'Interval': this.QueryAttrType === 'numerical' ? [this.IntervalLeft, this.IntervalRight] : this.QueryCountCondition,
+          'QueryCondition': this.FirstQueryCondition,
+          'epsilon': this.epsilon,
+          'sensitivityWay': this.SensitivityCalculationWay,
+          'scope': -1,
+          'privateVal': this.privateVal
+        }
+      }).then(response1 => {
+        console.log(response1);
+        axios({
+          url: 'http://127.0.0.1:8000/AttackSimulation/GetNoisyDataDistribution/',
+          method: 'post',
+          data: {
+            'FileName': this.curFile,
+            'QueryType': this.QueryType,
+            'QueryAttr': this.QueryAttr,
+            'Interval': this.QueryAttrType === 'numerical' ? [this.IntervalLeft, this.IntervalRight] : this.QueryCountCondition,
+            'QueryCondition': this.SecondQueryCondition,
+            'epsilon': this.epsilon,
+            'sensitivityWay': this.SensitivityCalculationWay,
+            'scope': response1.data.scope,  // the range obtained in the first query
+            'privateVal': this.privateVal
+          }
+        }).then(response2 => {
+          let data1 = response1.data;
+          let data2 = response2.data;
+          // data1 = typeof data1 === 'string' ? JSON.parse(data1) : data1;
+          // data2 = typeof data2 === 'string' ? JSON.parse(data2) : data2;
+          this.ExactVal['firstQuery'] = data1.ExactVal;
+          this.ExactVal['secondQuery'] = data2.ExactVal;
+          this.curB = data1.b;
+          this.curB2 = data2.b;
+          this.SensitivityList = [data1.sensitivities[0], data1.sensitivities[1] + ', ' + data2.sensitivities[1]];
+          [this.curSensitivity1, this.curSensitivity2] = [data1.sensitivity, data2.sensitivity];
+          d3.select('#FirstQuerySVG');
+          this.firstQueryData = data1.distribution;
+          this.secondQueryData = data2.distribution;
+          if(d.data.index.length === 1) {
+            this.setAttackTarget(this.TableData[d.data.index[0]])
+          }
+        })
+      })
+      },
+      cleanAttackSimulationView() {
+        d3.selectAll('#FirstQuerySVG .container-left,.clipG,.outRangeG').remove();
+        d3.selectAll('#DA_OutputSVG .container-right,.clipG,.outRangeG').remove();
+      },
+      setAttackTarget(data) {
+
         let targetResult = this.privateVal;
         this.ExactVal['secondQuery'] = this.ExactVal['firstQuery'] - targetResult;
         let svg = d3.select('#FirstQuerySVG');
+        // Plot the distribution of differential results
         this.MakeResultDistribution(svg, this.firstQueryData, 'left', false, '', this.secondQueryData);
-        // 画差分结果分布图
 
         let scope;
         if(this.QueryType === 'count') {
@@ -2693,7 +2709,7 @@ export default {
         let x = d3.scaleLinear()
             .domain(xDomain)
             .range(xRange)
-            .clamp(true);  //原因是定义域为止  暂时这么做为了保险
+            .clamp(true);
         let ymax = d3.max(lineData, d => d[1]);
         let ymin = d3.min(lineData, d => d[1]);
         if(externalData.length !== 0) {
@@ -2748,7 +2764,7 @@ export default {
             .attr('stroke-width', 2)
             .attr('fill', 'none');
 
-        // deviation 文字要放在 path 上面
+        // deviation text should be placed above the path
         if(brushAble && this.QueryAttrType === 'numerical' && this.QueryType === 'sum') {
           if(clipId === 'clip-privacy') {
             // let deviationTextBgc = container.append('rect').attr('class', 'deviationTextBgc');
@@ -2762,9 +2778,8 @@ export default {
                 .text(`P`);
             container.append('text')
                 .attr('class', 'deviationTextVal')
-                .attr('x', (xRange[1] + xRange[0]) / 2 + 35 - 25)
+                .attr('x', (xRange[1] + xRange[0]) / 2 - 5)
                 .attr('y', (yRange[1] + yRange[0]) / 2 + 20)
-                .style('text-anchor', 'middle')
                 .attr('fill', this.colorMap['black'])
                 // .attr('fill', this.deviationP1 > this.AttackSRT ? this.colorMap['risk'] : this.colorMap['black'])
                 .text(`: ${(this.deviationP1*100).toFixed(0)}%`);
@@ -2788,7 +2803,10 @@ export default {
 
         let trueVal = this.privateVal;
 
-        let xAxis = d3.axisBottom().scale(x).tickSizeOuter(0).ticks(2).tickFormat(d => this.convert2word(d));
+        let xAxis = d3.axisBottom().scale(x).tickSizeOuter(0).ticks(3).tickFormat(d => this.convert2word(d));
+        if(position === 'right' && this.QueryType === 'count') {
+          xAxis.tickValues([-1,0,1,2])
+        }
         container.append("g")
             .attr("class", "x axis")
             .attr("transform", `translate(0, ${h - padding})`)
@@ -2810,7 +2828,7 @@ export default {
           let func = clipId === 'clip-accuracy'? this.laplace_f : this.laplace_dv_f;
           let fillColor = clipId === 'clip-accuracy'? this.colorMap["green"] : this.colorMap["deep-red"];
           let fillOpacity = 0.7;
-          let gapWidth = 0.2; // 完美的数字
+          let gapWidth = 0.2;
           // brush的边界
           let rectX = x(trueVal - deviation);
           let rectWidth = x(trueVal + deviation) - x(trueVal - deviation)
@@ -2831,17 +2849,9 @@ export default {
               .attr("fill-rule", "evenodd")
               .attr('clip-path', `url(#${clipId})`);
 
-          // clipG.append("rect")
-          //     .attr('class', 'bottomClipRect')
-          //     .attr("x", rectX)
-          //     .attr("y", y(ymin) - gapWidth)
-          //     .attr("height", yRange[0] - y(ymin) + gapWidth)
-          //     .attr("width", rectWidth)
-          //     .attr("fill", fillColor)
-          //     .attr('fill-opacity', fillOpacity)
-          //     .attr('stroke', 'none');
 
-          // 给攻击模拟视图单独设
+
+          // separate settings for the attack simulation view
           if(position === 'right') {
             let greyColor = this.colorMap['deep-grey'];
             let leftWidth = x(this.QueryAttrRange[0]) - xRange[0];
@@ -2877,25 +2887,6 @@ export default {
                 .attr("fill-rule", "evenodd")
                 .attr('clip-path', `url(#rightOutRange)`);
 
-            // outRangeG.append("rect")
-            //     .attr('class', 'leftBottomClipRect')
-            //     .attr("x", xRange[0])
-            //     .attr("y", y(ymin)-gapWidth)
-            //     .attr("height", yRange[0] - y(ymin) + gapWidth)
-            //     .attr("width", leftWidth)
-            //     .attr("fill", greyColor)
-            //     .attr('fill-opacity', fillOpacity)
-            //     .attr('stroke', 'none')
-            //
-            // outRangeG.append("rect")
-            //     .attr('class', 'rightBottomClipRect')
-            //     .attr("x", x(this.QueryAttrRange[1]))
-            //     .attr("y", y(ymin)-gapWidth)
-            //     .attr("height", yRange[0] - y(ymin)+gapWidth)
-            //     .attr("width", rightWidth)
-            //     .attr("fill", greyColor)
-            //     .attr('fill-opacity', fillOpacity)
-            //     .attr('stroke', 'none')
             // min tick
             let minTick = container.append('g').attr('class', 'minTick')
                 .attr('transform', `translate(${xRange[0] + leftWidth}, ${yRange[0]})`);
@@ -2926,11 +2917,11 @@ export default {
         return [x, y, trueVal];
       },
 
-      // 常规查询模拟方法
+      // general query simulation method
       initializeGeneralQuerySimulationView() {
         let svg = d3.select('#GeneralQuery');
         let deviationData = [];
-        let curS = 1; //由于用百分比 所以敏感度的值没有影响
+        let curS = 1; // The value of sensitivity does not matter because of using percentage mode
         let curB = curS / this.epsilon;
         console.log('initializeGeneralQuerySimulationView' + curB)
         let [width, height, padding] = [340, 210, 40];
@@ -2988,7 +2979,7 @@ export default {
             .attr("transform", `translate(${xScale.range()[0]}, 0)`)
             .call(yAxis);
 
-        // deviation threshold 标度线
+        // deviation threshold scale mark
         svg.select('.decorationG > *').remove();
         svg.select('.decorationG').append('line')
                  .attr('class', 'AccuracyDeviationPercentTickLine')
@@ -3016,7 +3007,7 @@ export default {
             .attr('cy', yScale(this.AccuracyDeviationPercent / 100))
             .attr('fill', 'rgba(255,255,255,0)')
             .on('mouseover', (event) => {
-              // 这里应该是有闭包的，不同的 mouseover 对应不同 的 let e
+              // closure for let e
               svg.select(`.pointExplanationLine1[epsilon='${e}']`).classed('hidden', false);
               svg.select(`.pointExplanationLine2[epsilon='${e}']`).classed('hidden', false);
             })
@@ -3034,11 +3025,11 @@ export default {
             .style('fill', this.colorMap["black"])
             .text(`Deviation threshold`)
 
-        // 解释线
+        // interpretation line
         let historyYScale = d3.scaleBand(d3.range(5), [padding, height - padding / 4])
         for(let i in epsilonArray) {
           i = parseInt(i);
-          // 更新所有点 坐标
+          // update all coordinates
           let e = epsilonArray[i];
           svg.select(`.DeviationThresholdPoint[epsilon="${e}"]`)
               .attr('cx', this.GQueryXscale(this.generalQueryFunc(this.AccuracyDeviationPercent / 100, e)))
@@ -3099,7 +3090,7 @@ export default {
               .attr('height', 24)
               .style('fill', 'rgba(255,255,255,0)')
               .on('mouseover', (event) => {
-                // 这里应该是有闭包的，不同的 mouseover 对应不同 的 let e
+                // closure for let e
                 container.select(`.pointExplanationLine1[epsilon='${e}']`).classed('hidden', false);
                 container.select(`.pointExplanationLine2[epsilon='${e}']`).classed('hidden', false);
               })
@@ -3147,9 +3138,9 @@ export default {
         }
         return ret
       },
-      // 攻击模拟决策方法
+      // Attack simulation recommendation method
       UpdateEpsilonWithPrivacy() {
-        // 无效的监听触发情况
+        // Invalid watcher trigger condition
         if(this.curSensitivity1 === 0) return;
         axios({
           url: 'http://127.0.0.1:8000/DpDecisionMaker/UpdateEpsilonWithPrivacy/',
@@ -3208,7 +3199,7 @@ export default {
       },
 
 
-      // 常规查询决策方法
+      // General query recommendation method
       UpdateEpsilonWithAccuracy() {
         axios({
           url: 'http://127.0.0.1:8000/DpDecisionMaker/UpdateEpsilonWithAccuracy/',
@@ -3334,7 +3325,7 @@ export default {
 
         })
 
-            // 初始化历史线
+            // initialize the history line
             let container = d3.select('#GeneralQuery .historyPath');
             d3.selectAll('#GeneralQuery .historyPath > *').remove();
             let historyPathG = container.append('g').attr('class', 'historyPathG');
@@ -3373,7 +3364,7 @@ export default {
               .attr('cy', this.GQueryYscale(this.AccuracyDeviationPercent / 100))
               .attr('fill', 'rgba(255,255,255,0)')
               .on('mouseover', (event) => {
-                // 这里应该是有闭包的，不同的 mouseover 对应不同 的 let e
+                // closure for let e
                 svg.select(`.pointExplanationLine1[epsilon='${e}']`).classed('hidden', false);
                 svg.select(`.pointExplanationLine2[epsilon='${e}']`).classed('hidden', false);
               })
@@ -3395,10 +3386,9 @@ export default {
             .attr('x', this.GQueryXscale.range()[1] - 110)
             .attr('y', this.GQueryYscale(this.AccuracyDeviationPercent / 100) + 15)
             .text(`Deviation threshold`);
-        // 解释线
+        // explanation line
         for(let e of this.curEpsilonArray) {
-          // 为了保险,使用 All
-          // 姐姐id 不能用小数点的一个办法
+          // One way to solve the problem of not having a decimal point for id select
           let Accuracy = this.generalQueryFunc(this.AccuracyDeviationPercent / 100, e);
           svg.selectAll(`.DeviationThresholdPoint[epsilon='${e}']`)
               .attr('cx', this.GQueryXscale(Accuracy))
@@ -3417,7 +3407,7 @@ export default {
       },
       getNewAvgRiskP() {
         let insertPos = this.SchemeHistoryAttrPosMap[this.QueryAttr] + this.SchemeHistoryAttrNumMap[this.QueryAttr];
-        // 处理 SchemeHistoryAttrPosMap 和 SchemeHistoryAttrNumMap
+        // process SchemeHistoryAttrPosMap and SchemeHistoryAttrNumMap
         this.SchemeHistoryAttrNumMap[this.QueryAttr] += 1;
         for(let attr in this.SchemeHistoryAttrPosMap) {
           if(this.SchemeHistoryAttrPosMap[attr] >= insertPos) {
@@ -3425,7 +3415,6 @@ export default {
           }
         }
         let attr = this.QueryAttr;
-        // 由于变成手动 record 式, 此时 firstQueryData 肯定已经被记录了
         // this.SchemeHistoryEpsilon[attr].push(this.epsilon.toFixed(2));
         this.AccuracyEpsilonHistory[attr][this.epsilon] = this.generalQueryLineData;
         let svg = d3.select("#GeneralQuery")
@@ -3465,7 +3454,7 @@ export default {
               .attr('cy', this.GQueryYscale(this.AccuracyDeviationPercent / 100))
               .attr('fill', 'rgba(255,255,255,0)')
               .on('mouseover', (event) => {
-                // 这里应该是有闭包的，不同的 mouseover 对应不同 的 let e
+                // closure for let e
                 svg.select(`.pointExplanationLine1[epsilon='${e}']`).classed('hidden', false);
                 svg.select(`.pointExplanationLine2[epsilon='${e}']`).classed('hidden', false);
               })
@@ -3578,20 +3567,20 @@ export default {
         if(column.property === 'Sum-Succ rate') {
           console.log(row['maxRiskRecordMap'])
           let percent = (this.PrivacyDeviationPercent / 100).toFixed(1);
-          if(row['maxRiskRecordMap'][percent].risk > this.sumAttackSRTPercent / 100) {
+          // if(row['maxRiskRecordMap'][percent].risk > this.sumAttackSRTPercent / 100) {
             let index = row['maxRiskRecordMap'][percent].index;
             let condition = row['maxRiskRecordMap'][percent].condition;
             this.shrinkageAllASNode();
             this.clickTargetRecord(index, condition);
-          }
+          // }
         }
         else if(column.property === 'Count-Succ rate') {
-          if(row['countMaxRiskRecord'].risk > this.sumAttackSRTPercent / 100) {
+          // if(row['countMaxRiskRecord'].risk > this.sumAttackSRTPercent / 100) {
             let index = row['countMaxRiskRecord'].index;
             let condition = row['countMaxRiskRecord'].condition;
             this.shrinkageAllASNode();
             this.clickTargetRecord(index, condition);
-          }
+          // }
         }
       },
 
@@ -3618,7 +3607,7 @@ export default {
         let attr = this.SchemeHistory[index]['Attribute'];
         let e = parseFloat(this.SchemeHistory[index]['DP scheme-\u03B5']);
         delete this.AccuracyEpsilonHistory[attr][e]
-        // 删除历史线
+        // delete history line
         d3.selectAll(`#GeneralQuery [epsilon="${e}"]`).remove();
 
         this.SchemeHistory.splice(index, 1);
@@ -3688,7 +3677,7 @@ export default {
         this.AttrLockMap[attr] = -1;
       },
       convert2shortVersion(str) {
-        // 类别型
+        // categorical
         if(str.indexOf('~') === -1) return str;
         let splitA = str.split('~');
         let left = this.convert2word(parseFloat(splitA[0]));
@@ -3727,7 +3716,8 @@ export default {
       },
       convertSQL2HighRisk() {
         this.isMinSQL = true;
-        // 获取当前目标的最小敏感度
+        this.availableSQL2 = true;
+        // Gets the minimum sensitivity of the current target
         axios({
           url: 'http://127.0.0.1:8000/RiskTree/curHighRiskSQL/',
           method: 'post',
@@ -3745,7 +3735,7 @@ export default {
             'deviation': this.PrivacyDeviationVal,
             'privateVal': this.privateVal,
             'SensitivityCalculationWay': this.SensitivityCalculationWay,
-            'sensitivity': this.SensitivityList[0]
+            'sensitivity': this.SensitivityList[0] === 0 ? 1 : this.SensitivityList[0]
           }
         }).then((response) => {
           let curMinSensitivityMap = response.data.minSensitivityMap;
@@ -3758,8 +3748,8 @@ export default {
             d3.select(`#DDHighlightRect-${attr}`)
                 .style('opacity', 1);
           }
-          // 修改 curAttrRisk
-          let curIndices = Object.keys(secondCondition).map(attr => {
+          // modify curAttrRisk
+          let curIndices = this.curDifferIndices = Object.keys(secondCondition).map(attr => {
             return this.attrList.findIndex(d => d.Name === attr)
           });
           let minP = 1;
@@ -3806,16 +3796,16 @@ export default {
           }
           console.log(maskData);
           let svg = d3.select('#DataDistribution');
-          // 红蓝线
+          // draw the blue and red line
           this.OtherRecordNum = minSensitivityDataIndices.length;
           this.DifferentialRecordNum = 1;
           for(let d of this.LineData) {
             d['show'] = false;
           }
           let blueLineData = minSensitivityDataIndices.map((index) => this.LineData[index]);
-          // 过量采样
+          // sampling
           if(blueLineData.length > 500) {
-            // 随机采样
+            // random sampling
             let N = blueLineData.length;
             let sampleNum = 500;//9999 //Math.floor(N * 0.1)
             let posArray = [];
@@ -3875,7 +3865,7 @@ export default {
 
           d3.select("#FirstQueryText").html(firstQueryText)
           d3.select("#SecondQueryText").html(secondQueryText)
-          // 绘制data distribution 的 黄色方块
+          // Draws a yellow box for the data distribution
 
           let maskG = svg.select('.maskG');
           let height = parseFloat(d3.select('#DataDistribution').style('height').split('px')[0]);
@@ -3926,7 +3916,7 @@ export default {
               .join('g')
               .attr('class', 'TickLineG')
               .attr('transform', d => `translate(${this.scale_Xscale(d.attrIndex)}, ${0})`)
-          // rect 上边界线
+          // rect upper boundary line
           TickLineG.selectAll('.upEdgeLine')
               .data(d => d.scope)
               .join('line')
@@ -3953,7 +3943,7 @@ export default {
                 }
               })
               .style('stroke', this.colorMap["deep-grey"]);
-          // rect 中线
+          // rect middle line
           TickLineG.selectAll('.middleEdgeLine')
               .data(d => d.scope)
               .join('line')
@@ -3981,7 +3971,7 @@ export default {
               })
               .style('stroke', this.colorMap["deep-grey"]);
 
-          // rect 下边界线
+          // rect lower boundary
           TickLineG.selectAll('.downEdgeLine')
               .data(d => d.scope)
               .join('line')
@@ -4009,7 +3999,7 @@ export default {
               })
               .style('stroke', this.colorMap["deep-grey"]);
 
-          // 差分标记点
+          // differential marker
           let finalData = differAttr.map(attr => this.TableData[this.curDifferIndex][attr]);
           svg.selectAll('.finalMaskCircle').remove();
           maskG.selectAll('.finalMaskCircle')
@@ -4034,7 +4024,7 @@ export default {
            }
          }
          else {
-           // 类别型属性
+           // categorical attr
            if(typeof dcVal === 'string') {
              let curIndex = 0;
              let scope = [];
@@ -4054,12 +4044,12 @@ export default {
              }
              return scope
            }
-           // 数值型属性
+           // numerical attr
            else {
              let curIndex = 0;
              let scope = [];
              if(dcVal < condition[0][0]) {
-               scope = [[condition[0][0]], condition[conditionLen-1][1]]
+               scope = [[condition[0][0], condition[conditionLen-1][1]]]
              }
              else {
                while(curIndex < condition.length && dcVal > condition[curIndex][0]) {
@@ -4206,9 +4196,13 @@ export default {
       },
       'isFreshSimulationView': {
         handler(newVal, oldVal) {
-          if(Object.keys(this.curAttackTarget).length !== 0) {
-            console.log('3887')
-            this.initializeAttackSimulationViews(this.curAttackTarget);
+          if(this.availableSQL2) {
+            if(Object.keys(this.curAttackTarget).length !== 0) {
+              this.initializeAttackSimulationViews(this.curAttackTarget);
+            }
+          }
+          else {
+            this.cleanAttackSimulationView();
           }
         },
         deep: true,
@@ -4235,7 +4229,7 @@ export default {
           let svg = d3.select('#GeneralQuery');
           for(let e of this.curEpsilonArray) {
             let Accuracy = this.generalQueryFunc(this.AccuracyDeviationPercent / 100, e);
-            // 终于懂了这个 bug 原来是没有selectAll,导致,找到的是history的epsilon = 1 的node
+
             svg.selectAll(`.DeviationThresholdPoint[epsilon='${e}']`)
                 .attr('fill', (Accuracy >= this.AccuracySRTPercent / 100) ? this.colorMap["green"] : 'rgb(216,216,216)');
           }
@@ -4245,7 +4239,7 @@ export default {
       },
       'isInitializeSchemeHistory': {
         handler(newVal, oldVal) {
-          // 先获取敏感度
+          // acquirement sensitivity first
           axios({
             url: 'http://127.0.0.1:8000/RiskTree/getSensitivity/',
             method: 'post',
@@ -4259,7 +4253,7 @@ export default {
             this.SchemeHistoryColumnSensitivity = response.data.sensitivityMap;
             this.initializeSchemeHistory();
 
-            // 初始化 minSensitivityMap
+            // initialize minSensitivityMap
             this.minSensitivityMap = {}
             for(let attrParams of this.attrList) {
               let attr = attrParams.Name;
@@ -4297,7 +4291,7 @@ export default {
             while(cnt <= rowLen) {
              if(this.SchemeHistory[i].Attribute === newVal) {
                this.SchemeHistory.unshift(this.SchemeHistory.splice(i , 1)[0]);
-               i += 1; // 保证查询不回错位
+               i += 1;
              }
               cnt += 1;
               i -= 1;
@@ -4311,8 +4305,7 @@ export default {
               }
               this.SchemeHistoryAttrNumMap[attr] = i - this.SchemeHistoryAttrPosMap[attr] + 1;
             }
-            // 延迟赋值  因为赋值后表格将变化,而此时合并列函数也会直接执行
-            // this.SchemeHistory = temp;
+
 
           }
         },
@@ -4324,8 +4317,6 @@ export default {
           this.curAttrRisk = parseFloat(newVal.split('%')) / 100
           // d3.select('.attrRiskSlider')
           //   .attr('transform', `translate(${this.curAttrRisk * 70}, 0)`);
-          // 初始化的时候存在一点问题,关于this.curIndices
-          // 需要等 this.indices 修改后
           let bitmap = this.curIndices.reduce((prev, d) => {
             return prev += 1 << d;
           }, 0);
@@ -4338,21 +4329,21 @@ export default {
       },
       'curAttrRisk': {
         handler(newVal, oldVal) {
-          // 切换 准确度到合适的范围
+          // Switch accuracy to the appropriate range
           let min =Math.round(this.curAttrRisk * 100 * 0.5) ;
           let max =Math.round(this.curAttrRisk * 100) ;
-          // 对 countAttackSRT 进行调整
+          // Adjust the countAttackSRT
           if(this.countAttackSRTPercent <= min || this.countAttackSRTPercent >= max) {
-            // 延迟调整
+            // Delay adjustment
             setTimeout(() => {
               let temp = Math.round(min + (max - min) / 2);
               this.countAttackSRTPercent = temp - temp % 10;
 
             }, 1000)
           }
-          // 对 sumAttackSRT
+          // for sumAttackSRT
           if(this.sumAttackSRTPercent >= max) {
-            // 延迟调整
+            // Delay adjustment
             setTimeout(() => {
               let temp = Math.round(max / 2);
               this.sumAttackSRTPercent = temp;
@@ -4365,11 +4356,11 @@ export default {
       },
       'attrRiskMap': {
         handler(newVal, oldVal) {
-          //修改圆的灰度
+          // Modify the gray level of the circle
           let greyColorScale = d3.scaleLinear()
               .domain([0, 99])
               .range(this.greyGradient)
-          // 修改灰色内圆的颜色
+          // change the color of the gray inner circle
           d3.selectAll('.TreeNodePie .curNodeRiskPie_path path')
               .attr("fill",(d) => {
                 let i = d.index;
@@ -4391,7 +4382,7 @@ export default {
                 return this.colorMap["risk"];
               })
 
-          // 更新Scheme History
+          // update Scheme History
           if(Object.keys(this.minSensitivityMap).length !== 0) {
             this.refreshAvgRiskP();
           }
@@ -4696,6 +4687,7 @@ export default {
   #firstQuery, #secondQuery {
     display: flex;
     align-items: center;
+    position: relative;
   }
 
   .RelativeToDiv {
@@ -5088,4 +5080,11 @@ export default {
     visibility: hidden;
   }
 
+  .notAvailableIcon {
+    position: absolute;
+    left: 38px;
+    /*width: 50%;*/
+    height: 50%;
+    font-size: 30px;
+  }
 </style>

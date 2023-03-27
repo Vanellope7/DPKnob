@@ -40,10 +40,10 @@ def fileReceive(request):
 
     AttrMap = {
         'case1.csv': {
-            'privateAttr': ['charges'],
-            'personalFeatureAttr': ['age', 'bmi', 'children'],
-            'personalStateAttr': [],
-            'personalAccessAttr': [],
+            'PrivateAttr': ['charges'],
+            'ImplicitDescription': [],
+            'NormalDescription': [],
+            'ExplicitDescription': ['age', 'bmi', 'children'],
         },
         'case2.csv': {
             'PrivateAttr': ['Disease'],
@@ -52,10 +52,10 @@ def fileReceive(request):
             'ExplicitDescription': ['BMI', 'PhysicalH', 'PhysicalA'],
         },
         'case3.csv': {
-            'privateAttr': ['Income'],
-            'personalFeatureAttr': ['Birth_Y', 'Recency', 'Complain'],
-            'personalStateAttr': [],
-            'personalAccessAttr': []
+            'PrivateAttr': ['Income'],
+            'ImplicitDescription': [],
+            'NormalDescription': [],
+            'ExplicitDescription': []
         },
     }
     # privateAttr = ['HeartDisease']
@@ -78,10 +78,11 @@ def fileReceive(request):
                 # 'Range Width': len(Range),
                 'Search Range': '-',
                 'Minimum Granularity': '-',
-                'Leakage Probability': '80%' if attr in AttrMap[filename]['ExplicitDescription'] else
-                ('70%' if attr in AttrMap[filename]['NormalDescription'] else
-                 ('50%' if attr in AttrMap[filename]['ImplicitDescription'] else
-                 ('30%' if attr in AttrMap[filename]['PrivateAttr'] else '100%')))
+                'Leakage Probability': '100%'
+                #     '80%' if attr in AttrMap[filename]['ExplicitDescription'] else
+                # ('70%' if attr in AttrMap[filename]['NormalDescription'] else
+                #  ('50%' if attr in AttrMap[filename]['ImplicitDescription'] else
+                #  ('30%' if attr in AttrMap[filename]['PrivateAttr'] else '100%')))
             })
         else:
             # 数值型
@@ -98,10 +99,11 @@ def fileReceive(request):
                 # 'Range Width': Max - Min,
                 'Search Range': '{0}~{1}'.format(MinEdge, MaxEdge),
                 'Minimum Granularity': width,
-                'Leakage Probability': '80%' if attr in AttrMap[filename]['ExplicitDescription'] else
-                ('70%' if attr in AttrMap[filename]['NormalDescription'] else
-                 ('50%' if attr in AttrMap[filename]['ImplicitDescription'] else
-                 ('30%' if attr in AttrMap[filename]['PrivateAttr'] else '100%')))
+                'Leakage Probability': '100%'
+                #     '80%' if attr in AttrMap[filename]['ExplicitDescription'] else
+                # ('70%' if attr in AttrMap[filename]['NormalDescription'] else
+                #  ('50%' if attr in AttrMap[filename]['ImplicitDescription'] else
+                #  ('30%' if attr in AttrMap[filename]['PrivateAttr'] else '100%')))
             })
     return JsonResponse({'data': AttrList})
 
@@ -116,13 +118,13 @@ def riskTree(request):
     RiskRatioMap = postData.get('RiskRatioMap', -1)
     # 如果是第一次查询，那么将查看是否存在缓存
     if RiskRatioMap == -1:
-        cashPath = 'RiskTree/cash/{0}/rt-{1}.cash.json'.format(filename.split('.')[0], filename)
-        if os.path.exists(cashPath):
-            with open(cashPath, 'r') as f:
+        cachePath = 'RiskTree/cache/{0}/rt-{1}.cache.json'.format(filename.split('.')[0], filename)
+        if os.path.exists(cachePath):
+            with open(cachePath, 'r') as f:
                 json_data = json.load(f)
         else:
             json_data = getRiskRecord(filename, attrList, indices, RiskRatioMap, DescriptionNum)
-            with open(cashPath, 'w+') as f:
+            with open(cachePath, 'w+') as f:
                 json.dump(json_data, f, cls=JsonEncoder)
     else:
         json_data = getRiskRecord(filename, attrList, indices, RiskRatioMap, DescriptionNum)
@@ -228,9 +230,9 @@ def DataDistribution(request):
     filename = postData['filename']
     attrList = postData['attrList']
 
-    cashPath = 'RiskTree/cash/{0}/dd-{1}.cash.json'.format(filename.split('.')[0], filename)
-    if os.path.exists(cashPath):
-        with open(cashPath, 'r') as f:
+    cachePath = 'RiskTree/cache/{0}/dd-{1}.cache.json'.format(filename.split('.')[0], filename)
+    if os.path.exists(cachePath):
+        with open(cachePath, 'r') as f:
             ret = json.load(f)
     else:
         R = pd.read_csv('data/' + filename)
@@ -292,7 +294,7 @@ def DataDistribution(request):
                'TableKeyData': values,
                'MaxMap': MaxMap,
                'AttrsKeyMap': AttrsKeyMap}
-        with open(cashPath, 'w+') as f:
+        with open(cachePath, 'w+') as f:
             json.dump(ret, f, cls=JsonEncoder)
 
     return JsonResponse(ret, encoder=JsonEncoder)
@@ -349,16 +351,16 @@ def minSensitivityMap(request):
     AttrsKeyMap, BSTKeyMap = postData['AttrsKeyMap'], postData['BSTKeyMap']
     attr = postData['attr']
 
-    cashPath = 'RiskTree/cash/{0}/ms-{1}-{2}.cash.json'.format(filename.split('.')[0], filename, attr)
-    if os.path.exists(cashPath):
-        with open(cashPath, 'r') as f:
+    cachePath = 'RiskTree/cache/{0}/ms-{1}-{2}.cache.json'.format(filename.split('.')[0], filename, attr)
+    if os.path.exists(cachePath):
+        with open(cachePath, 'r') as f:
             ret = json.load(f)
     else:
         dfp = DFProcessor(filename, '', {}, 'Local sensitivity')
         minSensitivityMap = getMinLocalSensitivityMap(dfp, AttrsKeyMap, BSTKeyMap, attrOption, filename, attr,
                                                       attrOption.index(attr))
         ret = {'data': minSensitivityMap}
-        with open(cashPath, 'w+') as f:
+        with open(cachePath, 'w+') as f:
             json.dump(ret, f, cls=JsonEncoder)
 
 
@@ -412,23 +414,28 @@ def curHighRiskSQL(request):
                 continue
             dc_keys = dc['keys']
             dcConditions, otherConditions = keys2condition(AttrsKeyMap, dc_indices, dc_keys)
-            secondQueryCondition = {}
-            firstQueryCondition = {}
-            for dc_index in dc_indices:
-                if dc_index == dc_indices[-1]:
-                    dcAttr = attrOption[dc_index]
-                    secondQueryCondition[dcAttr] = otherConditions[dc_index]
-                else:
-                    normalAttr = attrOption[dc_index]
-                    firstQueryCondition[normalAttr] = [dcConditions[dc_index]]
-                    secondQueryCondition[normalAttr] = [dcConditions[dc_index]]
-            curBitmap = indices2bitmap(dc['indices'])
-            dfp.resetParams(QueryAttr, secondQueryCondition)
-            dataIndices = dfp.getCurDataIndices()
-            minSensitivityMap[index]['sensitivity'][curBitmap] = sensitivity
-            minSensitivityMap[index]['firstSensitivityWay'][curBitmap] = firstQueryCondition
-            minSensitivityMap[index]['secondSensitivityWay'][curBitmap] = secondQueryCondition
-            minSensitivityMap[index]['minSensitivityDataIndices'][curBitmap] = dataIndices
+            # 差分属性index
+
+            for dcI in range(len(dc_indices)):
+                secondQueryCondition = {}
+                firstQueryCondition = {}
+                for dc_index in dc_indices:
+                    if dc_index == dc_indices[dcI]:
+                        dcAttr = attrOption[dc_index]
+                        secondQueryCondition[dcAttr] = otherConditions[dc_index]
+                    else:
+                        normalAttr = attrOption[dc_index]
+                        firstQueryCondition[normalAttr] = [dcConditions[dc_index]]
+                        secondQueryCondition[normalAttr] = [dcConditions[dc_index]]
+                curBitmap = indices2bitmap(dc['indices'])
+                dfp.resetParams(QueryAttr, secondQueryCondition)
+                dataIndices = dfp.getCurDataIndices()
+                if len(dataIndices) <= 1:
+                    continue
+                minSensitivityMap[index]['sensitivity'][curBitmap] = sensitivity
+                minSensitivityMap[index]['firstSensitivityWay'][curBitmap] = firstQueryCondition.copy()
+                minSensitivityMap[index]['secondSensitivityWay'][curBitmap] = secondQueryCondition.copy()
+                minSensitivityMap[index]['minSensitivityDataIndices'][curBitmap] = dataIndices.copy()
 
 
     # 处理数据方便前端使用

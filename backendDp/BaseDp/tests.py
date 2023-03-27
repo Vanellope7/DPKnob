@@ -5,7 +5,7 @@ import numpy as np
 from tools.Laplace import Laplace
 from tools.utils import laplace_DV_P2, laplace_DV_P, laplace_P
 
-# 验证b1 b2 交换无差别
+# verify that there is no difference between b1 and b2
 x = -1
 y = 1
 b1 = 100
@@ -16,7 +16,7 @@ p2 = laplace_DV_P2([x, y], b2, b1)
 print(laplace_P([x, y], b1))
 print(laplace_DV_P([x, y], b1))
 
-# 验证公式正确性
+# Verify the correctness of formula
 # data1 = np.random.laplace(0, b1, 10000000)
 # data2 = np.random.laplace(0, b2, 10000000)
 # dv = data1 - data2

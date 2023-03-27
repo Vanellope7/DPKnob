@@ -4,7 +4,6 @@ from tools.StatisticsWithPrivacy import StatisticsWithPrivacy
 from tools.Laplace import Laplace
 
 
-# 获取直方图数据 前端获取到该数据即可直接用D3画直方图
 def getHistogramData(df, attr, bins):
     a = df[attr].hist(bins=bins)
     heights = [a.patches[i]._height for i in range(bins)]

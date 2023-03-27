@@ -11,7 +11,7 @@ class DFProcessor:
         self._df.fillna(0, inplace=True)
         self._queryDF = self.getSliceDF(self._df, QueryCondition)
         self.attrParams = attrParams
-        # # 数值型
+        # # numerical
         # if type(self.attrParams) == list:
 
         self.attr = attr
@@ -26,10 +26,10 @@ class DFProcessor:
     def getSliceDF(self, df, QueryCondition):
         queryList = []
         for attr in QueryCondition.keys():
-            # 数值型
+            # numerical
             if isinstance(QueryCondition[attr][0], (list, tuple)):
-                # 可能有多个条件
-                temp = []  # 先收集, 最后再join
+                # there could be multiple conditions
+                temp = []  # collect first, using (join function) merge last
                 for scope in QueryCondition[attr]:
                     temp.append('(({0} >= {1}) & ({0} < {2}))'.format(attr, scope[0], scope[1]))
                 queryList.append('(' + '|'.join(temp) + ')')
@@ -44,7 +44,7 @@ class DFProcessor:
         if type == 'numerical':
             Sensitivity = [df.max()[self.attr], 1]
         else:
-            # 类别型数据
+            # categorical data
             Sensitivity = ['-', 1]
         return Sensitivity
 
