@@ -364,7 +364,7 @@
 
 <script>
 import * as d3 from 'd3';
-import DataInput from "./DataInput/DataInput";
+import DataInput from "../DataInput/DataInput";
 import axios from "axios";
 
 export default {

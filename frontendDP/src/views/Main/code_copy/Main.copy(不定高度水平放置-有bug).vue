@@ -5,7 +5,7 @@
         <div class="MainLabel">Differential Risk Identification</div>
 
         <div id="TreeView">
-          <div>
+          <div id="AttributeSet">
             <div class="SecondaryLabel">Attribute Set Tree</div>
             <svg id="AttributeSetTree"></svg>
           </div>
@@ -182,7 +182,7 @@
 
 <script>
 import * as d3 from 'd3';
-import DataInput from "./DataInput/DataInput";
+import DataInput from "../DataInput/DataInput";
 import axios from "axios";
 
 export default {
@@ -244,7 +244,7 @@ export default {
         this.QueryAttr = this.QueryAttrOption[0]
         d3.selectAll('#AttributeSetTree > *').remove();
         //定义边界
-        let margin = { top: 10, bottom: 10, left: 30, right: 10 };
+        let margin = { top: 10, bottom: 10, left: 10, right: 10 };
         let svg = d3
             .select("#AttributeSetTree");
         let width=svg.style('width').split('px')[0];
@@ -381,7 +381,7 @@ export default {
             .innerRadius(innerRadius)	//设置内半径
             .outerRadius(outerRadius);	//设置外半径
 
-        let color = ['rgba(234, 134, 133, 1.0)', 'rgba(184, 233, 148, 1.0)'];
+        let color = ['rgba(234, 134, 133, 0.6)', 'rgba(64, 158, 255, 0.6)'];
 
         Pie.append('circle')
            .attr('class', 'strokeCircle')
@@ -448,7 +448,7 @@ export default {
                        return d3.select(`#attrName${d.data.name}`).node().getComputedTextLength();
                      })
                      .attr('height', 20)
-                     .attr('fill', 'rgba(64, 158, 255, 0.6)')
+                     .attr('fill', 'rgba(234, 134, 133, 0.6)')
                      .style('opacity', 0)
       },
       PruningAndLayout(nodes, links, width, height, maxLayer) {
@@ -538,7 +538,7 @@ export default {
           this.selectedAttr = response.data.selectedAttr;
           d3.selectAll('#DifferentialQueryTree > *').remove();
           //定义边界
-          let margin = { top: 10, bottom: 0, left: 100, right: 0 };
+          let margin = { top: 10, bottom: 0, left: 10, right: 0 };
 
 
           let svg = d3.select("#DifferentialQueryTree")
@@ -568,7 +568,7 @@ export default {
           console.log(parentKeyList)
           let treeFunc = d3
               .tree()
-              .size([width, height])
+              .size([height, width])
               .separation(function(a, b) {
                 return (a.parent === b.parent ? 1 : 2) / a.depth;
               });
@@ -587,7 +587,6 @@ export default {
           keyLen.push(dimensionData.data.length);
         }
         let dimensionNodeNum = this.dimNodeCnt;
-
         let parentNodeScaleList = [];
         let childNodeScaleList = [];
         let parentNodeHeights = [];
@@ -600,7 +599,7 @@ export default {
           parentNodeScaleList.push(
               d3.scaleBand()
                   .domain(keyMap[i].data)
-                  .range([parentNodeHeight / 2, Height + parentNodeHeight / 2])
+                  .range([parentNodeHeight / 2, height + parentNodeHeight / 2])
           )
 
           childNodeScaleList.push(
@@ -616,25 +615,27 @@ export default {
       MakeDifferQueryTree(svg, nodes, links, keyMap, parentKeyList) {
         let width=300;
         let height=300;
-        let NodeHeight = 20;
+        let NodeWidth = 50;
         [nodes, keyMap] = this.TreePruning(nodes, keyMap);
         nodes = nodes.filter(d => d.depth > 0)
         links = links.filter(d => nodes.includes(d.source) && nodes.includes(d.target))
-        let [parentNodeScaleList, childNodeScaleList, parentNodeWidths, nodeWidths] = this.getDimensionScale(keyMap, width, keyMap.length, parentKeyList);
+        let [parentNodeScaleList, childNodeScaleList, parentNodeHeights, nodeHeights] = this.getDimensionScale(keyMap, height, keyMap.length, parentKeyList);
+
 
         let Xscale = d3.scaleLinear()
-            .domain([-0.5, keyMap.length-1 + 0.5])
+            .domain([-0.5, 2.5])
             .range([0, width]);
 
         let nodeColorScale = d3.scaleLinear()
             .domain([d3.min(nodes, d => d.data.num), d3.max(nodes, d => d.data.num)])
             .range(['#bbbbbb', '#777777'])
 
+
         for(let i in nodes) {
           let dim = nodes[i].data.dim;
           nodes[i].y = Xscale(dim);
+          keyMap[dim].x = nodes[i].y;
           nodes[i].x = parentNodeScaleList[dim](nodes[i].data.key) + childNodeScaleList[dim](nodes[i].parentKey);
-          keyMap[dim].y = nodes[i].y;
         }
         console.log(nodes)
         let generator = d3
@@ -647,62 +648,6 @@ export default {
             });
         let TreeLinkG = svg.select(".container .TreeLinkG");
         let TreeNodeG = svg.select(".container .TreeNodeG");
-        let ParentNodeG = svg.select(".container .ParentNodeG");
-        let ParentNodeG_DATA = ParentNodeG.selectAll(".DimensionNodeG")
-            .data(keyMap);
-        ParentNodeG_DATA.exit().remove();
-        let DimensionG = ParentNodeG_DATA.enter()
-            .append("g")
-            .attr("class", 'DimensionNodeG')
-            .attr("transform", function(d) {
-              let cx = d.x;
-              let cy = d.y;
-              return "translate(" + cx + "," + 0 + ")";
-            });
-        DimensionG.append('text')
-            .attr('x', 25)
-            .attr('y', -10)
-            .style('text-anchor', 'end')
-            .text((d, k) => this.curAttr[k])
-
-        let dimension1 = -1, dimension2 = -1;
-        let parentNodes = DimensionG.selectAll(".ParentNode")
-            .data(d => d.data)
-            .enter()
-            .append('rect')
-            .attr("class", 'ParentNode')
-            .attr("x", d => 20)
-            .attr("y", (d, k) => {
-              if(k === 0) dimension1 += 1;
-              return `${parentNodeScaleList[dimension1](d) - parentNodeWidths[dimension1] / 2}px`
-            })
-            .attr('width', '20px')
-            .attr("height", (d, k) => {
-              if(k === 0) dimension2 += 1; //每个维度一定会从0开始 考虑剪枝会出现一定问题
-              return `${parentNodeWidths[dimension2]}px`
-            })
-            .attr('stroke', '#777')
-            .attr('fill', 'rgba(184, 233, 148, 1.0)');
-        let dimension3 = -1;
-        let parentTextG = DimensionG.selectAll(".ParentText")
-            .data(d => d.text)
-            .enter()
-            .append('g')
-            .attr("class", 'ParentText')
-            .attr("transform", (d,k) => {
-              if(k === 0) dimension3 += 1;
-              let cx = parentNodeScaleList[dimension3](keyMap[dimension3].data[k]);
-              let cy = 25;
-              return "translate(" + cx + "," + cy + ")";
-            });
-
-        parentTextG.append('text')
-            .attr("x", 0)
-            .attr("y", 10)
-            .style('text-anchor', 'middle')
-            .text(d => d);
-
-
 
         let TreeLink_DATA = TreeLinkG
             .selectAll(".TreeLinkPath")
@@ -718,7 +663,7 @@ export default {
         // 统一边位置
         let TreeLinkPath = TreeLinkG.selectAll(".TreeLinkPath")
             .attr("d", function(d) {
-              let start = { x: d.source.x, y: d.source.y + NodeHeight};
+              let start = { x: d.source.x, y: d.source.y + NodeWidth};
               let end = { x: d.target.x, y: d.target.y };
               return generator({ source: start, target: end });
             })
@@ -736,19 +681,15 @@ export default {
             .enter()
             .append("g")
             .attr("class", 'TreeNodePie')
-            .attr("transform", function(d) {
-              let cx = d.x;
-              let cy = d.y;
-              return "translate(" + cx + "," + cy + ")";
-            })
             .on('click', (e, d) => {
               this.clickQueryNode(d);
             })
-        svg.selectAll('.TreeNodePie')
+
+        d3.selectAll('.TreeNodePie')
             .attr("transform", function(d) {
               let cx = d.x;
               let cy = d.y;
-              return "translate(" + cx + "," + cy + ")";
+              return "translate(" + cy + "," + cx + ")";
             })
             .on('mouseover', (e, d) => {
               TreeLinkPath.filter(link => link.source !== d)
@@ -759,23 +700,36 @@ export default {
               TreeLinkPath.classed('nonHighlightEdge', false);
             })
 
+
         NodesG.append("rect")
-            .attr("x", d => `-${nodeWidths[d.data.dim] / 2}`)
-            .attr("y", 0)
-            .attr("height", NodeHeight)
-            .attr("width", d => `${nodeWidths[d.data.dim]}px`)
+            .attr("x", 0)
+            .attr("y", d => {
+              return `-${nodeHeights[d.data.dim] / 2}`
+            })
+            .attr("height", d => {
+              return `${nodeHeights[d.data.dim]}px`
+            })
+            .attr("width", NodeWidth)
             .attr('stroke', '#555')
             .attr('fill', d => {
               let num = d.data.num;
               if(num === 1) {
-                return 'rgba(234, 134, 133,1.0)'
+                return 'rgba(234, 134, 133,0.6)'
               }
               else {
                 return nodeColorScale(num)
               }
             })
             .append('title')
-            .text(d => d.data.index)
+            .text(d => d.data.index);
+        NodesG.append('text')
+              .style('text-anchor', 'middle')
+              .text(d => {
+                let dim = d.data.dim;
+                let index = this.keyMap[dim].data.indexOf(d.data.key);
+                return this.keyMap[dim].text[index];
+              })
+
       },
       TreePruning(nodes, keyMap) {
         let root = nodes[0];
@@ -1300,6 +1254,10 @@ export default {
     margin-right: 0;
   }
   /***************** 树视图style ******************/
+  #AttributeSet {
+    width: 50%;
+    height: 100%;
+  }
   #AttributeSetTree {
     height: calc(100% - 37px);
     width: 100%;
@@ -1310,7 +1268,7 @@ export default {
     height: calc(100% - 40px);
   }
   #DifferentialQueryList {
-    width: 23vw;
+    width: calc(50% - 1px);
   }
 
   #DataDistribution {
@@ -1321,12 +1279,10 @@ export default {
   #DQTreeContainer {
     width: 100%;
     height: calc(100% - 37px);
-    overflow-x: scroll;
-    overflow-y: hidden;
   }
 
   #DifferentialQueryTree {
-    width: 150%;
+    width: 100%;
     height: 100%;
   }
   /**********************************************/

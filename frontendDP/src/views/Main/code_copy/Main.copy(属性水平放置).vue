@@ -7,14 +7,16 @@
         <div id="TreeView">
           <div>
             <div class="SecondaryLabel">Attribute Set Tree</div>
-            <svg id="AttributeSetTree" width="25vw" height="50vh"></svg>
+            <svg id="AttributeSetTree"></svg>
           </div>
 
           <el-divider direction="vertical" border-style="dashed" style="height: 100%"/>
 
           <div id="DifferentialQueryList">
             <div class="SecondaryLabel">Differential Query List</div>
-            <svg id="DifferentialQueryTree"></svg>
+            <div id="DQTreeContainer">
+              <svg id="DifferentialQueryTree"></svg>
+            </div>
           </div>
         </div>
 
@@ -124,9 +126,9 @@
         <el-button type="primary" class="rightEdgeBtn" @click="UpdateEpsilonWithPrivacy">Update &epsilon;</el-button>
       </div>
       <div id="AttackSimulationViews" class="SimulationViews">
-        <svg id="FirstQuery" class="AS_view QueryView"></svg>
-        <svg id="SecondQuery" class="AS_view QueryView"></svg>
-        <svg id="DA_Output" class="AS_view QueryView"></svg>
+        <svg id="FirstQuery" class="AS_view QueryView"><text x="5" y="20">1st query</text></svg>
+        <svg id="SecondQuery" class="AS_view QueryView"><text x="5" y="20">2nd query</text></svg>
+        <svg id="DA_Output" class="AS_view QueryView"><text x="5" y="20">Differential attack</text></svg>
       </div>
 
 
@@ -157,7 +159,7 @@
       </div>
 
       <div id="GeneralQuerySimulationViews" class="SimulationViews">
-        <svg id="GeneralQuery" class="GQS_view QueryView"></svg>
+        <svg id="GeneralQuery" class="GQS_view QueryView"><text x="5" y="20">General query</text></svg>
         <div id="SchemeHistory">
           <div class="MainLabel">Scheme History</div>
         </div>
@@ -180,7 +182,7 @@
 
 <script>
 import * as d3 from 'd3';
-import DataInput from "./DataInput/DataInput";
+import DataInput from "../DataInput/DataInput";
 import axios from "axios";
 
 export default {
@@ -204,7 +206,10 @@ export default {
         curIndex: [],
 
         MaxMap: {}, //记录属性的最大值 类别型属性用count最大值替代
+        dimNodeCnt: [],
 
+
+        // 决策变量
         firstQueryData: [],
         secondQueryData: [],
         curB: 0,
@@ -221,7 +226,11 @@ export default {
         PrivacyDeviation: 10,
         AttackSRT: 0.5,
         AccuracyDeviation: 10,
-        AccuracySRT: 0.5
+        AccuracySRT: 0.5,
+
+
+        DA_OutputXscale: {},
+        ExactVal: {'firstQuery': 0, 'secondQuery': 0}
       }
     },
     methods: {
@@ -233,8 +242,6 @@ export default {
         this.attrList = attrList;
         this.QueryAttrOption = attrList.map((d) => d.Name)
         this.QueryAttr = this.QueryAttrOption[0]
-
-
         d3.selectAll('#AttributeSetTree > *').remove();
         //定义边界
         let margin = { top: 10, bottom: 10, left: 30, right: 10 };
@@ -256,12 +263,13 @@ export default {
             .tree()
             .size([height- 50, width - 50])
             .separation(function(a, b) {
-              return (a.parent === b.parent ? 1 : 2);
+              return (a.depth === b.depth ? 1 : 2);
             });
 
         let treeData = this.treeFunc(hierarchyData);
         let nodes = treeData.descendants();
         let links = treeData.links();
+        [nodes, links] = this.PruningAndLayout(nodes, links, width, height, 3)
         this.MakeTree(svg, nodes, links);
         this.initializeDataDistribution();
         this.initializeAttackSimulationViews();
@@ -295,7 +303,7 @@ export default {
             })
             .attr('class', 'TreeLinkPath')
             .attr("fill", "none")
-            .attr("stroke", "#aaa")
+            .attr("stroke", "rgba(175, 175, 175, 0.8)")
             .attr("stroke-width", 1);
         // 统一边位置
         TreeLinkG
@@ -310,9 +318,12 @@ export default {
             .selectAll(".TreeNodePie")
             .data(nodes);
 
+        TreeNode_DATA.exit().remove();
+
         let Pie = TreeNode_DATA
             .enter()
             .append("g")
+            .attr('id', d => `TreeNodePie${d.data.name}`)
             .attr("class", 'TreeNodePie')
             .attr("transform", function(d) {
               let cx = d.x;
@@ -338,6 +349,29 @@ export default {
             .on("contextmenu", function (e, d) {
               that.ContextmenuNode(d);
             })
+            .on('mouseover', (e, d) => {
+              let bitmap = d.data.name;
+              let i = 0;
+              let indices = [];
+              while(bitmap) {
+                let x = bitmap & 1;
+                if (x === 1) {
+                  indices.push(i)
+                }
+                i += 1;
+                bitmap = bitmap >> 1
+              }
+              if(indices.length !== 1) {
+                for (let index of indices) {
+                  svg.select(`#highlightTextRect${1 << index}`)
+                      .style('opacity', 1);
+                }
+              }
+            })
+            .on('mouseout', (e, d) => {
+                svg.selectAll(`.highlightTextRect`)
+                    .style('opacity', 0);
+            })
 
 
         let outerRadius = 10;	//外半径
@@ -360,7 +394,7 @@ export default {
            .attr('stroke-width', '5px')
 
 
-        let arcs = Pie.selectAll(".pie_path")//g用于把相关元素进行组合的容器元素
+        let arcs = Pie.selectAll(".pie_path") //g用于把相关元素进行组合的容器元素
             .data(d => d3.pie()(d.data.pie))
             .enter()
             .append("g")
@@ -377,15 +411,19 @@ export default {
               return arc(d);
             });
 
+        let highlightText = Pie.append('g')
+                               .attr('class', 'highlightText')
+                               .attr("transform","translate("+ 20 +","+ 3 +")")
+
 
         //绘制文字
         Pie.append("text")
+            .attr('id', d => `attrName${d.data.name}`)
             .attr("x", function(d) {
-              return -20;
+              return 20;
             })
-            .attr("y", 0)
+            .attr("y", 5)
             .style('font-size', '10px')
-            .style('text-anchor', 'end')
             .text((d) => {
               if(d.depth === 1) {
                 let bitmap = d.data.name;
@@ -396,30 +434,85 @@ export default {
                 }
                 return this.attrList[i].Name
               }
+              else {
+                return '';
+              }
             });
+        highlightText.append('rect')
+                     .attr('class', `highlightTextRect`)
+                     .attr('id', d => `highlightTextRect${d.data.name}`)
+                     .attr('x', 0)
+                     .attr('y', -12)
+                     .attr('width', d => {
+                       // 只针对单属性有效
+                       return d3.select(`#attrName${d.data.name}`).node().getComputedTextLength();
+                     })
+                     .attr('height', 20)
+                     .attr('fill', 'rgba(64, 158, 255, 0.6)')
+                     .style('opacity', 0)
+      },
+      PruningAndLayout(nodes, links, width, height, maxLayer) {
+        let padding = 20;
+        nodes = nodes.filter(d => d.depth > 0)
+        links = links.filter(d => nodes.includes(d.source) && nodes.includes(d.target))
+
+        let Xscale = d3.scaleLinear()
+            .domain([-0.5, maxLayer - 0.5])
+            .range([0, width]);
+        let YscaleList = []
+        let YscaleIndex = []
+        for(let i=0;i<maxLayer;i++) {
+          let size = nodes.filter(node => node.depth === i+1).length
+          YscaleList.push(d3.scaleLinear([-0.5, size - 0.5], [0, height - padding]))
+          YscaleIndex.push(0)
+        }
+        for (let i in nodes) {
+          let dim = nodes[i].depth - 1;
+          nodes[i].y = Xscale(dim);
+          nodes[i].x = YscaleList[dim](YscaleIndex[dim]);
+          YscaleIndex[dim] += 1;
+        }
+        return [nodes, links]
       },
       ClickNode(svg, d) {
+        if(d.data.children.length === 0) {
+          // 生成节点
+          axios({
+            url: 'http://127.0.0.1:8000/RiskTree/RiskTreeData/',
+            method: 'post',
+            data: {
+              'filename': this.curFile,
+              'attrList': this.attrList,
+              'bitmap': d.data.name
+            }
+          }).then((response) => {
+            d.data.children = response.data.treeData.children;
+            this.curIndices = response.data.Indices;
+            this.curAttr = this.curIndices.map(d => this.attrList[d].Name);
 
-        axios({
-          url: 'http://127.0.0.1:8000/RiskTree/RiskTreeData/',
-          method: 'post',
-          data: {
-            'filename': this.curFile,
-            'attrList': this.attrList,
-            'bitmap': d.data.name
-          }
-        }).then((response) => {
-          d.data.children = response.data.treeData.children;
-          this.curIndices = response.data.Indices;
-          this.curAttr = this.curIndices.map(d => this.attrList[d].Name);
-
+            let newTreeData = this.treeFunc(d3.hierarchy(this.treeData).sum(function (d) {
+              return d.val;
+            }));
+            let width = parseFloat(svg.style('width').split('px')[0]);
+            let height = parseFloat(svg.style('height').split('px')[0]);
+            let Nodes = newTreeData.descendants();
+            let Links = newTreeData.links();
+            [Nodes, Links] = this.PruningAndLayout(Nodes, Links, width, height, 3)
+            this.MakeTree(svg, Nodes, Links);
+          })
+        }
+        else {
+          // 收起节点
+          d.data.children = [];
           let newTreeData = this.treeFunc(d3.hierarchy(this.treeData).sum(function (d) {
             return d.val;
           }));
+          let width = svg.style('width').split('px')[0];
           let Nodes = newTreeData.descendants();
           let Links = newTreeData.links();
+          [Nodes, Links] = this.PruningAndLayout(Nodes, Links, width, 3)
           this.MakeTree(svg, Nodes, Links);
-        })
+        }
       },
 
       // 查询集树方法
@@ -445,19 +538,16 @@ export default {
           this.selectedAttr = response.data.selectedAttr;
           d3.selectAll('#DifferentialQueryTree > *').remove();
           //定义边界
-          let margin = { top: 90, bottom: 0, left: 10, right: 0 };
+          let margin = { top: 10, bottom: 0, left: 100, right: 0 };
 
-          let width=300;
-          let height=300;
-          let svg = d3
-              .select("#DifferentialQueryTree")
-              .attr("width", width + "px")
-              .attr("height", height + "px");
 
+          let svg = d3.select("#DifferentialQueryTree")
+          let width = parseFloat(svg.style('width').split('px')[0]);
+          let height = parseFloat(svg.style('width').split('px')[0]);
           let container = svg
               .append("g")
               .attr("class", 'container')
-          // .attr("transform", "translate(" + margin.top + "," + margin.left + ")");
+              .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
           let TreeLinkG = container.append("g").attr("class", 'TreeLinkG');
           let TreeNodeG = container.append("g").attr("class", 'TreeNodeG');
@@ -478,7 +568,7 @@ export default {
           console.log(parentKeyList)
           let treeFunc = d3
               .tree()
-              .size([height, width])
+              .size([width, height])
               .separation(function(a, b) {
                 return (a.parent === b.parent ? 1 : 2) / a.depth;
               });
@@ -496,12 +586,7 @@ export default {
         for(let dimensionData of keyMap) {
           keyLen.push(dimensionData.data.length);
         }
-        let dimensionNodeNum = []
-        let c = 1;
-        for(let len of keyLen) {
-          dimensionNodeNum.push(c);
-          c *= len;
-        }
+        let dimensionNodeNum = this.dimNodeCnt;
 
         let parentNodeScaleList = [];
         let childNodeScaleList = [];
@@ -509,13 +594,13 @@ export default {
         let nodeHeights = [];
         for(let i = 0 ;i< dimNum;i++) {
           let parentNodeHeight = height / keyLen[i];
-          let nodeHeight = parentNodeHeight / dimensionNodeNum[i];
+          let nodeHeight = height / dimensionNodeNum[i];
           parentNodeHeights.push(parentNodeHeight);
           nodeHeights.push(nodeHeight);
           parentNodeScaleList.push(
               d3.scaleBand()
                   .domain(keyMap[i].data)
-                  .range([parentNodeHeight / 2, height + parentNodeHeight / 2])
+                  .range([parentNodeHeight / 2, Height + parentNodeHeight / 2])
           )
 
           childNodeScaleList.push(
@@ -531,12 +616,11 @@ export default {
       MakeDifferQueryTree(svg, nodes, links, keyMap, parentKeyList) {
         let width=300;
         let height=300;
-        let NodeWidth = 50;
-        let [parentNodeScaleList, childNodeScaleList, parentNodeHeights, nodeHeights] = this.getDimensionScale(keyMap, height, keyMap.length, parentKeyList);
+        let NodeHeight = 20;
         [nodes, keyMap] = this.TreePruning(nodes, keyMap);
         nodes = nodes.filter(d => d.depth > 0)
         links = links.filter(d => nodes.includes(d.source) && nodes.includes(d.target))
-        console.log(keyMap)
+        let [parentNodeScaleList, childNodeScaleList, parentNodeWidths, nodeWidths] = this.getDimensionScale(keyMap, width, keyMap.length, parentKeyList);
 
         let Xscale = d3.scaleLinear()
             .domain([-0.5, keyMap.length-1 + 0.5])
@@ -546,12 +630,11 @@ export default {
             .domain([d3.min(nodes, d => d.data.num), d3.max(nodes, d => d.data.num)])
             .range(['#bbbbbb', '#777777'])
 
-
         for(let i in nodes) {
           let dim = nodes[i].data.dim;
           nodes[i].y = Xscale(dim);
-          keyMap[dim].x = nodes[i].y;
           nodes[i].x = parentNodeScaleList[dim](nodes[i].data.key) + childNodeScaleList[dim](nodes[i].parentKey);
+          keyMap[dim].y = nodes[i].y;
         }
         console.log(nodes)
         let generator = d3
@@ -573,13 +656,13 @@ export default {
             .attr("class", 'DimensionNodeG')
             .attr("transform", function(d) {
               let cx = d.x;
-              let cy = 0;
+              let cy = d.y;
               return "translate(" + cx + "," + 0 + ")";
             });
         DimensionG.append('text')
-            .attr('y', 20)
             .attr('x', 25)
-            .style('text-anchor', 'middle')
+            .attr('y', -10)
+            .style('text-anchor', 'end')
             .text((d, k) => this.curAttr[k])
 
         let dimension1 = -1, dimension2 = -1;
@@ -588,15 +671,15 @@ export default {
             .enter()
             .append('rect')
             .attr("class", 'ParentNode')
-            .attr("x", d => 10)
+            .attr("x", d => 20)
             .attr("y", (d, k) => {
               if(k === 0) dimension1 += 1;
-              return `${parentNodeScaleList[dimension1](d) - parentNodeHeights[dimension1] / 2}px`
+              return `${parentNodeScaleList[dimension1](d) - parentNodeWidths[dimension1] / 2}px`
             })
-            .attr('width', '40px')
+            .attr('width', '20px')
             .attr("height", (d, k) => {
-              if(k === 0) dimension2 += 1; //每个维度一定会从0开始
-              return `${parentNodeHeights[dimension2]}px`
+              if(k === 0) dimension2 += 1; //每个维度一定会从0开始 考虑剪枝会出现一定问题
+              return `${parentNodeWidths[dimension2]}px`
             })
             .attr('stroke', '#777')
             .attr('fill', 'rgba(184, 233, 148, 1.0)');
@@ -607,27 +690,17 @@ export default {
             .append('g')
             .attr("class", 'ParentText')
             .attr("transform", (d,k) => {
-              let cx = 15;
               if(k === 0) dimension3 += 1;
-              let cy = parentNodeScaleList[dimension3](keyMap[dimension3].data[k])
-              return "translate(" + cx + "," + (cy - 20) + ")";
+              let cx = parentNodeScaleList[dimension3](keyMap[dimension3].data[k]);
+              let cy = 25;
+              return "translate(" + cx + "," + cy + ")";
             });
 
         parentTextG.append('text')
-            .attr("x", 20)
+            .attr("x", 0)
             .attr("y", 10)
             .style('text-anchor', 'middle')
-            .text(d => d.split('~')[0]);
-        parentTextG.append('text')
-            .attr("x", 20)
-            .attr("y", 20)
-            .style('text-anchor', 'middle')
-            .text(d => '~');
-        parentTextG.append('text')
-            .attr("x", 20)
-            .attr("y", 30)
-            .style('text-anchor', 'middle')
-            .text(d => d.split('~')[1]);
+            .text(d => d);
 
 
 
@@ -645,7 +718,7 @@ export default {
         // 统一边位置
         let TreeLinkPath = TreeLinkG.selectAll(".TreeLinkPath")
             .attr("d", function(d) {
-              let start = { x: d.source.x, y: d.source.y + NodeWidth };
+              let start = { x: d.source.x, y: d.source.y + NodeHeight};
               let end = { x: d.target.x, y: d.target.y };
               return generator({ source: start, target: end });
             })
@@ -666,16 +739,16 @@ export default {
             .attr("transform", function(d) {
               let cx = d.x;
               let cy = d.y;
-              return "translate(" + cy + "," + cx + ")";
+              return "translate(" + cx + "," + cy + ")";
             })
             .on('click', (e, d) => {
               this.clickQueryNode(d);
             })
-        d3.selectAll('.TreeNodePie')
+        svg.selectAll('.TreeNodePie')
             .attr("transform", function(d) {
               let cx = d.x;
               let cy = d.y;
-              return "translate(" + cy + "," + cx + ")";
+              return "translate(" + cx + "," + cy + ")";
             })
             .on('mouseover', (e, d) => {
               TreeLinkPath.filter(link => link.source !== d)
@@ -687,14 +760,10 @@ export default {
             })
 
         NodesG.append("rect")
-            .attr("x", 0)
-            .attr("y", d => {
-              return `-${nodeHeights[d.data.dim] / 2}`
-            })
-            .attr("height", d => {
-              return `${nodeHeights[d.data.dim]}px`
-            })
-            .attr("width", '20px')
+            .attr("x", d => `-${nodeWidths[d.data.dim] / 2}`)
+            .attr("y", 0)
+            .attr("height", NodeHeight)
+            .attr("width", d => `${nodeWidths[d.data.dim]}px`)
             .attr('stroke', '#555')
             .attr('fill', d => {
               let num = d.data.num;
@@ -719,6 +788,7 @@ export default {
             }
           }
         }
+        this.dimNodeCnt = []
         nodes = nodes.filter(d => d.depth > 0)
         nodeSet.delete(root)
         let keepIndex = Array([],[],[]);
@@ -726,6 +796,7 @@ export default {
           keepIndex[node.depth - 1].push(keyMap[node.depth - 1].data.indexOf(node.data.key));
         }
         for(let i in [0,1,2]) { //去重
+          this.dimNodeCnt[i] = keepIndex[i].length;
           keepIndex[i] = Array.from(new Set(keepIndex[i]))
         }
 
@@ -918,21 +989,23 @@ export default {
             'sensitivityWay': this.SensitivityCalculationWay
           }
         }).then(response => {
+          this.ExactVal['firstQuery'] = response.data.ExactVal;
           this.curB = response.data.b;
           this.curSensitivity = response.data.b;
           let svg = d3.select('#FirstQuery');
           let lineData = this.firstQueryData = response.data.distribution;
-          this.MakeResultDistribution(svg, lineData);
+          this.MakeResultDistribution(svg, lineData, 'top-half');
         })
       },
       setAttackTarget(data) {
         // 假设攻击目标满足条件
         let targetResult = data[this.QueryAttr]
+        this.ExactVal['secondQuery'] = this.ExactVal['firstQuery'] - targetResult;
         this.secondQueryData = this.firstQueryData.map(d => {
           return [d[0] - targetResult, d[1]];
         });
         let svg = d3.select('#SecondQuery');
-        this.MakeResultDistribution(svg, this.secondQueryData);
+        this.MakeResultDistribution(svg, this.secondQueryData, 'top-half');
         // 画差分结果分布图
         axios({
           url: 'http://127.0.0.1:8000/AttackSimulation/GetPrivacyDistribution/',
@@ -944,7 +1017,7 @@ export default {
         }).then(response => {
           let svg = d3.select('#DA_Output');
           let lineData = response.data.distribution;
-          this.MakeResultDistribution(svg, lineData, true, 'clip-privacy');
+          this.DA_OutputXscale = this.MakeResultDistribution(svg, lineData, 'overall', true, 'clip-privacy');
           this.openDA_OutputBrush(svg, 'clip-privacy');
         })
 
@@ -961,46 +1034,85 @@ export default {
                             .attr("width", selection[1][0] - selection[0][0]);
                       })
                       .on('end', (e) => {
+                        let selection = e.selection;
+                        let [left, right] = [selection[0][0], selection[1][0]]
+                        let [X0, X1] = [this.DA_OutputXscale.invert(left), this.DA_OutputXscale.invert(right)]
+                        console.log([left, right], [X0, X1] )
+                        this.MakeOppositeProbability([X0, X1])
                         svg.select('.brush').style('visibility', 'hidden')
                       })
                   // .extent([
                   //   [padding, 0],
                   //   [w - padding, h - padding]
                   // ])
-        svg.append('g').attr('class', 'brush').call(brush).call(brush.move, null);
+        svg.append('g').attr('class', 'brush').call(brush);
 
       },
-      MakeResultDistribution(svg, lineData, brushAble=false, clipId='') {
-        let padding = 40, w = svg.style('width').split('px')[0];
-        let h = svg.style('height').split('px')[0];
+      MakeOppositeProbability(interval) {
+        axios({
+          url: 'http://127.0.0.1:8000/AttackSimulation/GetOppositeProbability/',
+          method: 'post',
+          data: {
+            'ExactVal': this.ExactVal,
+            'interval': interval,
+            'b': this.curB,
+            'domainDeviation': this.curSensitivity
+          }
+        }).then((response) => {
+          let firstLineData = response.data.firstRes;
+          let secondLineData = response.data.secondRes;
+          this.MakeResultDistribution(d3.select("#FirstQuery"), firstLineData, 'bottom-half',);
+          this.MakeResultDistribution(d3.select("#SecondQuery"), secondLineData, 'bottom-half',);
+        })
+      },
+      MakeResultDistribution(svg, lineData, position, brushAble=false, clipId='') {
+        let padding = 40, w = parseFloat(svg.style('width').split('px')[0]);
+        let h = parseFloat(svg.style('height').split('px')[0]);
+        let yRange;
+        switch (position) {
+          case 'top-half':
+            yRange = [h / 2, padding]
+            break;
+          case 'bottom-half':
+            yRange = [h / 2, h - 2 *padding]
+            break;
+          case 'overall':
+            yRange = [h - padding, padding]
+        }
         let svgId = svg.attr('id');
-        svg.selectAll('*').remove();
+        svg.selectAll(`#container-${position}`).remove();
         let x = d3.scaleLinear()
             .domain([d3.min(lineData, d => d[0]), d3.max(lineData, d => d[0])])
             .range([padding, w - padding])
             .clamp(true);  //原因是定义域为止  暂时这么做为了保险
         let y = d3.scaleLinear()
             .domain([0, d3.max(lineData, d => d[1])])
-            .range([h / 2, padding]);
+            .range(yRange);
         let cg = d3.line()
             .x(d => x(d[0]))
             .y(d => y(d[1]));
 
-        let container = svg.append('g').attr('id', 'container');
+        let container = svg.append('g').attr('id', 'container-' + position);
         container.append('path')
             .attr('d', cg(lineData))
             .attr('stroke', 'gray')
             .attr('stroke-width', 2)
             .attr('fill', 'none');
 
-        let xAxis = d3.axisBottom().scale(x).ticks(3);
-        svg.append("g")
+        let xAxis = d3.axisBottom().scale(x).ticks(0);
+        container.append("g")
             .attr("class", "x axis")
-            .attr("transform", `translate(0, ${h / 2})`)
+            .attr("transform", `translate(0, ${position === 'overall'? h - padding : h / 2})`)
             .call(xAxis);
+        container.select('.x.axis')
+                 .append('text')
+                 .attr('x', w - padding)
+                 .attr('y', 20)
+                 .style('fill', 'black')
+                 .text('Query result')
 
         let yAxis = d3.axisLeft().scale(y).ticks(3);
-        svg.append("g")
+        container.append("g")
             .attr("class", "y axis")
             .attr("transform", `translate(${padding}, 0)`)
             .call(yAxis);
@@ -1022,6 +1134,7 @@ export default {
               .attr("fill-rule", "evenodd")
               .attr('clip-path', `url(#${clipId})`);
         }
+        return x;
       },
 
       // 常规查询模拟方法
@@ -1041,7 +1154,7 @@ export default {
           this.curB = response.data.b;
           let svg = d3.select('#GeneralQuery');
           let lineData = response.data.distribution;
-          this.MakeResultDistribution(svg, lineData, true, 'clip-accuracy');
+          this.MakeResultDistribution(svg, lineData, 'overall', true, 'clip-accuracy');
           this.openGeneralQueryBrush(svg, 'clip-accuracy');
         })
       },
@@ -1187,6 +1300,10 @@ export default {
     margin-right: 0;
   }
   /***************** 树视图style ******************/
+  #AttributeSetTree {
+    height: calc(100% - 37px);
+    width: 100%;
+  }
   #TreeView {
     display: flex;
     flex-direction: row;
@@ -1199,6 +1316,18 @@ export default {
   #DataDistribution {
     width: 100%;
     height: calc(100% - 43px);
+  }
+
+  #DQTreeContainer {
+    width: 100%;
+    height: calc(100% - 37px);
+    overflow-x: scroll;
+    overflow-y: hidden;
+  }
+
+  #DifferentialQueryTree {
+    width: 150%;
+    height: 100%;
   }
   /**********************************************/
 
@@ -1245,6 +1374,7 @@ export default {
     height: 70vh;
     margin: 0 auto;
     margin-top: 15px;
+    padding: 20px;
     background-color: #fff;
     border: 3px solid #afafaf;
     border-radius: 20px;
