@@ -2617,6 +2617,7 @@ export default {
       cleanAttackSimulationView() {
         d3.selectAll('#FirstQuerySVG .container-left,.clipG,.outRangeG').remove();
         d3.selectAll('#DA_OutputSVG .container-right,.clipG,.outRangeG').remove();
+        axios.create()
       },
       setAttackTarget(data) {
 

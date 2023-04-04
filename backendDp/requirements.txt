@@ -2,3 +2,4 @@ numpy~=1.22.4
 pandas~=1.4.3
 diffprivlib~=0.6.0
 Django~=4.0.3
+django-cors-headers~=3.11.0
