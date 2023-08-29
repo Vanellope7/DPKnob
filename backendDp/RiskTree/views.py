@@ -1,3 +1,4 @@
+import errno
 import json
 import os
 import time
@@ -124,6 +125,12 @@ def riskTree(request):
                 json_data = json.load(f)
         else:
             json_data = getRiskRecord(filename, attrList, indices, RiskRatioMap, DescriptionNum)
+            if not os.path.exists(os.path.dirname(cachePath)):
+                try:
+                    os.makedirs(os.path.dirname(cachePath))
+                except OSError as exc:  # Guard against race condition
+                    if exc.errno != errno.EEXIST:
+                        raise
             with open(cachePath, 'w+') as f:
                 json.dump(json_data, f, cls=JsonEncoder)
     else:
@@ -294,6 +301,12 @@ def DataDistribution(request):
                'TableKeyData': values,
                'MaxMap': MaxMap,
                'AttrsKeyMap': AttrsKeyMap}
+        if not os.path.exists(os.path.dirname(cachePath)):
+            try:
+                os.makedirs(os.path.dirname(cachePath))
+            except OSError as exc:  # Guard against race condition
+                if exc.errno != errno.EEXIST:
+                    raise
         with open(cachePath, 'w+') as f:
             json.dump(ret, f, cls=JsonEncoder)
 

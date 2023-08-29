@@ -414,7 +414,7 @@
 
 
       <div id="SchemeHistory">
-        <div class="flexLayout marginBottomTop10px">
+        <div class="flexLayout">
           <div class="MainLabel">Scheme History</div>
           <span style="padding-left: 220px">Top attribute: </span>
           <el-select class="marginLeft10px"

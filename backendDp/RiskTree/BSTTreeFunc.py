@@ -26,7 +26,7 @@ def getGap(left, right):
         bit = len(gap_str[1]) - 1
         if bit == 0:
             return 1, 0
-    return round(gap, -bit), bit
+        return round(gap, bit), bit
 
 
 

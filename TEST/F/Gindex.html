@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Title</title>
+  <script src="js/d3.js"></script>
+  <style>
+    .highlightBtn {
+        background-color: #e00;
+    }
+  </style>
+</head>
+<body>
+  <span>Include</span><div class="IncludeAttrBtnGroup"></div>
+  <span>Exclude</span><div class="ExcludeAttrBtnGroup"></div>
+  <script>
+    function factorial(n){
+      if(n===1 || n === 0) {
+        return 1
+      }
+      return n * factorial(n-1)
+    }
+
+    function dataProcessing(data, IncludeAttr, ExcludeAttr, histogram) {
+      let attrs = data.attrs;
+      let attrNum = attrs.length;
+      let RM = Object.values(data.RM);
+      let IASM = Object.values(data.IASM);
+      let n = RM.length;
+      let curIASM = []
+      // if(IncludeAttr.length === 0) {
+      //   IncludeAttr = attrs;
+      // }
+      for(let i in IASM){
+        let curA = []
+        for(let array of IASM[i]) {
+          let filter = false;
+          for(let attr of IncludeAttr) {
+            if(!array.includes(attr) ) {
+              filter = true
+            }
+          }
+          for(let attr of ExcludeAttr) {
+            if(array.includes(attr) ) {
+              filter = true
+            }
+          }
+          if(!filter) {
+            curA.push(array);
+          }
+        }
+        curIASM.push(curA)
+      }
+      let TopLineData = {}
+      let attrPercentData = [];
+      let attrSumPercentData = [];
+      let attrSumData = []
+      for(let i=1;i<=attrNum;i++) {
+        TopLineData[i] = 0;
+        attrPercentData[i-1] = []
+        attrSumData[i-1] = 0
+        attrSumPercentData[i-1] = 0
+        for(let j in attrs) {
+          attrPercentData[i-1].push(0);
+        }
+
+      }
+      for(let i=0;i<n;i++) {
+        for(let v of curIASM[i]) {
+          let len = v.length;
+          TopLineData[len] = Math.max(TopLineData[len], RM[i]);
+        }
+      }
+      TopLineData = Object.values(TopLineData)
+      for(let i in TopLineData) {
+        if(i===0) continue;
+        if(TopLineData[i] < TopLineData[i-1]) {
+          TopLineData[i] = TopLineData[i-1]
+        }
+      }
+      console.log(TopLineData)
+
+
+
+      let violinRawData = []
+      for(let i = 0 ;i<n; i++) {
+        for(let as of curIASM[i]) {
+          for(let attr of as) {
+            attrSumPercentData[attrs.indexOf(attr)] += 1;
+            // attrPercentData[as.length-1][attrs.indexOf(attr)] += 1;
+            // attrSumData[as.length-1] += 1
+          }
+          for(let j = as.length;j<=attrNum;j++) {
+            violinRawData.push({
+              'key': j,
+              'value': RM[i]
+            })
+          }
+          let ras = attrs.filter(d => !as.includes(d));
+          for(let attr of as) {
+            let asl = as.length
+            attrPercentData[asl-1][attrs.indexOf(attr)] += 1;
+            for(let j = asl+1;j<=attrNum;j++) {
+              attrPercentData[j-1][attrs.indexOf(attr)] += factorial(attrNum-asl) / (factorial(j-asl) * factorial(attrNum-j));
+              for(let ra of ras) {
+                attrPercentData[j-1][attrs.indexOf(ra)] += factorial(attrNum-asl-1) / factorial(attrNum-j);
+              }
+            }
+          }
+        }
+      }
+      for(let i in attrPercentData) {
+        for(let attr in attrPercentData[i]) {
+          attrSumData[i] += attrPercentData[i][attr]
+        }
+      }
+      console.log(attrPercentData, attrSumData)
+
+
+      for(let [i, aps] of Object.entries(attrPercentData)) {
+        for(let j in aps) {
+          if(attrSumData[i]) {
+            aps[j] /= attrSumData[i];
+          }
+        }
+      }
+      let attrRankData = []
+      for(let i in attrs) {
+        attrRankData.push([])
+        for(let j in attrPercentData) {
+          attrRankData[i].push(attrPercentData[j][i])
+        }
+      }
+      console.log(attrRankData);
+      console.log(attrSumPercentData)
+      attrSumPercentData = attrSumPercentData.map((d, i) => [attrs[i], d]);
+      let attrSum = attrSumPercentData.reduce((pre, cur) => {
+        return pre + cur[1];
+      }, 0)
+      attrSumPercentData = attrSumPercentData.map(d => {
+        d[1] = d[1] / attrSum;
+        return d
+      });
+      attrSumPercentData.sort((a, b) => b[1] - a[1])
+      console.log(attrSumPercentData)
+
+
+      let highRiskPoint = [];
+      let TEMP = []
+      console.log(curIASM)
+      for(let i = 0 ;i<n; i++) {
+        for(let as of curIASM[i]) {
+          TEMP.push([i, as.length, RM[i], as]);
+        }
+      }
+      console.log(TEMP);
+      let visited = []
+      for(let i in attrs) {
+        i = parseInt(i) + 1;
+        let tt = TEMP.filter(d => d[1] === i && !visited.includes(d[0]));
+        if(tt.length > 0) {
+          let maxP = d3.max(tt, d => d[2])
+          let maxData = tt.find(d => d[2] === maxP);
+          visited.push(maxData[0])
+          highRiskPoint.push([maxData[3], maxP])
+        }
+      }
+      console.log(highRiskPoint)
+
+      let violinData = Array.from(d3.group(violinRawData, d => d.key));
+      violinData.forEach(d => {
+        let values = d[1]
+        let input = values.map(function(g) { return g.value;})    // Keep the variable called Sepal_Length
+        d[1] = histogram(input)
+      })
+      console.log(violinData);
+      return [TopLineData, violinData, attrRankData, attrSumPercentData, highRiskPoint]
+    }
+
+    function drawPlot(TopLineData, violinData, attrRankData, attrSumPercentData, highRiskPoint, xScale, yScale, attrs, data, IncludeAttr, ExcludeAttr, histogram, maxNum) {
+      let svgWidth = 1500/2, svgHeight = 700/2;
+      let panelWidth = svgWidth/2, panelHeight = svgHeight;
+      let padding = 20;
+      let attrNum = attrs.length;
+      let xBandWidth = (panelWidth - 2*padding) / attrNum
+
+
+      let yNum = d3.scaleLinear()
+          .range([-xBandWidth/2, xBandWidth/2])
+          .domain([-maxNum,maxNum])
+
+      let line=d3.line()
+          .x((d, i) => xScale(d))
+          .y((d, i) => yScale(i+1));
+
+      let xAxis = d3.axisBottom().scale(xScale);
+      let yAxis = d3.axisLeft().scale(yScale).ticks(8);
+      let svg = d3.select('svg')
+      svg.selectAll('*').remove();
+      let rightPanel = svg.append('g').attr('class', 'rightPanel').attr('transform', `translate(${panelWidth}, ${0})`);
+      rightPanel.append('g')
+          .attr('class', 'axis')
+          .attr('transform', `translate(0, ${panelHeight-padding})`)
+          .call(xAxis);
+      rightPanel.append('g')
+          .attr('class', 'axis')
+          .attr('transform', `translate(${2*padding}, 0)`)
+          .call(yAxis);
+      console.log(line(TopLineData))
+
+      rightPanel.append('path')
+          .attr('d', line(TopLineData))
+          .attr('stroke', '#555')
+          .attr('stroke-width', 2)
+          .attr('fill', 'none');
+      rightPanel.selectAll("myViolin")
+          .data(violinData)
+          .enter()        // So now we are working group per group
+          .append("g")
+          .attr("transform", d => `translate(${0}, ${yScale(d[0])})`) // Translation on the right to be at the group position
+          .append("path")
+          .datum(function(d){ return(d[1])})     // So now we are working bin per bin
+          .style("stroke", "none")
+          .style("fill","#555")
+          .attr("d", d3.area()
+              .y0(d => { return(yNum(-d.length)) } )
+              .y1(d => { return(yNum(d.length)) } )
+              .x((d, i, a) => {
+                let idx = violinData.find(d => d[1] === a)[0]-1;
+                if(d.x1 >= TopLineData[idx]) {
+                  return xScale(TopLineData[idx])
+                }
+                return(xScale(d.x0))
+              })
+              .curve(d3.curveCatmullRom)    // This makes the line smoother to give the violin appearance. Try d3.curveStep to see the difference
+          )
+
+      // 绘制属性排名图
+      let rankColor = ['#3498db', '#9b59b6', '#f1c40f', '#e74c3c', '#f39c12', '#7f8c8d']
+      let RankLineXScale = d3.scaleLinear([0, 1], [padding, panelHeight-padding]);
+      let RankLine =d3.line()
+          .x((d, i) => RankLineXScale(d))
+          .y((d, i) => yScale(i+1));
+      let AttrRankXAxis = d3.axisBottom().scale(RankLineXScale);
+      let AttrRankYAxis = d3.axisLeft().scale(yScale).ticks(8);
+
+      let leftPanel = svg.append('g').attr('class', 'leftPanel').attr('transform', `translate(${0}, ${0})`);
+      leftPanel.append('g')
+          .attr('class', 'axis')
+          .attr('transform', `translate(${padding}, ${panelHeight-padding})`)
+          .call(AttrRankXAxis);
+      leftPanel.append('g')
+          .attr('class', 'axis')
+          .attr('transform', `translate(${2*padding}, 0)`)
+          .call(AttrRankYAxis);
+
+      let AttrRankG = leftPanel.append('g').attr('transform', `translate(${padding}, ${0})`);
+      AttrRankG.selectAll('.AttrRankLegendLine')
+          .data(attrRankData)
+          .join('g')
+          .attr('class', 'AttrRankLegendLine')
+          .attr('transform', `translate(${0}, ${0})`)
+          .append('path')
+          .attr('d', (d, i) => {
+            // let copyD = JSON.parse(JSON.stringify(d));
+            // copyD.splice(0,0,1-i*(1/(attrNum-1)));
+            // let lineD = RankLine(copyD);
+            // return lineD;
+            return RankLine(d);
+          })
+          .attr('stroke', (d, i) => rankColor[i])
+          // .attr('stroke-dasharray', '1 2')
+          .attr('stroke-width', 2)
+          .attr('fill', 'none');
+
+
+
+
+      // d3.select('.IncludeAttrBtnGroup').selectAll('.attrBtn').remove();
+      // d3.select('.ExcludeAttrBtnGroup').selectAll('.attrBtn').remove();
+
+      d3.select('.IncludeAttrBtnGroup')
+          .selectAll('.attrBtn')
+          .data(attrs)
+          .join('button')
+          .classed('attrBtn', true)
+          .text(d => d)
+          .on('click', function (e, d) {
+            let status = d3.select(this).classed('highlightBtn');
+            if(status) {
+              IncludeAttr.splice(IncludeAttr.indexOf(d), 1);
+            }
+            else {
+              IncludeAttr.push(d);
+            }
+            d3.select(this).classed('highlightBtn', !status);
+            let [TopLineData, violinData, attrRankData, attrSumPercentData, highRiskPoint] = dataProcessing(data, IncludeAttr, ExcludeAttr, histogram);
+            drawPlot(TopLineData, violinData, attrRankData, attrSumPercentData, highRiskPoint, xScale, yScale, attrs, data, IncludeAttr, ExcludeAttr, histogram, maxNum)
+          })
+
+      d3.select('.ExcludeAttrBtnGroup')
+          .selectAll('.attrBtn')
+          .data(attrs)
+          .join('button')
+          .classed('attrBtn', true)
+          .text(d => d)
+          .on('click', function (e, d) {
+            let status = d3.select(this).classed('highlightBtn');
+            if(status) {
+              ExcludeAttr.splice(ExcludeAttr.indexOf(d), 1);
+            }
+            else {
+              ExcludeAttr.push(d);
+            }
+            d3.select(this).classed('highlightBtn', !status);
+            let [TopLineData, violinData, attrRankData, attrSumPercentData, highRiskPoint] = dataProcessing(data, IncludeAttr, ExcludeAttr, histogram);
+            drawPlot(TopLineData, violinData, attrRankData, attrSumPercentData, highRiskPoint, xScale, yScale, attrs, data, IncludeAttr, ExcludeAttr, histogram, maxNum)
+          })
+
+
+
+      let AttrLegend = svg.append('g').attr('transform', `translate(${panelWidth - 100}, ${panelHeight/4})`);
+      AttrLegend.selectAll('.AttrText')
+          .data(attrs)
+          .join('text')
+          .attr('class', 'AttrText')
+          .attr('x', 20)
+          .attr('y', (d, i) => panelHeight/attrNum/2*(i+0.5))
+          .text(d => d);
+      AttrLegend.selectAll('.AttrRect')
+          .data(attrs)
+          .join('rect')
+          .attr('class', 'AttrRect')
+          .attr('x', 0)
+          .attr('y', (d, i) => panelHeight/attrNum/2*(i+0.5)-10)
+          .attr('width', 10)
+          .attr('height', 10)
+          .attr('fill', (d, i) => rankColor[i])
+
+
+      // 绘制属性列表
+      // let attrList = svg.append('g').attr('transform', `translate(${width+padding}, ${0})`);
+      // attrList.selectAll('.attrList')
+      //     .data(attrSumPercentData)
+      //     .join('text')
+      //     .attr('class', 'attrList')
+      //     .attr('x', 0)
+      //     .attr('y', (d, i) => height/attrNum/2*(i+0.5))
+      //     .text(d => d[0] + '    ' + d[1]);
+
+      // 绘制最高风险点
+      let pie = d3.pie();
+      let highRiskPoints = rightPanel.append('g').attr('transform', `translate(${0}, ${0})`).attr('class', 'hrps');
+      let arc = d3.arc()
+               .innerRadius(0)
+               .outerRadius(5)
+      highRiskPoints.selectAll('.hrp')
+          .data(highRiskPoint)
+          .join('g')
+          .attr('class', 'hrp')
+          .attr('transform', (d, i) => `translate(${xScale(d[1])}, ${yScale(i+1)})`)
+          .selectAll('path')
+          .data(d => {
+            let rawData = [];
+            for(let i=0;i<d[0].length;i++) {
+              rawData.push(1)
+            }
+            let pieData = pie(rawData);
+            pieData = pieData.map((pd, i) => [d[0][i], pd]);
+            return pieData;
+          })
+          .join('path')
+          .attr('d', d => arc(d[1]))
+          .attr('class', 'piePath')
+          .attr('fill', d => rankColor[attrs.indexOf(d[0])])
+
+
+    }
+
+    d3.json('data/M-charge.json').then(data => {
+      console.log(data)
+      let RM = Object.values(data.RM);
+      let IASM = Object.values(data.IASM);
+      let attrs = data.attrs;
+      let attrNum = attrs.length;
+
+
+      let svgWidth = 1500/2, svgHeight = 700/2;
+      let panelWidth = svgWidth/2, panelHeight = svgHeight;
+      let padding = 20;
+
+      let svg = d3.select('body').append('svg').attr('width', svgWidth).attr('height', svgHeight);
+      let xScale = d3.scaleLinear([0, d3.max(RM)+0.05], [2*padding, panelWidth]);
+      let yScale = d3.scaleLinear([0.5, attrNum+0.5], [panelHeight - padding, padding])
+
+      let IncludeAttr = [];
+      let ExcludeAttr = [];
+      let histogram = d3.histogram()
+          .domain(xScale.domain())
+          .thresholds(xScale.ticks(20))    // Important: how many bins approx are going to be made? It is the 'resolution' of the violin plot
+          .value(d => d)
+      let [TopLineData, violinData, attrRankData, attrSumPercentData, highRiskPoint] = dataProcessing(data, IncludeAttr, ExcludeAttr, histogram);
+      let maxNum = 0
+      for (let i in violinData){
+        let allBins = violinData[i][1]
+        let lengths = allBins.map(function(a){return a.length;})
+        let longuest = d3.max(lengths)
+        if (longuest > maxNum) { maxNum = longuest }
+      }
+      drawPlot(TopLineData, violinData, attrRankData, attrSumPercentData, highRiskPoint, xScale, yScale, attrs, data, IncludeAttr, ExcludeAttr, histogram, maxNum)
+
+
+
+    })
+  </script>
+</body>
+</html>

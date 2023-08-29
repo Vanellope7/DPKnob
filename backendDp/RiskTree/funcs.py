@@ -433,6 +433,7 @@ def getAvgRiskP(filename, attr, attrParams, epsilon, attrOption, sensitivity, at
             countBarChart[i] /= len(countRiskList)
         return {'sum': '-', 'count': [attackRisk, sumRisk / cnt, list(countBarChart.values())],  'maxRiskRecordMap': maxRiskRecordMap, 'countMaxRiskRecord': countRiskMap}
     else:  # 数值型数据
+        riskRank = {}
         sumRet = {'avgRiskList': [], 'attackRiskList': []}
         for deviationRatio in np.linspace(0.1, 1, 10):
             ratioStr = str(round(deviationRatio, 1))
@@ -441,6 +442,7 @@ def getAvgRiskP(filename, attr, attrParams, epsilon, attrOption, sensitivity, at
                 'risk': 0,
                 'condition': {}
             }
+            riskRank[ratioStr] = []
             pMap = defaultdict(int)
             attackPMap = defaultdict(int)
             conditionMap = defaultdict(dict)
@@ -478,6 +480,11 @@ def getAvgRiskP(filename, attr, attrParams, epsilon, attrOption, sensitivity, at
                             'bitmap': bitmap
                         }
             for index, p in attackPMap.items():
+                riskRank[ratioStr].append({
+                    'index': index,
+                    'risk': p,
+                    'condition': conditionMap[index]
+                })
                 if p > maxRiskRecordMap[ratioStr]['risk']:
                     maxRiskRecordMap[ratioStr]['index'] = index
                     maxRiskRecordMap[ratioStr]['risk'] = p
@@ -488,6 +495,8 @@ def getAvgRiskP(filename, attr, attrParams, epsilon, attrOption, sensitivity, at
                     key -= 1
                 barData[key] += 1
                 riskNum += 1
+            maxRiskRecordMap[ratioStr] = riskRank[ratioStr][9]
+            riskRank[ratioStr].sort(key=lambda d: -d['risk'])
             sumRet['avgRiskList'].append(math.fsum(pMap.values()) / len(pMap))
             sumRet['attackRiskList'].append(list(map(lambda d: d / riskNum, barData.values())))
 
@@ -537,4 +546,4 @@ def getAvgRiskP(filename, attr, attrParams, epsilon, attrOption, sensitivity, at
             countBarChart[key] += 1
         for i in range(10):
             countBarChart[i] /= len(countRiskList)
-        return {'sum': sumRet, 'count': [attackRisk, sumRisk / cnt, list(countBarChart.values())], 'maxRiskRecordMap': maxRiskRecordMap, 'countMaxRiskRecord': countRiskMap}
+        return {'sum': sumRet, 'count': [attackRisk, sumRisk / cnt, list(countBarChart.values())], 'maxRiskRecordMap': maxRiskRecordMap, 'countMaxRiskRecord': countRiskMap, 'riskRank': riskRank}
