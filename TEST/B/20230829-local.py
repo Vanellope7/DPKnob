@@ -3,7 +3,7 @@ import json
 import time
 from collections import defaultdict
 
-import fim
+# import fim
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -138,7 +138,7 @@ t2 = 0
 t3 = 0
 t4 = 0
 
-Triplet = defaultdict(list)
+Quadruple = defaultdict(list)
 candidateRecord = {}
 for attrIdx in specialCon.keys():
     for key in specialCon[attrIdx]:
@@ -192,11 +192,11 @@ for attrIdx in specialCon.keys():
                         nx = len(attrIdx)
                         minSensitivity[pvi][nx] = minSensitivity[pvi].get(nx, MaxS)
                         minSensitivity[pvi][nx] = min(MaxS, minSensitivity[pvi][nx])
-                        if len(list(filter(lambda d: d[0] == pvi, Triplet[nx]))) == 0:
-                            Triplet[nx].append([pvi, findAttr, minSensitivity[pvi][nx]])
+                        if len(list(filter(lambda d: d[0] == pvi, Quadruple[nx]))) == 0:
+                            Quadruple[nx].append([pvi, findAttr, minSensitivity[pvi][nx]])
                     e2 = time.time()
                     t2 += e2 - s2
-print(Triplet)
+print(Quadruple)
 print('t1: ', t1)
 print('t2: ', t2)
 end = time.time()
@@ -247,7 +247,7 @@ for key in NumRiskMap.keys():
 
 
 
-for nx, ats in Triplet.items():
+for nx, ats in Quadruple.items():
     for i in range(len(ats)):
         pvi = ats[i][0]
         riskV = rawValues[pvi][sensitiveAttrIdx]
@@ -258,8 +258,8 @@ for nx, ats in Triplet.items():
         D = riskV * dp
         risk = laplace_DV_P2([-D, D], S1/epsilon, S2/epsilon)
         ats[i].append(risk)
-    Triplet[nx].sort(key=lambda d: -d[-1])
-print(Triplet)
+    Quadruple[nx].sort(key=lambda d: -d[-1])
+print(Quadruple)
 
 charges = list(charges)
 left, right = charges[0], charges[-1]
@@ -267,7 +267,7 @@ maxRisk = laplace_DV_P2([-right*dp, right*dp], max(right/epsilon, threshold/epsi
 notContentNumL = []
 
 
-for nx, ats in Triplet.items():
+for nx, ats in Quadruple.items():
     if len(ats) < 10:
         print('number: ', nx, 'smaller than 10')
         notContentNumL.append(nx)
@@ -343,23 +343,25 @@ for an in notContentNumL:
                             risk = laplace_DV_P2([-curV*dp, curV*dp], max(curV/epsilon, MaxS/epsilon), MaxS/epsilon)
                             NumRiskMap[an].append(risk)
 
-                            filterAttack = list(filter(lambda d: d[0] == pvi, Triplet[an]))
+                            filterAttack = list(filter(lambda d: d[0] == pvi, Quadruple[an]))
                             if len(filterAttack) == 0:
-                                Triplet[an].append([pvi, findAttrName, MaxS, risk])
+                                Quadruple[an].append([pvi, findAttrName, MaxS, risk])
                             else:
                                 filterAttack[0][-1] = max(filterAttack[0][-1], risk)
                                 filterAttack[0][-2] = min(filterAttack[0][-2], MaxS)
 
-    Triplet[an].sort(key=lambda d: -d[-1])
+    Quadruple[an].sort(key=lambda d: -d[-1])
+
     # print(NumRiskMap[an])
     NumRiskMap[an].sort(key=lambda d: -d)
     # print(NumRiskMap[an])
 
-
+for an in Quadruple.keys():
+    Quadruple[an] = Quadruple[an][0:10]
 attrs.remove(attrs[sensitiveAttrIdx])
 data = {
     'attrs': attrs,
-    'Triplet': Triplet,
+    'Quadruple': Quadruple,
 }
 with open("data/Ldata.json", "w", encoding="utf-8") as f:
     f.write(json.dumps(data, indent=4))
