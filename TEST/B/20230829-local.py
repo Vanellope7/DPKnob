@@ -244,35 +244,44 @@ for key in NumRiskMap.keys():
     NumRiskMap[key].sort(key= lambda d: -d)
 
 
-attrs.remove(attrs[sensitiveAttrIdx])
-data = {
-    'attrs': attrs,
-    'IASM': IASM,
-    'RM': riskMap,
-    'NumRiskMap': NumRiskMap
-}
-with open("data/Ldata.json", "w", encoding="utf-8") as f:
-    f.write(json.dumps(data, indent=4))
+
+
+
+for nx, ats in Triplet.items():
+    for i in range(len(ats)):
+        pvi = ats[i][0]
+        riskV = rawValues[pvi][sensitiveAttrIdx]
+        S1 = max(ats[i][2], riskV)
+        S2 = ats[i][2]
+        if S2 == 0:
+            S2 += 0.1
+        D = riskV * dp
+        risk = laplace_DV_P2([-D, D], S1/epsilon, S2/epsilon)
+        ats[i].append(risk)
+    Triplet[nx].sort(key=lambda d: -d[-1])
+print(Triplet)
 
 charges = list(charges)
 left, right = charges[0], charges[-1]
 maxRisk = laplace_DV_P2([-right*dp, right*dp], max(right/epsilon, threshold/epsilon), threshold/epsilon)
 notContentNumL = []
-for key in NumRiskMap.keys():
-    idxL = NumRiskMap[key]
-    if len(idxL) < 10:
-        # print('number: ', key, 'smaller than 10')
-        pass
+
+
+for nx, ats in Triplet.items():
+    if len(ats) < 10:
+        print('number: ', nx, 'smaller than 10')
+        notContentNumL.append(nx)
     else:
-        if idxL[9] >= maxRisk:
-            # print('number: ', key, 'is content')
+        if ats[9][-1] >= maxRisk:
+            print('number: ', nx, 'is content')
             pass
         else:
-            # print('number: ', key, 'is not content')
-            notContentNumL.append(key)
+            print('number: ', nx, 'is not content')
+            notContentNumL.append(nx)
 
 
 test = defaultdict(list)
+victimList = defaultdict(list)
 for an in notContentNumL:
     attrSets = list(itertools.combinations(attrChars, an))
     for curKey in victimKey:
@@ -298,6 +307,7 @@ for an in notContentNumL:
             if not find:
                 pvi = cntMap[curKey][0]
                 findAttr = attrSet
+                findAttrName = [attrs[j] for j in attrIdxSet]
                 test[findAttr].append(pvi)
 
                 # 更新风险
@@ -327,14 +337,32 @@ for an in notContentNumL:
                             S = rawValues[max(cntMap['-'.join(secondK)], key=lambda d: rawValues[d][sensitiveAttrIdx])][
                                 sensitiveAttrIdx]
                             MaxS = max(S, MaxS)
+                        victimList[an].append(pvi)
                         if MaxS >= threshold:
                             curV = rawValues[pvi][sensitiveAttrIdx]
                             risk = laplace_DV_P2([-curV*dp, curV*dp], max(curV/epsilon, MaxS/epsilon), MaxS/epsilon)
                             NumRiskMap[an].append(risk)
+
+                            filterAttack = list(filter(lambda d: d[0] == pvi, Triplet[an]))
+                            if len(filterAttack) == 0:
+                                Triplet[an].append([pvi, findAttrName, MaxS, risk])
+                            else:
+                                filterAttack[0][-1] = max(filterAttack[0][-1], risk)
+                                filterAttack[0][-2] = min(filterAttack[0][-2], MaxS)
+
+    Triplet[an].sort(key=lambda d: -d[-1])
     # print(NumRiskMap[an])
     NumRiskMap[an].sort(key=lambda d: -d)
     # print(NumRiskMap[an])
-# print(test)
-# print(maxRisk)
+
+
+attrs.remove(attrs[sensitiveAttrIdx])
+data = {
+    'attrs': attrs,
+    'Triplet': Triplet,
+}
+with open("data/Ldata.json", "w", encoding="utf-8") as f:
+    f.write(json.dumps(data, indent=4))
+
 end = time.time()
 print('总运行时间:', end-start)
