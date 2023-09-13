@@ -14,7 +14,7 @@ def getMinEdge(width, Min):
 
 
 def getGap(left, right):
-    gap = float((right - left) / 5)
+    gap = float((right - left) / 20)
     gap_str = str(gap).split('.')
     if gap > 1:
         if gap >= 5 and gap < 10:

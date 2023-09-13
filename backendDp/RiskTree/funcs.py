@@ -69,7 +69,7 @@ def getDataCoder(data, attrList):
         # 首先得知道数据的范围
         type = attrList[i]['Type']
         if type == 'numerical':
-            Width = attrList[i]['Minimum Granularity']
+            Width = attrList[i]['Query Granularity']
             splitEdge = attrList[i]['Search Range'].split('~')
             MinEdge = float(splitEdge[0])
             MaxEdge = float(splitEdge[1])
@@ -114,10 +114,12 @@ def GenerateCandidateTupleIndex(n):
     return CandidateTuple
 
 
-def getCodedData(data, DCs):
-    columns = data.columns.tolist()
-    for i, column in enumerate(columns):
-        data[column] = data[column].map(lambda x: DCs[i].enCoder(x))
+def getCodedData(data, DCs, attrs, sensitivityAttr=''):
+    columns = attrs
+    for rowI in range(len(data)):
+        for i, column in enumerate(columns):
+            if column != sensitivityAttr:
+                data[rowI][i] = DCs[i].enCoder(data[rowI][i])
 
 
 def BFS(values, lattice, n):
@@ -176,40 +178,42 @@ def getRiskRecord(filename, attrList, indices, RiskRatioMap, DescriptionNum):
     R.fillna(0, inplace=True)
     n = R.shape[0]
     m = R.shape[1]
+    attrs = R.columns.tolist()
     bitmap = indices2bitmap(indices)
     start_time = time.time()
     DCs = getDataCoder(R, attrList)
-    getCodedData(R, DCs)
     values = R.values
+    getCodedData(values, DCs, attrs)
+
     lattice = ConstructLattice(bitmap, m)
     riskRecord = set()
     if RiskRatioMap == -1:
         BSTMap, BSTKeyMap, RiskRatioMap, riskRecord = getNodeRisk(values, DescriptionNum)  # 遍历了全部记录
-    riskRecord = list(riskRecord)
-    childNodeRiskRatio = getChildNodeRiskRatio(lattice, RiskRatioMap, m, DescriptionNum)
-    print(RiskRatioMap, '\n', childNodeRiskRatio)
-    tree = {
-        'indices': indices,
-        'name': bitmap,
-        'childNodeRiskPie': [0, 0],
-        'curNodeRiskPie': [0, n],
-        'children': makeTree(indices, m, bitmap, RiskRatioMap, childNodeRiskRatio)
-    }
-    end_time = time.time()
-    run_time = end_time - start_time
+    # riskRecord = list(riskRecord)
+    # childNodeRiskRatio = getChildNodeRiskRatio(lattice, RiskRatioMap, m, DescriptionNum)
+    # print(RiskRatioMap, '\n', childNodeRiskRatio)
+    # tree = {
+    #     'indices': indices,
+    #     'name': bitmap,
+    #     'childNodeRiskPie': [0, 0],
+    #     'curNodeRiskPie': [0, n],
+    #     'children': makeTree(indices, m, bitmap, RiskRatioMap, childNodeRiskRatio)
+    # }
+    # end_time = time.time()
+    # run_time = end_time - start_time
 
     # BST内的set转list
     for key in BSTMap.keys():
         BSTMap[key] = list(BSTMap[key])
 
     json_data = {
-        'treeData': tree,
-        'run_time': run_time,
+        # 'treeData': tree,
+        # 'run_time': run_time,
         'Indices': indices,
         'RiskRatioMap': RiskRatioMap,
         'BSTMap': BSTMap,
         'BSTKeyMap': BSTKeyMap,
-        'riskRecord': riskRecord
+        'riskRecord': list(riskRecord)
     }
     return json_data
 
@@ -456,11 +460,6 @@ def getAvgRiskP(filename, attr, attrParams, epsilon, attrOption, sensitivity, at
                 for index in BSTMap[bitmap]:
 
                     minAttrRiskP = 1
-                    if attrRisk.get(str(bitmap), -1) != -1:
-                        minAttrRiskP = attrRisk[str(bitmap)]
-                    else:
-                        for attrI in indices:
-                            minAttrRiskP = min(minAttrRiskP, attrRisk[str(1 << attrI)])
                     # deviation = sensitivity['sum'] * deviationRatio
                     deviation = attrR[index] * deviationRatio
                     if SensitivityCalculationWay == 'Local sensitivity':
@@ -519,11 +518,6 @@ def getAvgRiskP(filename, attr, attrParams, epsilon, attrOption, sensitivity, at
                 continue
             for index in BSTMap[bitmap]:
                 minAttrRiskP = 1
-                if attrRisk.get(str(bitmap), -1) != -1:
-                    minAttrRiskP = attrRisk[str(bitmap)]
-                else:
-                    for attrI in indices:
-                        minAttrRiskP = min(minAttrRiskP, attrRisk[str(1 << attrI)])
                 if attackRisk * minAttrRiskP >= countMaxRiskRecord[index]:
                     countMaxRiskRecord[index] = attackRisk * minAttrRiskP
                     countConditionMap[index] = {
@@ -547,3 +541,30 @@ def getAvgRiskP(filename, attr, attrParams, epsilon, attrOption, sensitivity, at
         for i in range(10):
             countBarChart[i] /= len(countRiskList)
         return {'sum': sumRet, 'count': [attackRisk, sumRisk / cnt, list(countBarChart.values())], 'maxRiskRecordMap': maxRiskRecordMap, 'countMaxRiskRecord': countRiskMap, 'riskRank': riskRank}
+
+
+def Attack2RiskMap(values, Attack, attrParams, epsilon):
+    # 求sum的结果
+    sumRet = {'attackRiskList': [], 'avgRiskList': [0 for i in range(10)]}
+    ARL = sumRet['attackRiskList']
+    AttackNum = sum([len(ats) for ats in Attack.values()])
+    if attrParams['Type'] == 'numerical':
+        for deviationRatio in np.linspace(0.1, 1, 10):
+            temp = [0 for i in range(10)]
+            for ats in Attack.values():
+
+                for at in ats:
+                    pvi = int(at[0])
+                    D = values[pvi] * deviationRatio
+                    S = at[3]
+                    if S != max(values[pvi], S):
+                        risk = laplace_DV_P2([-D, D], max(values[pvi], S), S)
+                    else:
+                        risk = laplace_DV_P([-D, D], S)
+                    temp[int(risk*10)] += 1
+            for i in range(10):
+                temp[i] /= AttackNum
+            ARL.append(temp)
+    # 求count的结果
+    attackRisk = laplace_DV_P([0, 0.5], 1 / epsilon) + 0.5
+    return {'sum': sumRet, 'count': [attackRisk, attackRisk, [1 if i == int(attackRisk*10) else 0 for i in range(10)]]}

@@ -7,7 +7,7 @@ const DPRisk = () => import('../views/DPRisk/DPRisk')
 const DPDecisionMaker = () => import("../views/DPDecisionMaker/DPDecisionMaker")
 const HOPs = () => import("../views/HOPs/HOPs")
 const Tree = () => import("../views/Tree/Tree")
-const Main = () => import("../views/Main/Main")
+const Main = () => import("../views/Main/Main.vue")
 
 
 const routes = [

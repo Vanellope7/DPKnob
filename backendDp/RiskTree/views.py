@@ -10,14 +10,14 @@ from django.core.files.storage import default_storage
 from django.http import JsonResponse
 
 from RiskTree.BSTTreeFunc import DFS, DFS_OUTER, getGap, getMinEdge, getMaxEdge
-from RiskTree.BSTTreeFunc import getCodedData
+
 
 
 # 回应接受文件请求
 from RiskTree.Class import JsonEncoder
 from RiskTree.NodeRiskFunc import getNodeRisk
 from RiskTree.funcs import classifyAttr, getRiskRecord, getCubeByIndices, getDataCoder, key2string, indices2bitmap, \
-    getAvgRiskP, getMinLocalSensitivityMap, keys2condition
+    getAvgRiskP, getMinLocalSensitivityMap, keys2condition, getCodedData, Attack2RiskMap
 from tools.df_processor import DFProcessor
 from tools.utils import laplace_DV_P, laplace_DV_P2
 
@@ -78,7 +78,7 @@ def fileReceive(request):
                 'Range': Range,
                 # 'Range Width': len(Range),
                 'Search Range': '-',
-                'Minimum Granularity': '-',
+                'Query Granularity': '-',
                 'Leakage Probability': '100%'
                 #     '80%' if attr in AttrMap[filename]['ExplicitDescription'] else
                 # ('70%' if attr in AttrMap[filename]['NormalDescription'] else
@@ -99,7 +99,7 @@ def fileReceive(request):
                 'Range': "{0}~{1}".format(Min, Max),
                 # 'Range Width': Max - Min,
                 'Search Range': '{0}~{1}'.format(MinEdge, MaxEdge),
-                'Minimum Granularity': width,
+                'Query Granularity': width,
                 'Leakage Probability': '100%'
                 #     '80%' if attr in AttrMap[filename]['ExplicitDescription'] else
                 # ('70%' if attr in AttrMap[filename]['NormalDescription'] else
@@ -118,27 +118,26 @@ def riskTree(request):
     DescriptionNum = postData['DescriptionNum']
     RiskRatioMap = postData.get('RiskRatioMap', -1)
     # 如果是第一次查询，那么将查看是否存在缓存
-    if RiskRatioMap == -1:
-        cachePath = 'RiskTree/cache/{0}/rt-{1}.cache.json'.format(filename.split('.')[0], filename)
-        if os.path.exists(cachePath):
-            with open(cachePath, 'r') as f:
-                json_data = json.load(f)
-        else:
-            json_data = getRiskRecord(filename, attrList, indices, RiskRatioMap, DescriptionNum)
-            if not os.path.exists(os.path.dirname(cachePath)):
-                try:
-                    os.makedirs(os.path.dirname(cachePath))
-                except OSError as exc:  # Guard against race condition
-                    if exc.errno != errno.EEXIST:
-                        raise
-            with open(cachePath, 'w+') as f:
-                json.dump(json_data, f, cls=JsonEncoder)
-    else:
-        json_data = getRiskRecord(filename, attrList, indices, RiskRatioMap, DescriptionNum)
+    # if RiskRatioMap == -1:
+    #     cachePath = 'RiskTree/cache/{0}/rt-{1}.cache.json'.format(filename.split('.')[0], filename)
+    #     if os.path.exists(cachePath):
+    #         with open(cachePath, 'r') as f:
+    #             json_data = json.load(f)
+    #     else:
+    #         json_data = getRiskRecord(filename, attrList, indices, RiskRatioMap, DescriptionNum)
+    #         if not os.path.exists(os.path.dirname(cachePath)):
+    #             try:
+    #                 os.makedirs(os.path.dirname(cachePath))
+    #             except OSError as exc:  # Guard against race condition
+    #                 if exc.errno != errno.EEXIST:
+    #                     raise
+    #         with open(cachePath, 'w+') as f:
+    #             json.dump(json_data, f, cls=JsonEncoder)
+    # else:
+    #     json_data = getRiskRecord(filename, attrList, indices, RiskRatioMap, DescriptionNum)
 
     #存入缓存
-
-    return JsonResponse(json_data, encoder=JsonEncoder)
+    return JsonResponse({}, encoder=JsonEncoder)
 
 
 def QueryWheres(request):
@@ -153,7 +152,7 @@ def QueryWheres(request):
     cur_attrList = [attrList[i] for i in Indices]
     R = R[cur_keepAttr]
     DCs = getDataCoder(R, cur_attrList)
-    getCodedData(R, DCs)
+    getCodedData(R, DCs, keepAttr)
     values = R.values
     n, m, GroupMap = R.shape[0], len(cur_keepAttr), {}
     for i in range(n):
@@ -195,7 +194,7 @@ def BSTTree(request):
 
     start_time = time.time()
     DCs = getDataCoder(R, cur_attrList)
-    getCodedData(R, DCs)
+    getCodedData(R, DCs, keepAttr)
 
     values = R.values
     tree = {
@@ -243,7 +242,7 @@ def DataDistribution(request):
             ret = json.load(f)
     else:
         R = pd.read_csv('data/' + filename)
-        attrs = map(lambda d: d['Name'], attrList)
+        attrs = list(map(lambda d: d['Name'], attrList))
         R = R[attrs]
         R.fillna(0, inplace=True)
         m = R.shape[1]
@@ -256,7 +255,7 @@ def DataDistribution(request):
                 SearchRange = attr['Search Range'].split('~')
                 Search_Min = float(SearchRange[0])
                 Search_Max = float(SearchRange[1])
-                Granularity = attr['Minimum Granularity']
+                Granularity = attr['Query Granularity']
                 Tick_Values = [Search_Min + i * Granularity for i in range(100) if Search_Min + i * Granularity <= Search_Max]
                 padding = (Search_Max - Search_Min) / 20
                 ScaleData.append({
@@ -274,9 +273,9 @@ def DataDistribution(request):
         TableData = []
         for index, row in R.iterrows():
             TableData.append(row.to_dict())
-
-        getCodedData(R, DCs)
         values = R.values
+        getCodedData(values, DCs, attrs)
+
         AttrsKeyMap = []
         for d in range(m):
             temp = {'data': []}
@@ -330,6 +329,7 @@ def getSensitivity(request):
     return JsonResponse({'sensitivityMap': sensitivityMap}, encoder=JsonEncoder)
 
 
+
 def AvgRiskP(request):
     postData = json.loads(request.body)
     filename, attrOption = postData['filename'], postData['attrOption']
@@ -337,7 +337,10 @@ def AvgRiskP(request):
     BSTMap, sensitivity, attrRisk = postData['BSTMap'], postData['sensitivity'], postData['attrRisk']
     SensitivityCalculationWay, AttrsKeyMap, BSTKeyMap = postData['SensitivityCalculationWay'], postData['AttrsKeyMap'], postData['BSTKeyMap']
     minSensitivityMap = postData['minSensitivityMap'] if attrParams['Type'] == 'numerical' and SensitivityCalculationWay == 'Local sensitivity' else 1
-    avgRiskP = getAvgRiskP(filename, attr, attrParams, epsilon, attrOption, sensitivity, attrRisk, BSTMap, SensitivityCalculationWay, AttrsKeyMap, BSTKeyMap, minSensitivityMap)
+    Attack = postData['Attack']
+    R = pd.read_csv('data/' + filename)
+    values = R[attr].values
+    avgRiskP = Attack2RiskMap(values, Attack, attrParams, epsilon)
     return JsonResponse({'data': avgRiskP})
 
 
@@ -345,16 +348,20 @@ def initializeSchemeHistory(request):
     postData = json.loads(request.body)
     filename, attrOption = postData['filename'], postData['attrOption']
     attrList, epsilon = postData['attrList'],  postData['epsilon']
-    BSTMap, attrRisk = postData['BSTMap'], postData['attrRisk']
-    SensitivityCalculationWay, AttrsKeyMap, BSTKeyMap = postData['SensitivityCalculationWay'], postData['AttrsKeyMap'], \
-                                                        postData['BSTKeyMap']
+    # BSTMap, attrRisk = postData['BSTMap'], postData['attrRisk']
+    # SensitivityCalculationWay, AttrsKeyMap, BSTKeyMap = postData['SensitivityCalculationWay'], postData['AttrsKeyMap'], \
+    #                                                     postData['BSTKeyMap']
+    Attack = postData['Attack']
     curAttr = postData['curAttr']
     avgRiskP = {}
+    R = pd.read_csv('data/' + filename)
     for attr, attrParams in zip(attrOption, attrList):
         if curAttr == attr:
-            sensitivity = postData['sensitivity'][attr]
-            avgRiskP = getAvgRiskP(filename, attr, attrParams, epsilon, attrOption, sensitivity, attrRisk, BSTMap,
-                                   SensitivityCalculationWay, AttrsKeyMap, BSTKeyMap)
+            # sensitivity = postData['sensitivity'][attr]
+            values = R[curAttr].values
+            avgRiskP = Attack2RiskMap(values, Attack, attrParams, epsilon)
+            # avgRiskP = getAvgRiskP(filename, attr, attrParams, epsilon, attrOption, sensitivity, attrRisk, BSTMap,
+            #                        SensitivityCalculationWay, AttrsKeyMap, BSTKeyMap)
     return JsonResponse({'data': avgRiskP})
 
 

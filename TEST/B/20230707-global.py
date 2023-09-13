@@ -5,23 +5,21 @@ from collections import defaultdict
 
 import numpy as np
 import pandas as pd
-from matplotlib import pyplot as plt
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 
 from utils.func import laplace_DV_P
 
 start = time.time()
-df = pd.read_csv('test_data/Customer Portraits.csv')
-# df = pd.read_csv('test_data/Medical Cost.csv')
-df.drop('ID', axis=1, inplace=True)
+# df = pd.read_csv('test_data/Customer Portraits.csv')
+df = pd.read_csv('test_data/Medical Cost.csv')
+# df.drop('ID', axis=1, inplace=True)
 attrs = df.columns.tolist()
 df.fillna(0, inplace=True)
 rawValues = df.values
 values = df.values
 
 n = len(values)
-# sensitiveAttrIdx = attrs.index('charges')
-sensitiveAttrIdx = attrs.index('Income')
+sensitiveAttrIdx = attrs.index('charges')
+# sensitiveAttrIdx = attrs.index('Income')
 
 #1 Medical
 #2 Customer
@@ -70,6 +68,7 @@ specialKey = []
 cntMap = defaultdict(list)
 specialCntMap = defaultdict(list)
 idxKeyMap = {}
+# df.sort_values(by='charges', ascending=False).index
 for i, d in enumerate(values):
     key = '-'.join(str(int(v)) for v in d.tolist())
     cntMap[key].append(i)
@@ -100,10 +99,17 @@ print(riskValues)
 # riskValueNum = len(sortedIdx)
 # sortedRiskValues = riskValues[sortedIdx]
 
+MaxS = 0
+for si in range(n):
+    MaxS = max(MaxS, rawValues[si][sensitiveAttrIdx])
+
 attrNum = len(riskValues[0])
 attrChars = [chr(ord('a') + i) for i in range(attrNum)]
 attrChars.remove(chr(ord('a') + sensitiveAttrIdx))
 attrSetIdxMap = defaultdict(list)
+Attack = defaultdict(list)
+epsilon = 1
+dp = 0.4  #deviation percent
 for an in range(1, len(attrChars)+1):
     attrSets = list(itertools.combinations(attrChars, an))
     for i in range(len(riskValues)):
@@ -114,6 +120,7 @@ for an in range(1, len(attrChars)+1):
             find = False
             findAttr = []
             attrIdxSet = [ord(j) - ord('a') for j in attrSet]
+            findAttrName = [attrs[idx] for idx in attrIdxSet]
             for mk in mapKeys:
                 if mk == curKey:
                     continue
@@ -128,7 +135,14 @@ for an in range(1, len(attrChars)+1):
             if not find:
                 findAttr = attrSet
                 attrSetIdxMap[findAttr].append(i)
+                pvi = i
+                D = rawValues[pvi][sensitiveAttrIdx] * dp
+                risk = laplace_DV_P([-D, D], MaxS / epsilon)
+                Attack[len(findAttr)].append([pvi, findAttrName, MaxS, risk])
 
+for an in Attack.keys():
+    Attack[an].sort(key=lambda d: -d[-1])
+    Attack[an] = Attack[an][0:10]
 
 ASIM = dict(attrSetIdxMap)
 print(ASIM)
@@ -149,22 +163,18 @@ for k, v in ASIM.items():
             IASM[idx].append([attrs[ord(c) - ord('a')] for c in k])
 
 riskMap = {}
-epsilon = 1
-dp = 0.4  #deviation percent
-S = 0
-for si in specialIdx:
-    S = max(S, rawValues[si][sensitiveAttrIdx])
+
+
 for i, si in enumerate(specialIdx):
     D = rawValues[si][sensitiveAttrIdx] * dp
-    riskMap[i] = laplace_DV_P([-D, D], S/epsilon)
+    riskMap[i] = laplace_DV_P([-D, D], MaxS/epsilon)
 
 print(riskMap)
 
 attrs.remove(attrs[sensitiveAttrIdx])
 data = {
     'attrs': attrs,
-    'IASM': IASM,
-    'RM': riskMap
+    'Attack': Attack
 }
 
 with open("data/data.json", "w", encoding="utf-8") as f:

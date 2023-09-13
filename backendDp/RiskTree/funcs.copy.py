@@ -69,7 +69,7 @@ def getDataCoder(data, attrList):
         # 首先得知道数据的范围
         type = attrList[i]['Type']
         if type == 'numerical':
-            Width = attrList[i]['Minimum Granularity']
+            Width = attrList[i]['Query Granularity']
             splitEdge = attrList[i]['Search Range'].split('~')
             MinEdge = float(splitEdge[0])
             MaxEdge = float(splitEdge[1])

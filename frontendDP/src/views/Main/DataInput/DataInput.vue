@@ -5,7 +5,6 @@
       v-model:file-list="fileList"
       :limit="1"
       style="margin: 10px;height: calc(50% - 30px - 40px)"
-      :show-file-list="false"
       :on-success="uploadSuccess"
   >
     <el-icon class="el-icon--upload"><upload-filled /></el-icon>
@@ -13,18 +12,6 @@
       Drop file here or <em>click to upload</em>
     </div>
   </el-upload>
-  <div class="DescriptionNum">
-    <span style="padding-right: 20px">Maximum number of attributes used in a query condition:</span>
-    <el-input-number
-        v-model="DescriptionNum"
-        :min="1"
-        :max="attrList.length === 0 ? 5 : attrList.length"
-        :step="1"
-        controls-position="right"
-        class="DescriptionNumInput"
-        size="small"
-    />
-  </div>
 
   <el-table
       table-layout="fixed"
@@ -36,11 +23,18 @@
       @cell-mouse-leave="handleCellLeave"
       style="width: 100%; height: calc(50% - 30px)">
     <el-table-column type="selection" width="30" v-if="attrListColumn.length !== 0" />
+    <el-table-column label="Sensitive attribute"
+                     align="center"
+                     width="150" v-if="attrListColumn.length !== 0">
+      <template #default="scope">
+        <el-checkbox v-model="scope.row['Sensitive attribute']" size="large" />
+      </template>
+    </el-table-column>
     <el-table-column
         v-for="(attr, i) in attrListColumn"
         :prop="attr"
         :label="attr"
-        :width="columnWidth[i]"
+
         align="center">
       <template #default="scope">
         <div class="item">
@@ -49,6 +43,7 @@
         </div>
       </template>
     </el-table-column>
+
   </el-table>
 
   <div class="ConfirmBtn">
@@ -77,13 +72,12 @@
         multipleSelection: [],
 
         // 需要编辑的属性
-        editProp: ['Search Range', 'Minimum Granularity', 'Leakage Probability'],
-        columnWidth: [140, 130, 200, 160, 190, 190],
+        editProp: ['Query Granularity'],
+        // columnWidth: [140, 130, 200, 160, 190, 190],
         // 保存进入编辑的cell
         clickCellMap: {},
         lastCell: 0,
         lastEnterCell: 0,
-        DescriptionNum: 3
       }
     },
     computed: {
@@ -91,12 +85,13 @@
         return this.fileList === [] ? '' : this.fileList[0].name;
       },
       attrListColumn() {
-        return this.attrList.length === 0 ? [] : Object.keys(this.attrList[0]);
+        return this.attrList.length === 0 ? [] : ['Name', 'Type', 'Range', 'Query Granularity'];
       }
     },
     methods: {
       uploadSuccess(response, file, fileList) {
         this.attrList = response.data;
+        // this.attrList.find(d => d['Name'] === 'charges')['Sensitive attribute'] = true;
         this.$nextTick(() => {
           this.toggleSelection(this.attrList);
         })
@@ -124,7 +119,7 @@
                   'filename': this.curFile,
                   'attrList': this.multipleSelection,
                   'indices': [],
-                  'DescriptionNum': this.DescriptionNum
+                  'DescriptionNum': this.attrList.length
                 }
               }).then((response) => {
                 resolve(response)
@@ -143,7 +138,7 @@
               })
             })
         ]).then(result => {
-          this.$emit('inputData', [result[0].data, this.curFile, this.multipleSelection, this.DescriptionNum])
+          this.$emit('inputData', [result[0].data, this.curFile, this.multipleSelection, this.attrList.length])
           this.$emit('drawPCP', result[1])
         })
       },

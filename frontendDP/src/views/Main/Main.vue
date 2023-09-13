@@ -3,118 +3,396 @@
     <div class="RowPartMain">
       <div id="DifferentialRiskIdentification" class="BaseMain">
         <div class="MainLabel">Potential Victim Exploration</div>
+        <div id="QT_Panel" class="Panel">
+          <div style="margin-right: 3px">Query Content</div>
+          <el-divider direction="vertical" border-style="dashed" class="PanelTextDivider"/>
+          <span>Attribute: </span>
+          <el-select class="marginLeft10px" v-model="QueryAttr" placeholder="Select" size="small" style="width: 100px">
+            <el-option
+                v-for="item in QueryAttrOption"
+                :key="item"
+                :label="item"
+                :value="item"
+            />
+          </el-select>
 
-        <div id="TreeView">
-          <div id="AttributeSet">
-            <div class="SecondaryLabel">Attribute Set Tree</div>
-            <svg id="AttributeSetTreeLegend">
-              <rect x="0" y="5" width="10" height="22" :fill="colorMap['risk']"></rect>
-              <text x="15" y="14">Risky descriptions</text>
-<!--              <rect x="0" y="21" width="10" height="10" :fill="colorMap['risk']"></rect>-->
-              <text x="15" y="25">(Isolate individuals)</text>
+          <span style="padding-left: 20px">Type: </span>
+          <el-select class="marginLeft10px" v-model="QueryType" placeholder="Select" size="small" style="width: 100px" @change="changeQueryType">
+            <el-option
+                v-for="item in QueryTypeOption"
+                :key="item"
+                :label="item"
+                :value="item"
+            />
+          </el-select>
 
-              <rect v-for="(d, i) in attrRiskLegend"
-                    :x="133+0.5*i"
-                    :y="5"
-                    width="1.0"
-                    height="10"
-                    :fill="d"
-              ></rect>
-              <text x="130" y="14" text-anchor="end">0</text>
-              <text x="185" y="14">100%</text>
-<!--              <g class="attrRiskSlider" transform="translate(0,0)">-->
-<!--                <line x1="115" x2="125" y1="2" y2="2" stroke="#666" stroke-width="2px"></line>-->
-<!--                <line x1="120" x2="120" y1="2" y2="18" stroke="#666" stroke-width="3px"></line>-->
-<!--                <line x1="115" x2="125" y1="18" y2="18" stroke="#666" stroke-width="2px"></line>-->
-<!--              </g>-->
-              <g transform="translate(15, -5)">
-                <text x="118" y="30">P</text>
-                <text x="125" y="32" style="font-size: 9px">leak</text>
-                <text x="145" y="31">of a set</text>
-              </g>
-            </svg>
-
-            <svg id="AttributeSetTree"></svg>
-            <el-input v-model="curAttrRiskStr"  class="attrRiskInput hidden"
-                      style="position: absolute; width: 62px; height: 20px;">
-              <template #prepend>P:</template>
-            </el-input>
+          <div class="Interval" v-if="QueryType === 'count' && QueryAttrType === 'numerical'">
+            <span style="padding-left: 10px">Interval: </span>
+            <el-input-number
+                v-model="IntervalLeft"
+                :min="attrInterval[0]"
+                :max="IntervalRight"
+                :step="0.01"
+                size="small"
+                controls-position="right"
+                style="width: 100px"
+            />
+            <span>~</span>
+            <el-input-number
+                v-model="IntervalRight"
+                :min="IntervalLeft"
+                :max="attrInterval[1]"
+                :step="0.01"
+                size="small"
+                controls-position="right"
+                style="width: 100px"
+            />
+          </div>
+          <div v-if="QueryType === 'count' && QueryAttrType === 'categorical'">
+            <span style="padding-left: 20px">Category: </span>
+            <el-select v-model="QueryCountCondition" placeholder="Select" style="width: 100px" size="small">
+              <el-option
+                  v-for="item in attrList[QueryAttrIndex].Range"
+                  :key="item"
+                  :label="item"
+                  :value="item"
+              />
+            </el-select>
           </div>
 
-          <el-divider direction="vertical" border-style="dashed" style="height: 100%"/>
+          <span style="padding-left: 20px">Top: </span>
+          <el-input class="marginLeft10px" v-model="TopNum" size="small" style="width: 50px"></el-input>
+          <el-button @click="changeTopNum" type="primary"
+                     style="width: 90px;"
+                     class="rightEdgeBtn blueBtn">Confirm</el-button>
 
-          <div id="DifferentialQueryList">
-            <div class="SecondaryLabel">Risky Description List</div>
-            <svg id="DifferentialQueryTreeLegend">
-<!--              <rect x="30" y="0" width="10" height="10" :fill="colorMap['normal-grey']"></rect>-->
-              <g :transform="`translate(${MinRecordsNum !== MaxRecordsNum ? -5 : 72}, 0)`">
-                <text x="50" y="14.1">1</text>
-                <rect x="58" y="5" width="10" height="10" :fill="colorMap['risk']"></rect>
-              </g>
-<!--              <text x="93" y="14">Differential basis</text>-->
-              <g transform="translate(-5, 0)" v-if="MinRecordsNum !== MaxRecordsNum">
-                <rect v-for="(d, i) in queryNumLegend"
-                      :x="93+0.7*i"
-                      :y="5"
-                      width="1.2"
-                      height="10"
-                      :fill="d"
-                ></rect>
-                <text x="90" y="14.1" text-anchor="end">{{MinRecordsNum}}</text>
-                <text x="165" y="14.1">{{MaxRecordsNum}}</text>
-                <text x="80" y="25">#Individuals</text>
-              </g>
-              <g v-else transform="translate(72,0)">
-                <rect x="93" y="5" width="10" height="10" fill="#b3b3b3"></rect>
-                <text x="90" y="14.1" text-anchor="end">{{MinRecordsNum}}</text>
-                <text x="47" y="25">#Individuals</text>
-              </g>
 
-            </svg>
-            <svg id="DQTreeAttrTitle"></svg>
-            <div id="DQTreeContainer">
-              <el-scrollbar :always="true">
-                <svg id="DifferentialQueryTree"></svg>
-                <img src="icon/individual.png"
-                     v-for="pos in IndividualIconPosList"
-                     :style="{left: `${pos[0]}px`, top: `${pos[1]}px`}"
-                     class="individualIcon">
-              </el-scrollbar>
+        </div>
+        <div id="DPS_Panel" class="Panel">
+          <div style="margin-right: 17px">DP Scheme</div>
+          <el-divider direction="vertical" border-style="dashed" class="PanelTextDivider"/>
+          <span>&epsilon;: </span>
+          <el-input-number
+              v-model="epsilon"
+              :min="0"
+              :max="50"
+              :step="0.01"
+              precision="2"
+              class="EpsilonInput"
+              size="small"
+              controls-position="right"
+          />
+          <span class="paddingLeft10px">Sensitivity calculation: </span>
+          <el-select v-model="SensitivityCalculationWay" class="SCWO" placeholder="Select" size="small">
+            <el-option
+                v-for="(item, index) in SensitivityCalculationWayOption"
+                :key="item"
+                :label="item + (index === 0 ? (': '+this.SensitivityList[index]) : '')"
+                :value="item"
+            />
+          </el-select>
+          <el-button type="primary"
+                     style="width: 90px;"
+                     class="rightEdgeBtn blueBtn" @click="RecordEpsilon">Test</el-button>
+        </div>
+        <div id="TreeView">
+          <div class="VictimGroups">
+            <div class="SecondaryLabel">Victim Group List</div>
+            <el-radio-group v-model="curVictimGroup" class="VictimGroup">
+              <div class="vgc" v-for="vgn in Object.keys(VictimNameMap)">
+                <div class="vgn" style="font-size: 12px;">{{vgn}}</div>
+                <el-radio :label="vgn" size="large" class="vgcRadio"></el-radio>
+              </div>
+            </el-radio-group>
+            <div class="vgc">
+              <div class="addCont" v-if="!isClickAddVictim">
+                <el-button class="addClickBtn" @click="clickAddBtn">
+                  <el-icon style="width: 40px; height: 40px"><Plus /></el-icon>
+                </el-button>
+              </div>
+              <div class="inputCont" v-else>
+                <el-input class="marginLeft10px"
+                          v-model="newVictimGroupName"
+                          size="small" style="width: 80px; margin-top: 5px"></el-input>
+                <el-button style="border: none; background-color:#fff;"
+                           @click="RecordVictimGroup"
+                           class="confirmVictimBtn"
+                ><el-icon><Select /></el-icon></el-button>
+              </div>
             </div>
-            <el-divider border-style="dashed" style="margin: 0; margin-top: 10px" />
-            <div id="CorrespondingSQLCommands" class="relativeDiv">
-              <div class="SecondaryLabel" style="margin-bottom: 0">Query Conditions for Attack</div>
-              <el-button type="primary" @click="switchSQL" class="convertSQLBtn blueBtn">
-                <el-icon><Refresh /></el-icon>
-                <span style="font-size: 12px">{{isMinSQL ? 'Roll back' : 'Highest risk'}}</span>
-              </el-button>
-              <div class="SQL_panel">
-                <div id="firstQuery" class="SQL">
-                  <span id="firstSqlTitle" class="SqlTitle">1st query</span>
-                  <el-divider direction="vertical" border-style="dashed" class="TextDivider"/>
-                  <div id="FirstQueryText" class="SQLText"></div>
+
+          </div>
+          <div class="controlBar">
+            <div class="AttrFilters">
+              <div class="SecondaryLabel">Attribute Filter</div>
+              <div class="controlLabel">
+                <div class="ScopeL">
+                  <span>Scope</span>
                 </div>
-                <div id="secondQuery" class="SQL">
-                  <span id="secondSqlTitle" class="SqlTitle">2nd query</span>
-                  <el-divider direction="vertical" border-style="dashed" class="TextDivider"/>
-                  <div id="SecondQueryText" class="SQLText" ></div>
-                  <el-icon v-show="!availableSQL2"
-                           class="notAvailableIcon"><CircleCloseFilled /></el-icon>
+                <div class="AttrL">
+                  <span>Attribution</span>
+                </div>
+                <div class="cludeL">
+                  <span style="margin-right: 8px">Exclude</span>
+                  <span >Include</span>
+
+                </div>
+              </div>
+              <div class="AttrFilter" v-for="(attr, i) in attrList">
+                <div class="AttrGropeFilter">
+                  <el-slider v-if="attr['Type'] === 'numerical'"
+                             range
+                             :model="attrGropeFilter[attr['Name']]"
+                             :max="attr['Max']" :min="attr['Min']"></el-slider>
+                  <div v-else class="filterSelectGroup">
+                    <button v-for="select in attrSelects[attr['Name']]"
+                            :class="{'selectFilter': attrGropeFilter[attr['Name']].includes(select)}"
+                            @click="attrGropeFilterChange(attr['Name'], select)"
+                    >{{select}}</button>
+                  </div>
+                </div>
+                <div class="AttrFilterContent" :style="{'background-color': rankColor[i], 'color': rankFontColor[rankColor[i]]}">{{attr['Name']}}</div>
+
+                <div class="AttrFilterBtnGroup">
+                  <el-radio-group v-model="AttrFilterMap[attr['Name']]" class="ml-4">
+                    <el-radio label="exclude" size="large" @click.prevent="changeRatio(attr['Name'], 'exclude')"></el-radio>
+                    <el-radio label="include" size="large" @click.prevent="changeRatio(attr['Name'], 'include')"></el-radio>
+                  </el-radio-group>
                 </div>
               </div>
             </div>
           </div>
+          <el-divider class="PanelDivider" direction="vertical" border-style="dashed"/>
+          <div class="attrRank">
+            <div class="SecondaryLabel">Attribute Percent Rank</div>
+            <svg id="attrRankPlot"></svg>
+          </div>
+
+          <div class="highRisk">
+            <div class="SecondaryLabel">High Risk Attack</div>
+            <svg id="highRiskPlot">
+              <text x="100" y="420">Attack risk</text>
+            </svg>
+          </div>
+
         </div>
 
       </div>
+      <div id="SchemeHistory">
+        <div class="flexLayout">
+          <div class="MainLabel">Scheme History</div>
+        </div>
 
+        <img src="icon/example.png" class="examplePng">
+
+        <svg id="SchemeHistoryLegend">
+          <g class="heatmapLegend" transform="translate(31, 51)" >
+            <path d="M2,2 L10,6 L2,10 L6,6 L2,2" style="transform: rotate(-90deg)"></path>
+            <line x1="6" x2="6" y1="-5" y2="48" stroke="#777" stroke-width="2px"></line>
+            <text x="0" y="-25">Deviation</text>
+            <text x="0" y="-12" style="fill: #777">Relative to the value</text>
+            <line x1="6" x2="106" y1="48" y2="48" stroke="#777" stroke-width="2px"></line>
+            <text x="58" y="62">Succ rate</text>
+            <path d="M2,2 L10,6 L2,10 L6,6 L2,2" transform="translate(96, 42)"></path>
+            <!--            <rect x="8" y="-5" width="20" height="21" :fill="colorMap['normal-grey']"></rect>-->
+          </g>
+
+          <g transform="translate(19, 142)">
+            <rect v-for="(d, i) in attrRiskLegend"
+                  :x="20+0.7*i"
+                  :y="5"
+                  width="2"
+                  height="7"
+                  :fill="d"
+            ></rect>
+            <text x="18" y="13" text-anchor="end">0</text>
+            <text x="92" y="13">100%</text>
+            <text x="65" y="25" style="text-anchor: middle">#Attacks (%)</text>
+          </g>
+
+          <g transform="translate(8, 202)">
+            <line x1="24" x2="134" y1="0" y2="0" stroke-dasharray="3 2" :stroke="colorMap['deep-grey']" class="SchemeHistoryLegendLine"></line>
+            <text x="30" y="14">Deviation threshold</text>
+            <!--            <text x="45" y="25">by users</text>-->
+
+          </g>
+
+          <g transform="translate(8, 251)">
+            <line x1="25" x2="25" y1="0" y2="20" :stroke="colorMap['risk']" class="SchemeHistoryLegendLine"></line>
+            <text x="30" y="13">Succ rate threshold</text>
+            <!--            <text x="30" y="20">by users</text>-->
+          </g>
+
+        </svg>
+
+        <el-table
+            :data="SchemeHistory.filter(d => d['Attribute'] === QueryAttr)"
+            table-layout="fixed"
+            border
+            class="SchemeHistoryTable"
+            :row-class-name="hoverRowClassName"
+            :cell-class-name="hoverCellClassName"
+            @cell-mouse-enter="CellMouseEnter"
+            @cell-mouse-leave="CellMouseLeave"
+            @cell-click="HeatmapCellClick"
+            :scrollbar-always-on="true"
+            style="width: 732px; height: calc(100% - 50px)">
+          <el-table-column
+              prop="DP scheme"
+              width="170"
+              align="center">
+            <template v-slot:header>
+              <div class="rightHeader">
+                Victim Group
+              </div>
+              <div class="leftHeader">
+                DP scheme
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column
+              v-for="(attr, i) in SchemeHistoryColumn"
+              :label="attr"
+              width="120"
+              align="center">
+
+              <template #default="scope" v-if="attr !== 'DP scheme' && QueryType === 'sum'">
+                <svg class="barChart" v-if="(typeof scope.row[attr]) === 'object'">
+                  <g class="background">
+                    <rect x="0" y="0" width="105" height="65"
+                          fill="none"
+                          :stroke="colorMap['normal-grey']"
+                          stroke-width="1px"
+                    ></rect>
+                  </g>
+                  <g class="bodyG" transform="translate(2, -2)">
+                    <g class="bodyRectG"
+                       v-for="(data, deviationIndex) in scope.row[attr]"
+                       :transform="`translate(${0},${60-6*deviationIndex})`"
+                    >
+                      <rect
+                          v-for="(d, i) in data"
+                          :x="i*10"
+                          :y="0"
+                          :width="10"
+                          :height="6"
+                          :fill="schemeHistoryRectColorScale(d)"
+                      ></rect>
+                    </g>
+                  </g>
+
+                  <g class="decorationG" transform="translate(2, 3)">
+                    <line :x1="10*sumAttackSRTPercent/10"
+                          :x2="10*sumAttackSRTPercent/10"
+                          :y1="60-6*PrivacyDeviationPercent/10"
+                          y2="60"
+                          :stroke="colorMap['risk']"
+                          stroke-width="2px"
+
+                    ></line>
+                    <line x1="0"
+                          :x2="10*10"
+                          :y1="60-6*PrivacyDeviationPercent/10"
+                          :y2="60-6*PrivacyDeviationPercent/10"
+
+                          :stroke="colorMap['deep-grey']"
+                          stroke-width="2px"
+                          stroke-dasharray="3 2"
+                    ></line>
+                  </g>
+                </svg>
+  <!--              <span v-if="(typeof scope.row[attr + '-' + secondaryColumn]) === 'string'">{{scope.row[attr + '-' + secondaryColumn]}}</span>-->
+                <!--                <span v-if="scope.row[attr + '-' + secondaryColumn] === undefined">In calculation</span>-->
+              </template>
+              <template #default="scope" v-if="attr !== 'DP scheme' && QueryType === 'count'">
+                <svg class="barChart" v-if="(typeof scope.row[attr]) === 'object'">
+                  <text x="40" y="14" style="text-anchor: middle; font-size: 14px">{{ 'Avg: ' + (scope.row[attr][0] * 100).toFixed(0) + '%'}}</text>
+                  <g class="background">
+                    <rect x="0" y="22" width="75" height="80"
+                          fill="none"
+                          :stroke="colorMap['normal-grey']"
+                          stroke-width="1px"
+                    ></rect>
+                  </g>
+                  <g class="bodyG" transform="translate(2, 25)">
+                    <g class="bodyRectG"
+                       :transform="`translate(${0},${0})`"
+                    >
+                      <rect
+                          v-for="(d, i) in scope.row[attr][1]"
+                          :x="i*10"
+                          :y="0"
+                          :width="10"
+                          :height="35"
+                          :fill="schemeHistoryRectColorScale(d)"
+                      ></rect>
+                    </g>
+                  </g>
+
+                  <g class="decorationG" transform="translate(2, 5)">
+                    <line :x1="10*(Math.floor(countAttackSRTPercent/10))"
+                          :x2="10*(Math.floor(countAttackSRTPercent/10))"
+                          :y1="20"
+                          y2="35"
+                          :stroke="colorMap['risk']"
+                          stroke-width="2px"
+
+                    ></line>
+                  </g>
+                </svg>
+                <span v-if="(typeof scope.row[attr]) === 'string'">{{scope.row[attr]}}</span>
+              </template>
+<!--            </el-table-column>-->
+          </el-table-column>
+
+
+          <el-table-column fixed="right" label="Operations" width="100" align="center">
+            <template #default="scope">
+              <el-button size="small" class="lockRow"
+                         @click="lockScheme(scope.row['Attribute'], scope.$index)"
+                         v-if="AttrLockMap[scope.row['Attribute']] !== scope.$index">
+                <img src="icon/unlock.png" style="width: 12px;"></el-button>
+              <el-button size="small" class="lockRow"
+                         @click="unlockScheme(scope.row['Attribute'])"
+                         v-else><img src="icon/lock.png" style="width: 12px;"></el-button>
+              <el-button size="small" class="closeRow" @click="deleteSchemeHistoryRow(scope.$index, scope.row)"><el-icon><Close /></el-icon></el-button>
+            </template>
+          </el-table-column>
+
+          <!--          <el-table-column fixed="right" label=" " width="30" align="center">-->
+          <!--            <template #default="scope">-->
+          <!--            </template>-->
+          <!--          </el-table-column>-->
+
+        </el-table>
+
+      </div>
+
+    </div>
+
+    <div class="RowPartMain BaseMain">
+      <div class="MainLabel">Query Condition for Attack</div>
+      <div class="SQL_panel">
+        <div id="firstQuery" class="SQL">
+          <span id="firstSqlTitle" class="SqlTitle">1st query</span>
+          <el-divider border-style="dashed" class="TextDivider"/>
+          <div id="FirstQueryText" class="SQLText"></div>
+        </div>
+        <div id="secondQuery" class="SQL">
+          <span id="secondSqlTitle" class="SqlTitle">2nd query</span>
+          <el-divider border-style="dashed" class="TextDivider"/>
+          <div id="SecondQueryText" class="SQLText" ></div>
+<!--          <el-icon v-show="!availableSQL2"-->
+<!--                   class="notAvailableIcon"><CircleCloseFilled /></el-icon>-->
+        </div>
+      </div>
       <div id="DataExploration" class="BaseMain">
         <div class="MainLabel">Data Exploration</div>
         <el-button-group class="DataExplorationSwitch">
-          <el-button :class="{chosenBtn: DataExplorationStatus === 'RT'}" type="primary" size="small"
-           @click="switch2RecordTable">Record table</el-button>
+          <el-button :class="{chosenBtn: DataExplorationStatus === 'R9T'}" type="primary" size="small"
+                     @click="switch2RecordTable">Record table</el-button>
           <el-button :class="{chosenBtn: DataExplorationStatus === 'DD'}" type="primary" size="small"
-          @click="switch2DataDistribution">Data distribution</el-button>
+                     @click="switch2DataDistribution">Data distribution</el-button>
         </el-button-group>
 
         <svg id="DataExplorationLegend" v-show="DataExplorationStatus === 'DD'">
@@ -128,7 +406,7 @@
             <line x1="140" x2="140" y1="26" y2="32" :stroke="colorMap['deep-grey']" stroke-width="2px"></line>
             <line x1="170" x2="170" y1="26" y2="32" :stroke="colorMap['deep-grey']" stroke-width="2px"></line>
             <text x="175" y="33">Query condition</text>
-            </g>
+          </g>
         </svg>
 
         <div class="tickSwitch" v-show="DataExplorationStatus === 'DD'">
@@ -159,99 +437,10 @@
           </el-table-column>
         </el-table>
       </div>
-    </div>
-
-    <div class="RowPartMain BaseMain">
-      <div class="MainLabel" style="margin-bottom: 10px">Data Query Simulation</div>
-
-      <div id="QT_Panel" class="Panel">
-        <div style="margin-right: 3px">Query Content</div>
-        <el-divider direction="vertical" border-style="dashed" class="PanelTextDivider"/>
-        <span>Attribute: </span>
-        <el-select class="marginLeft10px" v-model="QueryAttr" placeholder="Select" size="small" style="width: 100px">
-          <el-option
-              v-for="item in QueryAttrOption"
-              :key="item"
-              :label="item"
-              :value="item"
-          />
-        </el-select>
-
-        <span style="padding-left: 20px">Type: </span>
-        <el-select class="marginLeft10px" v-model="QueryType" placeholder="Select" size="small" style="width: 100px" @change="changeQueryType">
-          <el-option
-              v-for="item in QueryTypeOption"
-              :key="item"
-              :label="item"
-              :value="item"
-          />
-        </el-select>
-
-        <div class="Interval" v-if="QueryType === 'count' && QueryAttrType === 'numerical'">
-          <span style="padding-left: 10px">Interval: </span>
-          <el-input-number
-              v-model="IntervalLeft"
-              :min="attrInterval[0]"
-              :max="IntervalRight"
-              :step="0.01"
-              size="small"
-              controls-position="right"
-              style="width: 100px"
-          />
-          <span>~</span>
-          <el-input-number
-              v-model="IntervalRight"
-              :min="IntervalLeft"
-              :max="attrInterval[1]"
-              :step="0.01"
-              size="small"
-              controls-position="right"
-              style="width: 100px"
-          />
-        </div>
-        <div v-if="QueryType === 'count' && QueryAttrType === 'categorical'">
-          <span style="padding-left: 20px">Category: </span>
-          <el-select v-model="QueryCountCondition" placeholder="Select" style="width: 100px" size="small">
-            <el-option
-                v-for="item in attrList[QueryAttrIndex].Range"
-                :key="item"
-                :label="item"
-                :value="item"
-            />
-          </el-select>
-        </div>
-      </div>
-      <div id="DPS_Panel" class="Panel">
-        <div style="margin-right: 17px">DP Scheme</div>
-        <el-divider direction="vertical" border-style="dashed" class="PanelTextDivider"/>
-        <span>&epsilon;: </span>
-        <el-input-number
-            v-model="epsilon"
-            :min="0"
-            :max="50"
-            :step="0.01"
-            precision="2"
-            class="EpsilonInput"
-            size="small"
-            controls-position="right"
-        />
-        <span class="paddingLeft10px">Sensitivity calculation: </span>
-        <el-select v-model="SensitivityCalculationWay" class="SCWO" placeholder="Select" size="small">
-          <el-option
-              v-for="(item, index) in SensitivityCalculationWayOption"
-              :key="item"
-              :label="item + (index === 0 ? (': '+this.SensitivityList[index]) : '')"
-              :value="item"
-          />
-        </el-select>
-        <el-button type="primary"
-                   style="width: 90px;"
-                   class="rightEdgeBtn blueBtn" @click="RecordEpsilon">Test</el-button>
-      </div>
-
+      <div class="MainLabel" style="border-top: 10px solid #f0f7fe">Data Query Simulation</div>
       <div class="flexLayout">
         <div class="SecondaryLabel">Attack Simulation</div>
-        <div class="SecondaryLabel" style="margin-left: 215px">General Query Simulation</div>
+        <div class="SecondaryLabel" style="margin-left: 320px">General Query Simulation</div>
       </div>
       <div class="flexLayout" style="align-items: start">
         <div id="AS_Panel" class="Panel halfPanel">
@@ -387,19 +576,23 @@
             <text x="170" y="45" style="text-anchor: end" :fill="colorMap['deep-grey']">1st: {{curSensitivity1.toFixed(0)}}</text>
             <text x="170" y="60" style="text-anchor: end" :fill="colorMap['normal-grey']">2nd: {{curSensitivity2.toFixed(0)}}</text>
           </g>
-          <text x="170" y="200" style="text-anchor: end">Query result</text>
+          <text x="170" y="245" style="text-anchor: end">Query result</text>
+          <marker id="arrow" markerUnits="strokeWidth" viewBox="0 0 12 12"
+                  refX="6" refY="6" markerWidth="12" markerHeight="12" orient="auto">
+            <path d="M2,2 L10,6 L2,10 L6,6 L2,2" fill="rgb(130,130,130)"></path>
+          </marker>
         </svg>
         <svg id="DA_OutputSVG" class="AS_view QueryView">
 <!--          <text x="45" y="15">Inference result</text>-->
           <text x="35" y="15">{{'Probability density (*10^-' + this.AttackPDensityPrecision + ')'}}</text>
 <!--          <text x="105" y="40" :fill="deviationP1 > AttackSRT ? colorMap['risk'] : colorMap['deep-grey']" style="text-anchor: middle">{{'Succ rate: ' + deviationP1.toFixed(3)}}</text>-->
           <line x1="28" y1="20" x2="28" y2="190" stroke-dasharray="3 2" stroke="#dcdfe6" stroke-width="1px" />
-          <text x="200" y="200" style="text-anchor: end">Inference result</text>
+          <text x="200" y="245" style="text-anchor: end">Inference result</text>
         </svg>
         <svg id="GeneralQuery" class="GQS_view QueryView">
           <text x="15" y="15">Deviation / sensitivity</text>
-          <text x="250" y="200" style="text-anchor: end">Accuracy</text>
-          <text x="330" y="15" style="text-anchor: end">Scheme list</text>
+          <text x="250" y="244" style="text-anchor: end">Accuracy</text>
+          <text x="420" y="15" style="text-anchor: end">Scheme list</text>
           <g class="historyPointG"></g>
           <g class="curPointG"></g>
           <g class="historyPath"></g>
@@ -410,219 +603,6 @@
         </svg>
       </div>
 
-
-
-
-      <div id="SchemeHistory">
-        <div class="flexLayout">
-          <div class="MainLabel">Scheme History</div>
-          <span style="padding-left: 220px">Top attribute: </span>
-          <el-select class="marginLeft10px"
-                     size="small"
-                     v-model="TopAttr" placeholder="Select" style="width: 100px">
-            <el-option
-                v-for="item in TopAttrOption"
-                :key="item"
-                :label="item"
-                :value="item"
-            />
-          </el-select>
-        </div>
-
-        <img src="icon/example.png" class="examplePng">
-
-        <svg id="SchemeHistoryLegend">
-          <g class="heatmapLegend" transform="translate(31, 51)" >
-            <path d="M2,2 L10,6 L2,10 L6,6 L2,2" style="transform: rotate(-90deg)"></path>
-            <line x1="6" x2="6" y1="-5" y2="48" stroke="#777" stroke-width="2px"></line>
-            <text x="0" y="-25">Deviation</text>
-            <text x="0" y="-12" style="fill: #777">Relative to the value</text>
-            <line x1="6" x2="106" y1="48" y2="48" stroke="#777" stroke-width="2px"></line>
-            <text x="58" y="62">Succ rate</text>
-            <path d="M2,2 L10,6 L2,10 L6,6 L2,2" transform="translate(96, 42)"></path>
-<!--            <rect x="8" y="-5" width="20" height="21" :fill="colorMap['normal-grey']"></rect>-->
-          </g>
-
-          <g transform="translate(19, 142)">
-            <rect v-for="(d, i) in attrRiskLegend"
-                  :x="20+0.7*i"
-                  :y="5"
-                  width="2"
-                  height="7"
-                  :fill="d"
-            ></rect>
-            <text x="18" y="13" text-anchor="end">0</text>
-            <text x="92" y="13">100%</text>
-            <text x="65" y="25" style="text-anchor: middle">#Attacks (%)</text>
-          </g>
-
-          <g transform="translate(8, 202)">
-            <line x1="24" x2="134" y1="0" y2="0" stroke-dasharray="3 2" :stroke="colorMap['deep-grey']" class="SchemeHistoryLegendLine"></line>
-            <text x="30" y="14">Deviation threshold</text>
-<!--            <text x="45" y="25">by users</text>-->
-
-          </g>
-
-          <g transform="translate(8, 251)">
-            <line x1="25" x2="25" y1="0" y2="20" :stroke="colorMap['risk']" class="SchemeHistoryLegendLine"></line>
-            <text x="30" y="13">Succ rate threshold</text>
-<!--            <text x="30" y="20">by users</text>-->
-          </g>
-
-        </svg>
-
-        <el-table
-            :data="SchemeHistory"
-            table-layout="fixed"
-            border
-            class="SchemeHistoryTable"
-            :row-class-name="hoverRowClassName"
-            :cell-class-name="hoverCellClassName"
-            @cell-mouse-enter="CellMouseEnter"
-            @cell-mouse-leave="CellMouseLeave"
-            @cell-click="HeatmapCellClick"
-            :span-method="objectSpanMethod"
-            :scrollbar-always-on="true"
-            style="width: 570px; height: calc(100% - 30px)">
-          <el-table-column
-              label="Attribute"
-              prop="Attribute"
-              width="110"
-              align="center">
-          </el-table-column>
-          <el-table-column
-              v-for="(attr, i) in SchemeHistoryColumn"
-              :label="attr"
-              :width="SchemeHistoryColumnWidth[i]"
-              align="center">
-
-            <el-table-column
-                v-for="(secondaryColumn, secondaryI) in SchemeHistorySecondaryColumn[attr]"
-                :prop="attr + '-' + secondaryColumn"
-                :label="secondaryColumn"
-                :width="SchemeHistorySecondaryColumnWidth[i][secondaryI]"
-                align="center">
-
-              <template #default="scope" v-if="attr === 'Sum' && secondaryColumn === 'Succ rate'">
-                <svg class="barChart" v-if="(typeof scope.row[attr + '-' + secondaryColumn]) === 'object'">
-                  <g class="background">
-                    <rect x="0" y="0" width="75" height="43"
-                          fill="none"
-                          :stroke="colorMap['normal-grey']"
-                          stroke-width="1px"
-                    ></rect>
-                  </g>
-                  <g class="bodyG" transform="translate(2, -2)">
-                    <g class="bodyRectG"
-                       v-for="(data, deviationIndex) in scope.row[attr + '-' + secondaryColumn]"
-                       :transform="`translate(${0},${40-4*deviationIndex})`"
-                    >
-                      <rect
-                          v-for="(d, i) in data"
-                          :x="i*7"
-                          :y="0"
-                          :width="7"
-                          :height="4"
-                          :fill="schemeHistoryRectColorScale(d)"
-                      ></rect>
-                    </g>
-                  </g>
-
-                  <g class="decorationG" transform="translate(2, 3)">
-                    <line :x1="7*sumAttackSRTPercent/10"
-                          :x2="7*sumAttackSRTPercent/10"
-                          :y1="40-4*PrivacyDeviationPercent/10"
-                          y2="40"
-                          :stroke="colorMap['risk']"
-                          stroke-width="2px"
-
-                    ></line>
-                    <line x1="0"
-                          :x2="7*10"
-                          :y1="40-4*PrivacyDeviationPercent/10"
-                          :y2="40-4*PrivacyDeviationPercent/10"
-
-                          :stroke="colorMap['deep-grey']"
-                          stroke-width="2px"
-                          stroke-dasharray="3 2"
-                    ></line>
-                  </g>
-                </svg>
-                <span v-if="(typeof scope.row[attr + '-' + secondaryColumn]) === 'string'">{{scope.row[attr + '-' + secondaryColumn]}}</span>
-<!--                <span v-if="scope.row[attr + '-' + secondaryColumn] === undefined">In calculation</span>-->
-              </template>
-              <template #default="scope" v-if="attr === 'Count' && secondaryColumn === 'Succ rate'">
-                <svg class="barChart" v-if="(typeof scope.row[attr + '-' + secondaryColumn]) === 'object'">
-                  <text x="40" y="14" style="text-anchor: middle; font-size: 14px">{{ 'Avg: ' + (scope.row[attr + '-' + secondaryColumn][0] * 100).toFixed(0) + '%'}}</text>
-                  <g class="background">
-                    <rect x="0" y="22" width="75" height="20"
-                          fill="none"
-                          :stroke="colorMap['normal-grey']"
-                          stroke-width="1px"
-                    ></rect>
-                  </g>
-                  <g class="bodyG" transform="translate(2, 25)">
-                    <g class="bodyRectG"
-                       :transform="`translate(${0},${0})`"
-                    >
-                      <rect
-                          v-for="(d, i) in scope.row[attr + '-' + secondaryColumn][1]"
-                          :x="i*7"
-                          :y="0"
-                          :width="7"
-                          :height="15"
-                          :fill="schemeHistoryRectColorScale(d)"
-                      ></rect>
-                    </g>
-                  </g>
-
-                  <g class="decorationG" transform="translate(2, 5)">
-                    <line :x1="7*(Math.floor(countAttackSRTPercent/10))"
-                          :x2="7*(Math.floor(countAttackSRTPercent/10))"
-                          :y1="20"
-                          y2="35"
-                          :stroke="colorMap['risk']"
-                          stroke-width="2px"
-
-                    ></line>
-                  </g>
-                </svg>
-                <span v-if="(typeof scope.row[attr + '-' + secondaryColumn]) === 'string'">{{scope.row[attr + '-' + secondaryColumn]}}</span>
-<!--                <span v-if="scope.row[attr + '-' + secondaryColumn] === undefined">In calculation</span>-->
-              </template>
-              <template #default="scope" v-if="attr === 'DP scheme'">
-                <span>{{scope.row[attr + '-' + secondaryColumn]}}</span>
-                <svg class="unLockBgc"
-                     v-if="this.AttrLockMap[scope.row['Attribute']] !== -1 && scope.$index !== this.AttrLockMap[scope.row['Attribute']]"
-                     :width="secondaryColumn === 'Sensitivity' ? 100 : 70" height="60">
-                  <rect x="0" y="0" width="100" height="60" fill="#efefef" fill-opacity="0.7"></rect>
-                </svg>
-              </template>
-            </el-table-column>
-
-          </el-table-column>
-
-          <el-table-column fixed="right" label="Operations" width="100" align="center">
-            <template #default="scope">
-              <el-button size="small" class="lockRow"
-                         @click="lockScheme(scope.row['Attribute'], scope.$index)"
-                         v-if="AttrLockMap[scope.row['Attribute']] !== scope.$index">
-                <img src="icon/unlock.png" style="width: 12px;"></el-button>
-              <el-button size="small" class="lockRow"
-                         @click="unlockScheme(scope.row['Attribute'])"
-                         v-else><img src="icon/lock.png" style="width: 12px;"></el-button>
-              <el-button size="small" class="closeRow" @click="deleteSchemeHistoryRow(scope.$index, scope.row)"><el-icon><Close /></el-icon></el-button>
-            </template>
-          </el-table-column>
-
-<!--          <el-table-column fixed="right" label=" " width="30" align="center">-->
-<!--            <template #default="scope">-->
-<!--            </template>-->
-<!--          </el-table-column>-->
-
-        </el-table>
-
-      </div>
     </div>
 
   </div>
@@ -764,9 +744,9 @@ export default {
         ExactVal: {'firstQuery': 0, 'secondQuery': 0},
 
         SchemeHistory: [],
-        SchemeHistoryColumn: ['DP scheme', 'Count', 'Sum'],
-        SchemeHistoryColumnWidth: [170,198,200],
-        SchemeHistorySecondaryColumn: {'DP scheme': ['\u03B5', 'Sensitivity'], 'Sum': ['Succ rate'], 'Count': ['Succ rate']},
+        SchemeHistoryColumn: ['All'],
+        SchemeHistoryColumnWidth: [170,120],
+        SchemeHistorySecondaryColumn: {'DP scheme': ['\u03B5', 'Sensitivity']},
         SchemeHistorySecondaryColumnWidth: [[70,100], [90,110], [90,110]],
         SchemeHistoryColumnSensitivity: {},
         SchemeHistoryEpsilon: {},
@@ -804,9 +784,48 @@ export default {
         IndividualIconPosList: [],
 
         deduceData: [0],
-        DescriptionNum: 3,
         availableSQL2: true,
-        curDifferIndices: []
+        curDifferIndices: [],
+
+        // high risk view variable
+        histogramFunc: {},
+        attrBtnStatus: {},
+        IncludeAttr: [],
+        ExcludeAttr: [],
+        rankColor: [
+          '#9b59b6',
+          '#fff200',
+          '#ff9f1a',
+          '#ff3838',
+          '#3ae374',
+          '#ffb8b8',
+          '#B33771',
+          '#0fb9b1',
+        ],
+        rankFontColor: {
+          // 白底字
+          '#9b59b6': '#eee',
+          '#B33771': '#eee',
+          // 黑底字
+          '#fff200': '#666',
+          '#ff9f1a': '#666',
+          '#ff3838': '#666',
+          '#3ae374': '#666',
+          '#ffb8b8': '#666',
+          '#0fb9b1': '#666',
+        },
+        plotZipStatus: [],
+        rawData: {},
+        attrGropeFilter: {},
+        attrSelects: {},
+        TopNum: 5,
+        AttrIncludeStatus: {},
+        AttrFilterMap: {},
+        VictimNameMap: {'All': [{}, {}]},
+        curVictimGroup: 'All',
+        newVictimGroupName: '',
+        isClickAddVictim: false,
+        riskRecordResolve: 0,
       }
     },
     computed: {
@@ -856,6 +875,7 @@ export default {
         }
         return res
       },
+
       PrivacyDeviationPercent() {
         let res;
         if(this.isPercentage1) {
@@ -891,7 +911,7 @@ export default {
         let index = this.attrList.findIndex(d => d.Name === this.QueryAttr);
         if(this.attrList[index].Type === 'numerical') {
           let scope = this.attrList[index]['Search Range'].split('~').map(d => parseFloat(d));
-          [this.IntervalLeft, this.IntervalRight] = [scope[0], scope[0] + this.attrList[index]['Minimum Granularity']];
+          [this.IntervalLeft, this.IntervalRight] = [scope[0], scope[0] + this.attrList[index]['Query Granularity']];
           return scope;
         }
         else {
@@ -901,6 +921,12 @@ export default {
       isFreshSimulationView({ QueryType, QueryAttr, IntervalLeft, IntervalRight, QueryCountCondition, SecondQueryCondition, epsilon, SensitivityCalculationWay, curAttrRisk}) {
         // combine Simulation View refresh (For Watching)
         return { QueryType, QueryAttr, IntervalLeft, IntervalRight, QueryCountCondition, SecondQueryCondition, epsilon, SensitivityCalculationWay, curAttrRisk};
+      },
+      isFreshHighRiskView({ QueryContent, SensitivityCalculationWay, epsilon, PrivacyDeviationPercent}) {
+        return { QueryContent, SensitivityCalculationWay, epsilon, PrivacyDeviationPercent }
+      },
+      isFreshSchemeHistory({ QueryContent, QueryType, TopNum}) {
+        return { QueryContent, QueryType, TopNum }
       },
       attrRisk() {
         return this.getAttrRisk(this.curIndices);
@@ -933,10 +959,536 @@ export default {
       }
     },
     methods: {
+      // high risk view function
+      getKeyMap(resolve) {
+        axios({
+          url: 'http://127.0.0.1:8000/HighRisk/getKeyMap/',
+          method: 'post',
+          data: {
+            'filename': this.curFile,
+            'attrList': this.attrList,
+            'indices': this.curIndices
+          }
+        }).then(response => {
+          this.keyMap = response.data.keyMap;
+          resolve();
+        })
+      },
+      GetHighRiskData(resolve, QueryContent, QueryType, SensitivityCalculationWay, epsilon, curVictimGroup) {
+        axios({
+          url: 'http://127.0.0.1:8000/HighRisk/HighRiskData/',
+          method: 'post',
+          data: {
+            'filename': this.curFile,
+            'attrList': this.attrList,
+            'QueryContent': QueryContent,
+            'QueryType': QueryType,
+            'sensitivityWay': SensitivityCalculationWay,
+            'TopNum': this.TopNum,
+            'epsilon': epsilon,
+            'deviationRatio': this.PrivacyDeviationPercent / 100,
+            'VictimFilter': this.VictimNameMap[curVictimGroup]
+          }
+        }).then(response => {
+          let data = response.data.data;
+          let Attacks = data.Attack;
+          resolve(Attacks);
+        })
+      },
+      highRiskViewInit(resolve = '') {
+        axios({
+          url: 'http://127.0.0.1:8000/HighRisk/HighRiskData/',
+          method: 'post',
+          data: {
+            'filename': this.curFile,
+            'attrList': this.attrList,
+            'QueryContent': this.QueryAttr,
+            'QueryType': this.QueryType,
+            'sensitivityWay': this.SensitivityCalculationWay,
+            'TopNum': this.TopNum,
+            'epsilon': this.epsilon,
+            'deviationRatio': this.PrivacyDeviationPercent / 100,
+            'VictimFilter': this.VictimNameMap[this.curVictimGroup]
+          }
+        }).then(response => {
+          let data = response.data.data;
+          console.log(data)
+          this.rawData = data;
+          let attrs = data.attrs;
+          let attrNum = attrs.length;
+          if(this.riskRecord.length === 0) {
+            this.riskRecord = data.riskRecord;
+          }
+          if(this.riskRecordResolve !== 0) {
+            this.riskRecordResolve();
+          }
+          let Attacks = data.Attack;
+          let svgL = d3.select('#attrRankPlot');
+          let svgR = d3.select('#highRiskPlot');
+          let svgLWidth = parseInt(svgL.style('width').split('px')[0]);
+          let svgHeight = parseInt(svgL.style('height').split('px')[0]);
+          let svgRWidth = parseInt(svgR.style('width').split('px')[0]);
+          let padding = 20;
+          for(let i = 0;i<attrNum;i++) {
+            this.attrRiskMap[i] = 1;
+          }
+          // svgL.selectAll('*').remove();
+          // svgR.selectAll('*').remove();
+          svgL.append("marker")
+              .attr("id", "arrow")
+              .attr("markerUnits","strokeWidth")
+              .attr("viewBox", "0 0 12 12") //Region of coordinate system
+              .attr("refX", 6) // Arrow coordinate
+              .attr("refY", 6)
+              .attr("markerWidth", 12)
+              .attr("markerHeight", 12)
+              .attr("orient", "auto")
+              .append("path")
+              .attr("d", "M2,2 L10,6 L2,10 L6,6 L2,2")
+              .attr('fill', this.colorMap["normal-grey"]);
+          svgR.append("marker")
+              .attr("id", "arrow")
+              .attr("markerUnits","strokeWidth")
+              .attr("viewBox", "0 0 12 12") //Region of coordinate system
+              .attr("refX", 6) // Arrow coordinate
+              .attr("refY", 6)
+              .attr("markerWidth", 12)
+              .attr("markerHeight", 12)
+              .attr("orient", "auto")
+              .append("path")
+              .attr("d", "M2,2 L10,6 L2,10 L6,6 L2,2")
+              .attr('fill', this.colorMap["normal-grey"]);
+
+
+          let xLScale = d3.scaleLinear([0, d3.max(Object.values(Attacks), dl => d3.max(dl, d=>d[6]+0.05))], [0, svgLWidth-2*padding]);
+          let xRScale = d3.scaleLinear([0, d3.max(Object.values(Attacks), dl => d3.max(dl, d=>d[6]+0.05))], [padding, svgRWidth-padding]);
+          let yScale = d3.scaleLinear([0.5, attrNum+0.5], [svgHeight - 2* padding, 10])
+
+          let histogram = this.histogramFunc = d3.histogram()
+              .domain(xRScale.domain())
+              .thresholds(xRScale.ticks(20))
+              .value(d => d)
+          for(let attr of attrs) {
+           this.attrBtnStatus[attr] = '-';
+          }
+          let zipData = this.dataProcessing(data, histogram);
+          let violinData = zipData[2];
+          let maxNum = 0
+          for (let i in violinData){
+            let allBins = violinData[i][1]
+            let lengths = allBins.map(function(a){return a.length;})
+            let longuest = d3.max(lengths)
+            if (longuest > maxNum) { maxNum = longuest }
+          }
+          this.drawPlot(zipData, xLScale, xRScale, yScale, attrs, maxNum)
+          this.clickHighRiskPoint('', zipData[4][2])
+          if(resolve !== '') {
+            resolve()
+          }
+        })
+      },
+      dataProcessing(data) {
+        let that = this;
+        let attrs = data.attrs;
+        let attrNum = attrs.length;
+        let Attacks = JSON.parse(JSON.stringify(data.Attack));
+
+
+        if(Object.keys(this.VictimNameMap['All'][0]).length === 0) {
+          this.VictimNameMap['All'] = [JSON.parse(JSON.stringify(this.attrGropeFilter)), JSON.parse(JSON.stringify(this.AttrFilterMap))];
+        }
+        // else {
+        //   this.VictimNameMap['..now..'] = [this.attrGropeFilter, this.AttrFilterMap];
+        // }
+        console.log(this.VictimNameMap)
+
+        let TopLineData = {}
+        let attrPercentData = [];
+        let attrSumData = [];
+        // 初始化计数变量
+        for(let i=1;i<=attrNum;i++) {
+          TopLineData[i] = 0;
+          attrPercentData[i-1] = []
+          attrSumData[i-1] = 0
+          for(let j in attrs) {
+            attrPercentData[i-1].push(0);
+          }
+
+        }
+        let violinRawData = [];
+
+        for(let i=1;i<=attrNum;i++) {
+          if(!Attacks[i]) continue
+          for (let as of Attacks[i]) {
+            for (let attr of as[1]) {
+              attrPercentData[i - 1][attrs.indexOf(attr)] += 1;
+              attrSumData[i - 1] += 1
+            }
+            violinRawData.push({
+              'key': i,
+              'value': as[6]
+            })
+          }
+        }
+        for(let [i, aps] of Object.entries(attrPercentData)) {
+          for(let j in aps) {
+            if(attrSumData[i]) {
+              aps[j] /= attrSumData[i];
+            }
+          }
+        }
+        let attrRankData = attrPercentData;
+        let highRiskPoint = [];
+        let visited = []
+        for(let an=1;an<=attrNum;an++) {
+          if(!Attacks[an]) highRiskPoint.push(-1)
+          else if(Attacks[an].length === 0) {
+            highRiskPoint.push(-1)
+          }else if(highRiskPoint.length === 0) {
+            highRiskPoint.push(Attacks[an][0]);
+            visited.push(Attacks[an][0]);
+          }
+          else {
+            for(let at of Attacks[an]) {
+              let isSame = false;
+              for(let v of visited) {
+                if(v[0] === at[0] && at[6] <= v[6]) {
+                  let [vas, atas] = [v[1], at[1]];
+                  let includeA = true;
+                  for(let va of vas) {
+                    if(!atas.includes(va)) {
+                      includeA = false;
+                      break;
+                    }
+                  }
+                  if(includeA) {
+                    isSame = true;
+                  }
+                }
+              }
+              if(!isSame) {
+                highRiskPoint.push(at)
+                break;
+              }
+            }
+          }
+        }
+        let BottomData = [];
+        for(let i=0;i<attrNum;i++) {
+          BottomData.push(0);
+        }
+        let violinData = Array.from(d3.group(violinRawData, d => d.key));
+        let curMaxRisk = 0
+        for(let v of violinData) {
+          TopLineData[parseInt(v[0])] = Math.max(curMaxRisk, d3.max(v[1], d => d.value))
+          curMaxRisk = Math.max(TopLineData[parseInt(v[0])], curMaxRisk)
+        }
+        for(let v of violinData) {
+          BottomData[parseInt(v[0])] = d3.min(v[1], d => d.value)
+        }
+        TopLineData = Object.values(TopLineData);
+        violinData.forEach(d => {
+          let values = d[1]
+          let input = values.map(function(g) { return g.value;})    // Keep the variable called Sepal_Length
+          d[1] = that.histogramFunc(input)
+        })
+        console.log(violinData);
+
+        return [TopLineData, BottomData, violinData, attrRankData, highRiskPoint];
+      },
+      drawPlot(zipData, xLScale, xRScale, yScale, attrs, maxNum) {
+        this.plotZipStatus = [xLScale, xRScale, yScale, attrs, maxNum];
+        let that = this;
+        let svgL = d3.select('#attrRankPlot');
+        let svgR = d3.select('#highRiskPlot');
+        let [TopLineData, BottomData, violinData, attrRankData, highRiskPoint] = zipData;
+        let svgLWidth = parseInt(svgL.style('width').split('px')[0]);
+        let svgLHeight = parseInt(svgL.style('height').split('px')[0]);
+        let svgRWidth = parseInt(svgR.style('width').split('px')[0]);
+        let svgRHeight = parseInt(svgR.style('height').split('px')[0]);
+        let padding = 20;
+        let attrNum = attrs.length;
+        let xBandWidth = (svgRWidth - 2*padding) / attrNum
+
+
+        let yNum = d3.scaleLinear()
+            .range([-xBandWidth/2, xBandWidth/2])
+            .domain([-maxNum,maxNum])
+
+        let line=d3.line()
+            .x((d, i) => xRScale(d))
+            .y((d, i) => yScale(i+1));
+
+        let xAxis = d3.axisBottom().scale(xRScale).ticks(5);
+        let yAxis = d3.axisLeft().scale(yScale).ticks(8);
+
+        svgR.select('.rightPanel').remove();
+        let rightPanel = svgR.append('g').attr('class', 'rightPanel');
+
+        rightPanel.append('g')
+            .attr('class', 'Xaxis')
+            .attr('transform', `translate(0, ${svgRHeight-2*padding})`)
+            .call(xAxis);
+        rightPanel.append('g')
+            .attr('class', 'Yaxis')
+            .attr('transform', `translate(${padding}, 0)`)
+            .call(yAxis);
+        rightPanel.select('.Xaxis')
+            .select('path')
+            .attr('d', (d) => {
+              let pathD = rightPanel.select(`.Xaxis path`).attr('d');
+              pathD = pathD.replace('V6', '')
+              return pathD;
+            })
+            .attr('stroke', this.colorMap["deep-grey"])
+            .attr("marker-end","url(#arrow)");
+        rightPanel.select('.Yaxis')
+            .select('path')
+            .attr('d', (d) => {
+              let pathD = rightPanel.select(`.Yaxis path`).attr('d');
+              pathD = pathD.replace('H-6', '')
+              return pathD;
+            })
+            .attr('stroke', this.colorMap["deep-grey"])
+            .attr("marker-end","url(#arrow)");
+        console.log(line(TopLineData))
+
+        rightPanel.append('path')
+            .attr('d', line(TopLineData))
+            .attr('stroke', '#555')
+            .attr('stroke-width', 2)
+            .attr('fill', 'none');
+        rightPanel.selectAll("myViolin")
+            .data(violinData)
+            .enter()        // So now we are working group per group
+            .append("g")
+            .attr("transform", d => `translate(${0}, ${yScale(d[0])})`) // Translation on the right to be at the group position
+            .append("path")
+            .datum(function(d){ return(d[1])})     // So now we are working bin per bin
+            .style("stroke", "none")
+            .style("fill","#aaa")
+            .attr("d", d3.area()
+                .y0(d => { return(yNum(-d.length)) } )
+                .y1(d => { return(yNum(d.length)) } )
+                .x((d, i, a) => {
+                  let idx = violinData.find(d => d[1] === a)[0]-1;
+                  if(d.x1 >= TopLineData[idx]) {
+                    return xRScale(TopLineData[idx])
+                  }
+                  else if (d.x0 <= BottomData[idx]){
+                    return xRScale(BottomData[idx])
+                  }
+                  return(xRScale(d.x0))
+                })
+                .curve(d3.curveCatmullRom)    // This makes the line smoother to give the violin appearance. Try d3.curveStep to see the difference
+            )
+
+        // 绘制 Rpanel 虚线
+        let rightPanelAlignLineG = rightPanel.append('g').attr('class', 'AlignLine');
+        let AlignData = [];
+        for(let i = 1 ;i<=attrNum; i++) {
+          AlignData.push(i);
+        }
+        let AlignLine =d3.line()
+            .x((d, i) => xRScale(d))
+            .y((d, i) => 0);
+        rightPanelAlignLineG.selectAll('.AlignLine')
+                            .data(AlignData)
+                            .join('path')
+                            .attr('transform', d => `translate(0, ${yScale(d)})`)
+                            .attr('d', (d, i) => AlignLine([0, BottomData[i]]))
+                            .attr('stroke', this.colorMap["deep-grey"])
+                            .attr('stroke-dasharray', '5 2');
+
+
+        // 绘制属性排名图
+        let rankColor = this.rankColor;
+        let RankLineXScale = d3.scaleLinear([0, 1.1], [10, svgLWidth-2*padding]);
+        let RankLine =d3.line()
+            .x((d, i) => RankLineXScale(d) + 20)
+            .y((d, i) => yScale(i+1));
+        let AttrRankXAxis = d3.axisBottom().scale(RankLineXScale).ticks(5);
+        // 绘制 LPanel 虚线
+        svgL.select('.leftPanel').remove()
+        let leftPanel = svgL.append('g').attr('class', 'leftPanel');
+        AlignLine.x((d, i) => d === 0 ? RankLineXScale(d) : RankLineXScale(d) + 40)
+        leftPanel.selectAll('.AlignLine')
+            .data(AlignData)
+            .join('path')
+            .attr('transform', d => `translate(0, ${yScale(d)})`)
+            .attr('d', d => AlignLine(RankLineXScale.domain()))
+            .attr('stroke', this.colorMap["deep-grey"])
+            .attr('stroke-dasharray', '5 2');
+
+
+        // let AttrRankG = leftPanel.append('g').attr('transform', `translate(${padding}, ${0})`);
+        let stack = d3.stack()
+            .keys(d3.range(attrNum)) // 数据系列的索引
+            .order(d3.stackOrderNone) // 堆叠的顺序
+            .offset(d3.stackOffsetNone); // 堆叠的偏移方式
+
+        let stackedData = stack(attrRankData);
+        // 创建区域生成器
+        let area = d3.area()
+            .y((d, i) => { return yScale(i+1) })
+            .x0((d) => { return RankLineXScale(d[0]); })
+            .x1((d) => { return RankLineXScale(d[1]); });
+
+        // 绘制堆叠面积图
+        leftPanel.selectAll(".stackPath")
+            .data(stackedData)
+            .enter()
+            .append("path")
+            .attr('class', 'stackPath')
+            .attr("d", area)
+            .style("fill", (d, i) => rankColor[i]);
+
+
+
+
+
+        // 绘制最高风险点
+        let pie = d3.pie();
+        let highRiskPoints = rightPanel.append('g').attr('transform', `translate(${0}, ${0})`).attr('class', 'hrps');
+        let arc = d3.arc()
+            .innerRadius(0)
+            .outerRadius(8)
+        highRiskPoints.selectAll('.hrp')
+            .data(highRiskPoint)
+            .join('g')
+            .attr('class', 'hrp')
+            .attr('transform', (d, i) => {
+              if(d === -1) {
+                return `translate(${0}, ${0})`
+              }
+              else{
+                if(d === -1) {
+                  return `translate(${0}, ${yScale(i + 1)})`
+                } else {
+                  return `translate(${xRScale(d[6])}, ${yScale(i + 1)})`
+                }
+              }
+            })
+            .on('click', function(e, d) {
+              that.clickHighRiskPoint(e, d);
+            })
+            .filter(d => d !== -1)
+            .selectAll('path')
+            .data(d => {
+              let rawData = [];
+              for(let i=0;i<d[1].length;i++) {
+                rawData.push(1)
+              }
+              let pieData = pie(rawData);
+              pieData = pieData.map((pd, i) => [d[1][i], pd]);
+              return pieData;
+            })
+            .join('path')
+            .attr('d', d => arc(d[1]))
+            .attr('class', 'piePath')
+            .attr('fill', d => rankColor[attrs.indexOf(d[0])])
+      },
+      clickHighRiskPoint(e, d) {
+        let AttrNames = this.attrList.map(d => d.Name);
+        this.curIndices = d[1].map(an => AttrNames.indexOf(an));
+        new Promise(resolve => {
+          this.getKeyMap(resolve)
+        }).then(() => {
+          this.clickQueryNode(d);
+          this.initializeAttackSimulationViews(d);
+        })
+      },
+      clickAddBtn() {
+        this.isClickAddVictim = true;
+      },
+      // 仅针对 类别型数据
+      attrGropeFilterChange(attr, select) {
+        if(!this.attrGropeFilter[attr].includes(select)) {
+          this.attrGropeFilter[attr].push(select);
+        }
+        else {
+          let removeIdx = this.attrGropeFilter[attr].indexOf(select);
+          this.attrGropeFilter[attr].splice(removeIdx, 1);
+        }
+        let zipData = this.dataProcessing(this.rawData);
+        this.drawPlot(zipData, ...this.plotZipStatus);
+      },
+      changeTopNum() {
+        this.highRiskViewInit();
+      },
+      changeRatio(attr, val) {
+        console.log(attr, val, this.AttrFilterMap);
+        if(this.AttrFilterMap[attr] === val) {
+          this.AttrFilterMap[attr] = 'none';
+        }
+        else {
+          this.AttrFilterMap[attr] = val
+        }
+      },
+      RecordVictimGroup() {
+        this.VictimNameMap[this.newVictimGroupName] = [JSON.parse(JSON.stringify(this.attrGropeFilter)), JSON.parse(JSON.stringify(this.AttrFilterMap))];
+        // 更新 Scheme History
+        this.SchemeHistoryColumn.push(this.newVictimGroupName);
+        this.curVictimGroup = this.newVictimGroupName;
+        this.newVictimGroupName = '';
+        this.isClickAddVictim = false;
+        new Promise(resolve => {
+          this.highRiskViewInit(resolve)
+        }).then(() => {
+          let Schemes = this.SchemeHistory.map(d => d['DP scheme']);
+          for(let i in Schemes) {
+            let Scheme = Schemes[i].split(' ')
+            new Promise(resolve => {
+              if(this.SensitivityCalculationWay !== Scheme[1]) {
+                this.GetHighRiskData(resolve, this.QueryAttr, this.QueryType, Scheme[1], parseFloat(Scheme[0]), this.curVictimGroup);
+              }
+              else {
+                resolve(this.rawData['Attack'])
+              }
+            }).then(Attack => {
+              axios({
+                url: 'http://127.0.0.1:8000/RiskTree/initializeSchemeHistory/',
+                method: 'post',
+                data: {
+                  'filename': this.curFile,
+                  'deviationRatio': this.PrivacyDeviationPercent / 100,
+                  'attrList': this.attrList,
+                  'epsilon': parseFloat(Scheme[0]),
+                  // 'sensitivity': Scheme[1],
+                  'attrOption': this.attrList.map(d => d['Name']),
+                  'curAttr': this.QueryAttr,
+                  'Attack': Attack,
+                  // 'VictimFilter': this.VictimNameMap['All']
+                }
+              }).then(response => {
+                let index = parseInt(i);
+                let data = response.data.data;
+                let avgRiskP1, attackRiskP1;
+                if (data['sum'] === '-') {
+                  avgRiskP1 = '-';
+                  attackRiskP1 = '-';
+                } else {
+                  avgRiskP1 = data['sum']['avgRiskList'];
+                  attackRiskP1 = data['sum']['attackRiskList'];
+                }
+                let attackRiskP2 = data['count'][1];
+                let attackRiskListP2 = data['count'][2];
+                let avgRiskP2 = data['count'][0];
+                this.SchemeHistory[index][this.curVictimGroup] = attackRiskP1;
+              })
+            })
+
+          }
+
+        })
+
+
+      },
+
       // Attribute Set Tree function
       initializeTree([data, curFile, attrList, DescriptionNum]) {
         this.DescriptionNum = DescriptionNum;
-        this.riskRecord = data.riskRecord;
+        // this.riskRecord = data.riskRecord;
         console.log(this.riskRecord)
         this.BSTMap = data.BSTMap;
         this.BSTKeyMap = data.BSTKeyMap;
@@ -946,11 +1498,11 @@ export default {
         this.treeData = data.treeData;
         this.curFile = curFile;
         this.attrList = attrList;
-        this.QueryAttrOption = attrList.map((d) => d.Name);
-        this.TopAttrOption = attrList.map((d) => d.Name);
+        this.QueryAttrOption = attrList.filter(d => d['Sensitive attribute']).map((d) => d.Name);
+        // this.TopAttrOption = attrList.map((d) => d.Name);
         this.QueryAttrOptionType = attrList.map((d) => d.Type)
         this.QueryAttr = this.QueryAttrOption[0];
-        this.TopAttr = this.QueryAttrOption[0];
+        // this.TopAttr = this.QueryAttrOption[0];
         for(let i in this.QueryAttrOption) {
           i = parseInt(i)
           let attr = this.QueryAttrOption[i];
@@ -960,40 +1512,25 @@ export default {
         }
         for(let attrParams of this.attrList) {
           if(attrParams['Type'] === 'numerical') {
-            this.MinMap[attrParams['Name']] = parseFloat(attrParams['Range'].split('~')[0])
-            this.MaxMap[attrParams['Name']] = parseFloat(attrParams['Range'].split('~')[1])
+            let [min, max] = [parseFloat(attrParams['Range'].split('~')[0]), parseFloat(attrParams['Range'].split('~')[1])]
+            this.MinMap[attrParams['Name']] = min;
+            this.MaxMap[attrParams['Name']] = max;
+            this.attrGropeFilter[attrParams['Name']] = [min, max];
+
           }
+          else {
+            this.attrGropeFilter[attrParams['Name']] = attrParams['Range'];
+            this.attrSelects[attrParams['Name']] = attrParams['Range'];
+          }
+          this.AttrFilterMap[attrParams['Name']] = '';
+
+
         }
 
-        d3.selectAll('#AttributeSetTree > *').remove();
         let margin = { top: 10, bottom: 10, left: 30, right: 10 };
-        let svg = d3.select("#AttributeSetTree");
-        let width=svg.style('width').split('px')[0];
-        let height=svg.style('height').split('px')[0];
 
-        let container = svg
-            .append("g")
-            .attr("class", 'container')
-            .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
-        let TreeLinkG = container.append("g").attr("class", 'TreeLinkG')
-        let gs = container.append("g").attr("class", 'TreeNodeG')
-        let hierarchyData = d3.hierarchy(data.treeData).sum(function(d) {
-          return d.val;
-        });
-        this.treeFunc = d3
-            .tree()
-            .size([height- 50, width - 50])
-            .separation(function(a, b) {
-              return (a.depth === b.depth ? 1 : 2);
-            });
-
-        let treeData = this.treeFunc(hierarchyData);
-        let nodes = treeData.descendants();
-        let links = treeData.links();
-        [nodes, links] = this.PruningAndLayout(nodes, links, width, height, this.DescriptionNum)
-        this.MakeTree(svg, nodes, links);
-
-        this.initializeGeneralQuerySimulationView();
+        this.highRiskViewInit();
+        // this.initializeGeneralQuerySimulationView();
       },
       MakeTree(svg, nodes, links) {
         this.curAS_nodes = nodes;
@@ -1029,7 +1566,7 @@ export default {
             .attr("d", function(d) {
               let start = { x: d.source.x + outerRadius / 2, y: d.source.y };
               let end;
-              if(d.target.depth === that.DescriptionNum) {
+              if(d.target.depth === that.attrList.length) {
                 end = { x: d.target.x - outerRadius / 3, y: d.target.y };
               }
               else {
@@ -1141,7 +1678,7 @@ export default {
         Pie.append('circle')
             .attr('class', 'eventCircle')
             .attr('id', d => 'eventCircle' + d.data.name)
-            .attr('r', d => d.depth === this.DescriptionNum ? innerRadius : outerRadius)
+            .attr('r', d => d.depth === this.this.attrList.length ? innerRadius : outerRadius)
             .attr('cx', -outerRadius / 2)
             .attr('cy', 0)
             .attr('fill', 'rgba(255,255,255,0)');
@@ -1259,7 +1796,7 @@ export default {
         return [nodes, links]
       },
       ClickNode(svg, d, resolve=undefined) {
-        if(d.depth !== this.DescriptionNum) {
+        if(d.depth !== this.attrList.length) {
           if (d.data.children.length === 0) {
             this.curAttributeSetClickNodes.push(d)
             // generate node
@@ -1271,7 +1808,7 @@ export default {
                 'attrList': this.attrList,
                 'indices': d.data.indices,
                 'RiskRatioMap': this.RiskRatioMap,
-                'DescriptionNum': this.DescriptionNum
+                'DescriptionNum': this.attrList.length
               }
             }).then((response) => {
               d.data.children = response.data.treeData.children;
@@ -1285,7 +1822,7 @@ export default {
               let height = parseFloat(svg.style('height').split('px')[0]);
               let Nodes = newTreeData.descendants();
               let Links = newTreeData.links();
-              [Nodes, Links] = this.PruningAndLayout(Nodes, Links, width, height, this.DescriptionNum)
+              [Nodes, Links] = this.PruningAndLayout(Nodes, Links, width, height, this.attrList.length)
               this.MakeTree(svg, Nodes, Links);
               if(resolve) {
                 resolve(Nodes);
@@ -1303,7 +1840,7 @@ export default {
             let height = parseFloat(svg.style('height').split('px')[0]);
             let Nodes = newTreeData.descendants();
             let Links = newTreeData.links();
-            [Nodes, Links] = this.PruningAndLayout(Nodes, Links, width, height, this.DescriptionNum)
+            [Nodes, Links] = this.PruningAndLayout(Nodes, Links, width, height, this.attrList.length)
             this.MakeTree(svg, Nodes, Links);
           }
         }
@@ -1315,6 +1852,63 @@ export default {
         let len = this.curAttributeSetClickNodes.length;
         for(let i = len-1; i>=0; i--) {
           this.ClickNode(svg, this.curAttributeSetClickNodes[i]);
+        }
+      },
+      freshSchemeHistory() {
+        let schemeLen = this.SchemeHistory.length;
+        let Schemes = this.SchemeHistory.map(d => d['DP scheme']);
+        for(let i=0;i < schemeLen;i++) {
+          let Scheme = Schemes[i].split(' ')
+          for(let column of this.SchemeHistoryColumn) {
+            if(column === 'DP scheme') {
+              continue
+            }
+            else {
+              new Promise((resolve) => {
+                this.GetHighRiskData(resolve, this.QueryAttr, this.QueryType, Scheme[1], parseFloat(Scheme[0]), column);
+              }).then(Attack => {
+                axios({
+                  url: 'http://127.0.0.1:8000/RiskTree/initializeSchemeHistory/',
+                  method: 'post',
+                  data: {
+                    'filename': this.curFile,
+                    'deviationRatio': this.PrivacyDeviationPercent / 100,
+                    'attrList': this.attrList,
+                    'epsilon': parseFloat(Scheme[0]),
+                    // 'BSTMap': this.BSTMap,
+                    'sensitivity': Scheme[1],
+                    'attrOption': this.attrList.map(d => d['Name']),
+                    'curAttr': this.QueryAttr,
+                    'Attack': Attack,
+                    // 'VictimFilter': this.VictimNameMap['All']
+                  }
+                }).then(response => {
+                  let index = parseInt(i);
+                  let data = response.data.data;
+                  let avgRiskP1, attackRiskP1;
+                  if (data['sum'] === '-') {
+                    avgRiskP1 = '-';
+                    attackRiskP1 = '-';
+                  } else {
+                    avgRiskP1 = data['sum']['avgRiskList'];
+                    attackRiskP1 = data['sum']['attackRiskList'];
+                  }
+                  let attackRiskP2 = data['count'][1];
+                  let attackRiskListP2 = data['count'][2];
+                  let avgRiskP2 = data['count'][0];
+                  if (this.QueryType === 'sum') {
+                    this.SchemeHistory[index][column] = attackRiskP1;
+                  }
+                  else {
+                    this.SchemeHistory[index][column] = [attackRiskP2, attackRiskListP2];
+                  }
+
+                })
+              })
+
+              // this.SchemeHistory[i][column]
+            }
+          }
         }
       },
       async clickTargetRecord(index, condition) {
@@ -1793,21 +2387,23 @@ export default {
 
       // Parallel coordinate graph method
       clickQueryNode(d) {
+        d = JSON.parse(JSON.stringify(d));
         this.isMinSQL = false;
-        // highlight the query node
-        d3.selectAll('.strokeRectNode').attr('stroke-width', 0);
-        d3.selectAll('.strokeRectNode').filter(node => {
-          return node.finalKey === d.finalKey;
-        }).attr('stroke-width', '10px');
+        let AttrNames = this.attrList.map(d => d.Name);
+
 
         // highlight the parallel coordinate attribute name
         d3.selectAll('.DDHighlightRect')
             .style('opacity', 0);
+        let attrNames = this.attrList.map(d => d['Name'])
         for(let index of this.curIndices) {
-          d3.select(`#DDHighlightRect-${this.QueryAttrOption[index]}`)
+          d3.select(`#DDHighlightRect-${attrNames[index]}`)
               .style('opacity', 1);
         }
+
         this.curDifferIndices = this.curIndices;
+        this.curAttr = this.curIndices.map(idx => AttrNames[idx]);
+
         // modify curAttrRisk
         let minP = 1;
         let bitmap = this.curIndices.reduce((prev, cur) => {
@@ -1824,18 +2420,21 @@ export default {
         this.curAttrRisk = minP;
 
 
-        this.curDifferIndex = d.data.index[0];
+        this.curDifferIndex = d[1].indexOf(d[2]);
         this.curQueryNodeD = d;
+        let differAttrName = this.curAttr[this.curDifferIndex]
+
 
         // (recordIndex) collection in second query condition
-        this.curIndex = d.parent.data.index;
+
+        this.curIndex = d[4];
         console.log(this.curIndex)
-        let temp = [this.TableData[d.data.index[0]]];
+        let temp = [this.TableData[d[0]]];
         let dataNum = Math.min(this.curIndex.length, 1000);
         this.availableSQL2 = dataNum > 2;
         for(let i = 0;i<dataNum;i++) {
           let index = this.curIndex[i];
-          if(index !== d.data.index[0]) {
+          if(index !== d[0]) {
             temp.push(this.TableData[index]);
           }
         }
@@ -1875,7 +2474,7 @@ export default {
         // for(let i of this.curIndex) {
         //   this.LineData[i]['highlight'] = this.colorMap["blue-normal"];
         // }
-        this.LineData[d.data.index[0]]['show'] = true;
+        this.LineData[d[0]]['show'] = true;
         d3.selectAll('.blueLineContainer > *').remove();
         svg.select('.blueLineContainer')
             .selectAll('.blueLineG')
@@ -1903,20 +2502,29 @@ export default {
         //     .attr('stroke-width', d => d.highlight === this.colorMap["blue-normal"] ? 1 : 2);
 
         let keyList, valueList = [];
-        keyList = d.finalKey.split('parent-')[1].split('-');
-        keyList.pop();
+        keyList = d[5];
+        // keyList.splice(this.curDifferIndex, 1)
+        let normalIndices = [];
+        for(let i in this.curIndices) {
+          normalIndices.push(parseInt(i));
+        }
+        normalIndices.splice(this.curDifferIndex, 1)
 
+        let differObj = this.keyMap[this.curDifferIndex]
         let FirstQueryText = 'WHERE ';
         // condition emptying
         this.FirstQueryCondition = {};
         this.SecondQueryCondition = {};
         for(let [i, key] of Object.entries(keyList)) {
+          if(parseInt(i) === this.curDifferIndex) {
+            continue
+          }
           key = parseInt(key);
           let obj = this.keyMap[i];
           let text = obj.text[obj.data.indexOf(key)]
           if (obj.type === 'numerical') {
             let splitEdge = text.split('~');
-            splitEdge = splitEdge.map(d => parseInt(d))
+            splitEdge = splitEdge.map(d => parseFloat(d))
             valueList.push(splitEdge);
 
             FirstQueryText += `<span class="blueFont">${this.curAttr[i]} BETWEEN ${splitEdge[0]} AND ${splitEdge[1]}</span>`
@@ -1924,42 +2532,44 @@ export default {
             this.FirstQueryCondition[this.curAttr[i]].push(splitEdge);
           } else {
             valueList.push(text)
-            FirstQueryText += `${this.curAttr[i]} = ${text}`;
+            FirstQueryText += `<span class="blueFont">${this.curAttr[i]} = ${text}</span>`;
             this.FirstQueryCondition[this.curAttr[i]] ? '' : this.FirstQueryCondition[this.curAttr[i]] = [];
             this.FirstQueryCondition[this.curAttr[i]].push(text);
           }
-          if(parseInt(i) !== keyList.length - 1) {
-            FirstQueryText += '<br/>AND '
-          }
+
+          FirstQueryText += '<br/>AND ';
         }
+        FirstQueryText = FirstQueryText.slice(0, -5);
         // set Corresponding SQL Commands
         if(keyList.length === 0) {
           FirstQueryText = 'WHERE 1=1'
         }
-        d3.select("#FirstQueryText")
-          .html(FirstQueryText)
+
+        console.log(FirstQueryText)
 
 
         let finalKeyList = new Set();
-        let RiskIndex = d.data.index[0];
-        let finalRiskKey = d.data.key;
-        let finalAttr = this.curIndices[d.data.dim]//this.curIndices[this.curIndices.length - 1];
-        let finalAttrName = this.curAttr[d.data.dim]//this.curAttr[this.curAttr.length - 1]
+        let RiskIndex = d[0];
+        let finalRiskKey = parseInt(d[5][this.curDifferIndex]);
+        let finalAttr = AttrNames.indexOf(d[2])//this.curIndices[this.curIndices.length - 1];
+        let finalAttrName = d[2]//this.curAttr[this.curAttr.length - 1]
         let largerFinalKeyScope = [0, -1], smallerFinalKeyScope = [0, -1];
         let upperScope = [0, 0], lowerScope = [0, 0];
-        let obj = this.keyMap[d.data.dim];
+        let obj = differObj;
         for(let index of this.curIndex) {
           finalKeyList.add(this.TableKeyData[index][finalAttr])
         }
 
 
 
-        let SecondQueryText = FirstQueryText;
+        let SecondQueryText = JSON.parse(JSON.stringify(FirstQueryText));
         this.SecondQueryCondition = JSON.parse(JSON.stringify(this.FirstQueryCondition));
         // Delete the key of a node at risk
+        finalKeyList.add(this.TableKeyData[RiskIndex][finalAttr]);
+        let firstFinalKeyList = Array.from(finalKeyList)
         finalKeyList.delete(this.TableKeyData[RiskIndex][finalAttr]);
         finalKeyList = Array.from(finalKeyList)
-
+        // 第二次查询更正
         let flag = false;
         let largerCategoricalFlag = true;
         let largerFinalKeyList = finalKeyList.filter(d => d > finalRiskKey);
@@ -2002,7 +2612,7 @@ export default {
             lowerScope = [text1.split('~')[0], text2.split('~')[1]];
             if(lowerScope[0] !== lowerScope[1]) {
               if(flag) {
-                SecondQueryText += `<br/><span class="redFont">OR ${finalAttrName} BETWEEN ${lowerScope[0]} AND ${lowerScope[1]})</span>`
+                SecondQueryText += `<br/>AND <span class="redFont">OR ${finalAttrName} BETWEEN ${lowerScope[0]} AND ${lowerScope[1]})</span>`
               }
               else {
                 SecondQueryText += `<br/>AND <span class="redFont">${finalAttrName} BETWEEN ${lowerScope[0]} AND ${lowerScope[1]}</span>`
@@ -2035,21 +2645,103 @@ export default {
             SecondQueryText += '<span class="redFont">)</span>';
           }
         }
-
         let offset = 0;
 
-        d3.select("#SecondQueryText")
-            .html(SecondQueryText)
 
-        let finalMaskData = [upperScope, lowerScope];
-        if(upperScope[0] === 0 && upperScope[1] === 0) {
-          finalMaskData = [lowerScope]
+
+        let us = JSON.parse(JSON.stringify(upperScope));
+        let ls = JSON.parse(JSON.stringify(lowerScope))
+
+        let finalMaskData = [us, ls];
+        if(us[0] === 0 && us[1] === 0) {
+          finalMaskData = [ls]
         }
-        if(lowerScope[0] === 0 && lowerScope[1] === 0) {
-          finalMaskData = [upperScope]
+        if(ls[0] === 0 && ls[1] === 0) {
+          finalMaskData = [us]
         }
+        // 第一次查询更正
+        flag = false;
+        largerCategoricalFlag = true;
+        largerFinalKeyList = firstFinalKeyList.filter(d => d >= finalRiskKey);
+        if(largerFinalKeyList.length !== 0 && largerFinalKeyList.length !== 1) {
+          largerFinalKeyScope = [Math.min(...largerFinalKeyList), Math.max(...largerFinalKeyList)];
+          let text1 = obj.text[obj.data.indexOf(largerFinalKeyScope[0])]
+          let text2 = obj.text[obj.data.indexOf(largerFinalKeyScope[1])]
+          if (obj.type === 'numerical') {
+            upperScope = [text1.split('~')[0], text2.split('~')[1]]
+            if(upperScope[0] !== upperScope[1]) {
+              flag = true; // determine whether "or" is necessary for lower part
+              FirstQueryText += `<br/>AND <span class="redFont">(${finalAttrName} BETWEEN ${upperScope[0]} AND ${upperScope[1]}</span>`
+              this.FirstQueryCondition[finalAttrName] ? '' : this.FirstQueryCondition[finalAttrName] = [];
+              this.FirstQueryCondition[finalAttrName].push(upperScope);
+            }
+          }
+          else {
+            upperScope = [text2, largerFinalKeyScope[1] - largerFinalKeyScope[0] + 1]
+
+            let SQL_in_list = []
+            for(let key of firstFinalKeyList) {
+              SQL_in_list.push(`${obj.text[obj.data.indexOf(key)]}`)
+            }
+            FirstQueryText += `<br/>AND <span class="redFont">${finalAttrName} IN (${SQL_in_list.map(d => `'${d}'`).join(', ')})</span>`;
+            this.FirstQueryCondition[finalAttrName] ? '' : this.FirstQueryCondition[finalAttrName] = [];
+            this.FirstQueryCondition[finalAttrName].push(...SQL_in_list);
+          }
+        }
+        else {
+          if (obj.type !== 'numerical') {
+            largerCategoricalFlag = false
+          }
+        }
+        smallerFinalKeyList = firstFinalKeyList.filter(d => d <= finalRiskKey);
+        if(smallerFinalKeyList.length !== 0 && smallerFinalKeyList.length !== 1) {
+          smallerFinalKeyScope = [Math.min(...smallerFinalKeyList), Math.max(...smallerFinalKeyList)];
+          let text1 = obj.text[obj.data.indexOf(smallerFinalKeyScope[0])]
+          let text2 = obj.text[obj.data.indexOf(smallerFinalKeyScope[1])]
+          if (obj.type === 'numerical') {
+            lowerScope = [text1.split('~')[0], text2.split('~')[1]];
+            if(lowerScope[0] !== lowerScope[1]) {
+              if(flag) {
+                FirstQueryText += `<br/>AND <span class="redFont">OR ${finalAttrName} BETWEEN ${lowerScope[0]} AND ${lowerScope[1]})</span>`
+              }
+              else {
+                FirstQueryText += `<br/>AND <span class="redFont">${finalAttrName} BETWEEN ${lowerScope[0]} AND ${lowerScope[1]}</span>`
+              }
+
+              this.FirstQueryCondition[finalAttrName] ? '' : this.FirstQueryCondition[finalAttrName] = [];
+              this.FirstQueryCondition[finalAttrName].push(lowerScope);
+            }
+            else {
+              if(flag) {
+                FirstQueryText.replace('(', '');
+              }
+            }
+          }
+          else {
+            lowerScope = [text2, smallerFinalKeyScope[1] - smallerFinalKeyScope[0] + 1];
+            if(!largerCategoricalFlag) {
+              let SQL_in_list = []
+              for(let key of firstFinalKeyList) {
+                SQL_in_list.push(`${obj.text[obj.data.indexOf(key)]}`)
+              }
+              FirstQueryText += `<br/>AND <span class="redFont">${finalAttrName} IN (${SQL_in_list.map(d => `'${d}'`).join(', ')})</span>`;
+              this.FirstQueryCondition[finalAttrName] ? '' : this.FirstQueryCondition[finalAttrName] = [];
+              this.FirstQueryCondition[finalAttrName].push(...SQL_in_list);
+            }
+          }
+        }
+        else {
+          if (obj.type === 'numerical') {
+            FirstQueryText += '<span class="redFont">)</span>';
+          }
+        }
+
+        d3.select("#SecondQueryText").html(SecondQueryText)
+        d3.select("#FirstQueryText").html(FirstQueryText)
+
         // Make the last key mask alone
         // let svg = d3.select('#DataDistribution');
+
         svg.select('.maskG')
             .selectAll('.finalMaskG')
             .remove();
@@ -2062,7 +2754,7 @@ export default {
               let x = d[0];
               return `translate(${this.scale_Xscale(finalAttr)}, ${this.scaleMap[finalAttrName](x)})`
             });
-        let index = d.data.index[0];
+        let index = d[0];
         let finalData = this.TableData[index][finalAttrName];
         // Differential marker
         svg.select('.finalMaskCircle').remove();
@@ -2183,6 +2875,7 @@ export default {
             .attr('class', 'MaskNodeG');
         let MaskNodeG = d3.selectAll(".MaskNodeG")
             .attr('transform', (d, k) =>{
+              k = normalIndices[k];
               let x
               if(typeof d !== 'string')
                 x = d[0]
@@ -2195,6 +2888,7 @@ export default {
         MaskNodeG.select('rect')
             .attr("x", 0)
             .attr("y", (d, k) => {
+              k = normalIndices[k];
               if(typeof d !== 'string') {
                 return this.scaleMap[this.curAttr[k]](d[1]) - this.scaleMap[this.curAttr[k]](d[0]) + offset
               }
@@ -2204,6 +2898,7 @@ export default {
             })
             .attr('width', `${rectWidth}px`)
             .attr("height", (d, k) => {
+              k = normalIndices[k];
               if(typeof d !== 'string') {
                 return this.scaleMap[this.curAttr[k]](d[0]) - this.scaleMap[this.curAttr[k]](d[1]) - offset
               }
@@ -2224,6 +2919,7 @@ export default {
             .join('g')
             .attr('class', 'TickLineG')
             .attr('transform', (d, k) =>{
+              k = normalIndices[k];
               let x
               if(typeof d !== 'string')
                 x = d[0]
@@ -2236,6 +2932,7 @@ export default {
             .attr('x1', 0)
             .attr('x2', rectWidth)
             .attr('y1', (d, k) => {
+              k = normalIndices[k];
               if(typeof d !== 'string') {
                 return this.scaleMap[this.curAttr[k]](d[1]) - this.scaleMap[this.curAttr[k]](d[0]) + offset;
               }
@@ -2244,6 +2941,7 @@ export default {
               }
             })
             .attr('y2', (d, k) => {
+              k = normalIndices[k];
               if(typeof d !== 'string') {
                 return this.scaleMap[this.curAttr[k]](d[1]) - this.scaleMap[this.curAttr[k]](d[0]) + offset
               }
@@ -2258,6 +2956,7 @@ export default {
             .attr('x1', 0)
             .attr('x2', 0)
             .attr('y1', (d, k) => {
+              k = normalIndices[k];
               if(typeof d !== 'string') {
                 return this.scaleMap[this.curAttr[k]](d[1]) - this.scaleMap[this.curAttr[k]](d[0]) + offset;
               }
@@ -2266,6 +2965,7 @@ export default {
               }
             })
             .attr('y2', (d, k) => {
+              k = normalIndices[k];
               if (typeof d !== 'string') {
                 return 0
               }
@@ -2281,6 +2981,7 @@ export default {
             .attr('x1', 0)
             .attr('x2', rectWidth)
             .attr('y1', (d, k) => {
+              k = normalIndices[k];
               if (typeof d !== 'string') {
                 return 0
               }
@@ -2289,6 +2990,7 @@ export default {
               }
             })
             .attr('y2', (d, k) => {
+              k = normalIndices[k];
               if (typeof d !== 'string') {
                 return 0
               }
@@ -2401,158 +3103,165 @@ export default {
           }
           return {'pathD': Line(temp)};
         });
-        let riskLineData = this.riskRecord.map(index => this.LineData[index])
-        // sampling
-        if(this.TableData.length > 2000) {
-          // random sampling
-          let N = this.TableData.length;
-          let sampleNum = 2000;//9999 //Math.floor(N * 0.1)
-          let posArray = [];
-          for(let i = 0;i<N;i++) {
-            posArray.push(i);
-          }
-          for(let i = 0;i<sampleNum;i++) {
-            let newPos = Math.floor(Math.random() * N);
-            [posArray[i], posArray[newPos]] = [posArray[newPos], posArray[i]]
-          }
-          let choseArray = [];//JSON.parse(JSON.stringify(this.riskRecord));
-          for(let i = 0;i<sampleNum;i++) {
-            choseArray.push(posArray[i]);
-          }
+        if(this.riskRecord.length === 0) {
+          new Promise(resolve => {
+            this.riskRecordResolve = resolve;
+          }).then(() => {
+            let riskLineData = this.riskRecord.map(index => this.LineData[index]);
 
-          for(let i = 0;i<sampleNum;i++) {
-            TableData.push(this.TableData[choseArray[i]]);
-            LineData.push(this.LineData[choseArray[i]]);
-          }
-        }
-        else {
-          TableData = this.TableData;
-          LineData = this.LineData;
-        }
-        this.TableKeyData = data.TableKeyData;
-
-
-
-
-
-        svg.append("marker")
-            .attr("id", "ddarrow")
-            .attr("markerUnits","strokeWidth")
-            .attr("viewBox", "0 0 12 12")
-            .attr("refX", 6)
-            .attr("refY", 6)
-            .attr("markerWidth", 12)
-            .attr("markerHeight", 12)
-            .attr("orient", "auto")
-            .append("path")
-            .attr("d", "M2,2 L10,6 L2,10 L6,6 L2,2")
-            .attr('fill', this.colorMap["deep-grey"]);
-
-
-        this.PCP_tick_func = []
-        let that = this;
-        let maskG = svg.append('g').attr('class', 'maskG');
-
-
-
-
-        svg.append("g")
-           .attr('class', 'LineContainer')
-           .selectAll('.LineG')
-           .data(LineData)
-           .enter()
-           .append('g')
-           .attr('class', 'LineG')
-           .append("path")
-           .attr('class', 'LinePath')
-           .attr("d", d => d.pathD)
-           .attr("stroke", this.colorMap["normal-grey"])
-           .attr('stroke-opacity', 0.1)
-           .attr("stroke-width", 1)
-           .attr("fill", "none");
-
-        svg.append('g').attr('class', 'blueLineContainer')
-
-        svg.append("g")
-            .attr('class', 'riskLineContainer')
-            .selectAll('.riskLineG')
-            .data(riskLineData)
-            .enter()
-            .append('g')
-            .attr('class', 'riskLineG')
-            .append("path")
-            .attr('class', 'riskLinePath')
-            .attr("d", d => d.pathD)
-            .attr("stroke", this.colorMap["risk"])
-            .attr('stroke-opacity', 0)
-            .attr("stroke-width", 2)
-            .attr("fill", "none");
-
-        svg.append('g')
-           .attr('class', 'tickLine');
-
-
-        let axisG = svg.selectAll('.axis')
-            .data(ScaleData)
-            .enter()
-            .append('g')
-            .attr('class', 'axis')
-            .attr('id', d => `axis-${d.name}`)
-            .attr('transform', (d, k) => `translate(${scale_Xscale(k)}, ${0})`)
-            .each(function(d, k) {
-              let tickfunc = d3.axisLeft().scale(scaleMap[d.name]).ticks(5).tickFormat(d => that.convert2word(d));
-              if(d.type === 'numerical') {
-                if(d.Tick_Values.length >= 20) {
-                  if(d.Tick_Values.length & 1 === 1) {
-                    svg.select(`#axis-${d.name}`)
-                        .classed('hideHalfTickOdd', true)
-                  }
-                  else {
-                    svg.select(`#axis-${d.name}`)
-                        .classed('hideHalfTickEven', true)
-                  }
-                }
-                tickfunc.tickValues(d.Tick_Values);
+            // sampling
+            if(this.TableData.length > 2000) {
+              // random sampling
+              let N = this.TableData.length;
+              let sampleNum = 2000;//9999 //Math.floor(N * 0.1)
+              let posArray = [];
+              for(let i = 0;i<N;i++) {
+                posArray.push(i);
               }
-              d3.select(this).call(tickfunc);
-              that.PCP_tick_func.push(tickfunc)
-            });
-        svg.selectAll('.axis')
-            .select('path')
-            .attr('d', (d) => {
-              let pathD = svg.select(`#axis-${d.name} path`).attr('d');
-              pathD = pathD.replace('M-6,', 'M0,')
-              pathD = pathD.slice(0, -3)
-              return pathD;
-            })
-            .attr('stroke', this.colorMap["deep-grey"])
-            .attr("marker-end","url(#ddarrow)");
+              for(let i = 0;i<sampleNum;i++) {
+                let newPos = Math.floor(Math.random() * N);
+                [posArray[i], posArray[newPos]] = [posArray[newPos], posArray[i]]
+              }
+              let choseArray = [];//JSON.parse(JSON.stringify(this.riskRecord));
+              for(let i = 0;i<sampleNum;i++) {
+                choseArray.push(posArray[i]);
+              }
 
-        let DDHighlightRects = axisG.append('rect')
-                                    .attr('class', 'DDHighlightRect')
-                                    .attr('id', d => `DDHighlightRect-${d.name}`);
+              for(let i = 0;i<sampleNum;i++) {
+                TableData.push(this.TableData[choseArray[i]]);
+                LineData.push(this.LineData[choseArray[i]]);
+              }
+            }
+            else {
+              TableData = this.TableData;
+              LineData = this.LineData;
+            }
+            this.TableKeyData = data.TableKeyData;
 
-        axisG.append('text')
-            .attr("x", 0)
-            .attr('y', 10)
-            .style('text-anchor', 'middle')
-            .style('fill', '#333')
-            .attr('class', `DDAttrTitle`)
-            .attr('id', d => `DDAttrTitle-${d.name}`)
-            .text(d => d.name);
 
-        DDHighlightRects
-            .attr('x', d => -d3.select(`#DDAttrTitle-${d.name}`).node().getComputedTextLength() / 2)
-            .attr('y', 0)
-            .attr('width', d => d3.select(`#DDAttrTitle-${d.name}`).node().getComputedTextLength())
-            .attr('height', 12)
-            .attr('fill', this.colorMap["selected"])
-            .style('opacity', 0);
+
+
+            svg.append("marker")
+                .attr("id", "ddarrow")
+                .attr("markerUnits","strokeWidth")
+                .attr("viewBox", "0 0 12 12")
+                .attr("refX", 6)
+                .attr("refY", 6)
+                .attr("markerWidth", 12)
+                .attr("markerHeight", 12)
+                .attr("orient", "auto")
+                .append("path")
+                .attr("d", "M2,2 L10,6 L2,10 L6,6 L2,2")
+                .attr('fill', this.colorMap["deep-grey"]);
+
+
+            this.PCP_tick_func = []
+            let that = this;
+            let maskG = svg.append('g').attr('class', 'maskG');
+
+
+
+
+            svg.append("g")
+                .attr('class', 'LineContainer')
+                .selectAll('.LineG')
+                .data(LineData)
+                .enter()
+                .append('g')
+                .attr('class', 'LineG')
+                .append("path")
+                .attr('class', 'LinePath')
+                .attr("d", d => d.pathD)
+                .attr("stroke", this.colorMap["normal-grey"])
+                .attr('stroke-opacity', 0.1)
+                .attr("stroke-width", 1)
+                .attr("fill", "none");
+
+            svg.append('g').attr('class', 'blueLineContainer')
+
+            svg.append("g")
+                .attr('class', 'riskLineContainer')
+                .selectAll('.riskLineG')
+                .data(riskLineData)
+                .enter()
+                .append('g')
+                .attr('class', 'riskLineG')
+                .append("path")
+                .attr('class', 'riskLinePath')
+                .attr("d", d => d.pathD)
+                .attr("stroke", this.colorMap["risk"])
+                .attr('stroke-opacity', 0)
+                .attr("stroke-width", 2)
+                .attr("fill", "none");
+
+            svg.append('g')
+                .attr('class', 'tickLine');
+
+
+            let axisG = svg.selectAll('.axis')
+                .data(ScaleData)
+                .enter()
+                .append('g')
+                .attr('class', 'axis')
+                .attr('id', d => `axis-${d.name}`)
+                .attr('transform', (d, k) => `translate(${scale_Xscale(k)}, ${0})`)
+                .each(function(d, k) {
+                  let tickfunc = d3.axisLeft().scale(scaleMap[d.name]).ticks(5).tickFormat(d => that.convert2word(d));
+                  if(d.type === 'numerical') {
+                    if(d.Tick_Values.length >= 20) {
+                      if(d.Tick_Values.length & 1 === 1) {
+                        svg.select(`#axis-${d.name}`)
+                            .classed('hideHalfTickOdd', true)
+                      }
+                      else {
+                        svg.select(`#axis-${d.name}`)
+                            .classed('hideHalfTickEven', true)
+                      }
+                    }
+                    tickfunc.tickValues(d.Tick_Values);
+                  }
+                  d3.select(this).call(tickfunc);
+                  that.PCP_tick_func.push(tickfunc)
+                });
+            svg.selectAll('.axis')
+                .select('path')
+                .attr('d', (d) => {
+                  let pathD = svg.select(`#axis-${d.name} path`).attr('d');
+                  pathD = pathD.replace('M-6,', 'M0,')
+                  pathD = pathD.slice(0, -3)
+                  return pathD;
+                })
+                .attr('stroke', this.colorMap["deep-grey"])
+                .attr("marker-end","url(#ddarrow)");
+
+            let DDHighlightRects = axisG.append('rect')
+                .attr('class', 'DDHighlightRect')
+                .attr('id', d => `DDHighlightRect-${d.name}`);
+
+            axisG.append('text')
+                .attr("x", 0)
+                .attr('y', 10)
+                .style('text-anchor', 'middle')
+                .style('fill', '#333')
+                .attr('class', `DDAttrTitle`)
+                .attr('id', d => `DDAttrTitle-${d.name}`)
+                .text(d => d.name);
+
+            DDHighlightRects
+                .attr('x', d => -d3.select(`#DDAttrTitle-${d.name}`).node().getComputedTextLength() / 2)
+                .attr('y', 0)
+                .attr('width', d => d3.select(`#DDAttrTitle-${d.name}`).node().getComputedTextLength())
+                .attr('height', 12)
+                .attr('fill', this.colorMap["selected"])
+                .style('opacity', 0);
+          })
+        }
+
       },
 
       // Attack Simulation method
       initializeAttackSimulationViews(d) {
-        let data = this.TableData[d.data.index[0]];
+        let data = this.TableData[d[0]];
         if(this.QueryType === 'count') {
           if(this.QueryAttrType === 'numerical') {
             this.privateVal = ((data[this.QueryAttr] > this.IntervalLeft) && (data[this.QueryAttr] < this.IntervalRight)) ? 1 : 0;
@@ -2608,9 +3317,8 @@ export default {
           d3.select('#FirstQuerySVG');
           this.firstQueryData = data1.distribution;
           this.secondQueryData = data2.distribution;
-          if(d.data.index.length === 1) {
-            this.setAttackTarget(this.TableData[d.data.index[0]])
-          }
+          this.setAttackTarget(this.TableData[d[0]])
+
         })
       })
       },
@@ -2925,7 +3633,7 @@ export default {
         let curS = 1; // The value of sensitivity does not matter because of using percentage mode
         let curB = curS / this.epsilon;
         console.log('initializeGeneralQuerySimulationView' + curB)
-        let [width, height, padding] = [340, 210, 40];
+        let [width, height, padding] = [450, 250, 40];
 
         let epsilonArray = Object.keys(this.AccuracyEpsilonHistory[this.QueryAttr]);
         epsilonArray = epsilonArray.map(d => parseFloat(d));
@@ -3121,8 +3829,6 @@ export default {
           for(let attr of this.QueryAttrOption) {
             this.AccuracyEpsilonHistory[attr][this.epsilon] = deviationData;
           }
-
-          // this.SchemeHistoryEpsilon[this.QueryAttr].push(this.epsilon.toFixed(2));
         }
 
       },
@@ -3153,7 +3859,7 @@ export default {
             'QueryType': this.QueryType,
             'b1': this.curB,
             'b2': this.curB2,
-            'attrRisk': this.curAttrRisk
+            'attrRisk': 1
           }
         }).then(response => {
           this.privacyEpsilon = response.data.epsilon;
@@ -3278,11 +3984,13 @@ export default {
           this.SchemeHistoryAttrPosMap[attr] = parseInt(i);
           // this.SchemeHistoryAttrDeviationMap[attr] = '50%';
           this.SchemeHistory.push({
+            'DP scheme': this.epsilon.toFixed(2).toString() + ' ' + (this.SensitivityCalculationWay === 'Global sensitivity' ? 'Global' : 'Local'),
+            // 'Victim Group Name': 'All',
             'Attribute': attr,
-            'DP scheme-\u03B5': this.epsilon.toFixed(2).toString(),
-            'DP scheme-Sensitivity': this.SensitivityCalculationWay === 'Global sensitivity' ? 'Global' : 'Local'
+            // 'DP scheme-\u03B5': this.epsilon.toFixed(2).toString(),
+            // 'DP scheme-Sensitivity': this.SensitivityCalculationWay === 'Global sensitivity' ? 'Global' : 'Local'
           });
-
+          console.log(this.rawData)
           axios({
             url: 'http://127.0.0.1:8000/RiskTree/initializeSchemeHistory/',
             method: 'post',
@@ -3291,21 +3999,23 @@ export default {
               'deviationRatio': this.PrivacyDeviationPercent / 100,
               'attrList': this.attrList,
               'epsilon': this.epsilon,
-              'BSTMap': this.BSTMap,
+              // 'BSTMap': this.BSTMap,
               'sensitivity': this.SchemeHistoryColumnSensitivity,
-              'attrOption': this.QueryAttrOption,
-              'attrRisk': this.attrRiskMap,
-              'SensitivityCalculationWay': this.SensitivityCalculationWay,
-              'AttrsKeyMap': this.AttrsKeyMap,
-              'BSTKeyMap': this.BSTKeyMap,
-              'curAttr': attr
+              'attrOption': this.attrList.map(d => d['Name']),
+              // 'attrRisk': this.attrRiskMap,
+              // 'SensitivityCalculationWay': this.SensitivityCalculationWay,
+              // 'AttrsKeyMap': this.AttrsKeyMap,
+              // 'BSTKeyMap': this.BSTKeyMap,
+              'curAttr': attr,
+              'Attack': this.rawData['Attack'],
+              // 'VictimFilter': this.VictimNameMap['All']
             }
           }).then(response => {
             let index = parseInt(i);
             let data = response.data.data;
             let avgRiskP1, attackRiskP1;
-            let maxRiskRecordMap = data['maxRiskRecordMap'];
-            let countMaxRiskRecord = data['countMaxRiskRecord'];
+            // let maxRiskRecordMap = data['maxRiskRecordMap'];
+            // let countMaxRiskRecord = data['countMaxRiskRecord'];
             if (data['sum'] === '-') {
               avgRiskP1 = '-';
               attackRiskP1 = '-';
@@ -3316,13 +4026,12 @@ export default {
             let attackRiskP2 = data['count'][1];
             let attackRiskListP2 = data['count'][2];
             let avgRiskP2 = data['count'][0];
-            // this.SchemeHistory[index]['Scheme-Sensitivity'] = this.SensitivityCalculationWay === 'Global sensitivity' ? 'Global' : 'Local';
-            this.SchemeHistory[index]['Sum-Succ rate'] = attackRiskP1;
-            this.SchemeHistory[index]['Sum-Average risk'] = avgRiskP1;
-            this.SchemeHistory[index]['Count-Succ rate'] = [attackRiskP2.toFixed(2), attackRiskListP2];
-            this.SchemeHistory[index]['Count-Average risk'] = avgRiskP2.toFixed(2);
-            this.SchemeHistory[index]['maxRiskRecordMap'] = maxRiskRecordMap;
-            this.SchemeHistory[index]['countMaxRiskRecord'] = countMaxRiskRecord;
+            if (this.QueryType === 'sum') {
+              this.SchemeHistory[index]['All'] = attackRiskP1;
+            }
+            else {
+              this.SchemeHistory[index]['All'] = [attackRiskP2, attackRiskListP2];
+            }
 
         })
 
@@ -3376,6 +4085,46 @@ export default {
         }
 
         console.log(this.SchemeHistory);
+      },
+      getNewRow() {
+        this.SchemeHistory.push({
+          'DP scheme': this.epsilon.toFixed(2).toString() + ' ' + (this.SensitivityCalculationWay === 'Global sensitivity' ? 'Global' : 'Local'),
+          'Attribute': this.QueryAttr,
+        })
+        let curIdx = this.SchemeHistory.length - 1;
+        for(let column of this.SchemeHistoryColumn) {
+          if(column !== 'DP scheme') {
+            axios({
+              url: 'http://127.0.0.1:8000/RiskTree/initializeSchemeHistory/',
+              method: 'post',
+              data: {
+                'filename': this.curFile,
+                'deviationRatio': this.PrivacyDeviationPercent / 100,
+                'attrList': this.attrList,
+                'epsilon': this.epsilon,
+                'sensitivity': this.SensitivityCalculationWay,
+                'attrOption': this.attrList.map(d => d['Name']),
+                'curAttr': this.QueryAttr,
+                'Attack': this.rawData['Attack'],
+                'VictimFilter': this.VictimNameMap[column]
+              }
+            }).then(response => {
+              let data = response.data.data;
+              let avgRiskP1, attackRiskP1;
+              if (data['sum'] === '-') {
+                avgRiskP1 = '-';
+                attackRiskP1 = '-';
+              } else {
+                avgRiskP1 = data['sum']['avgRiskList'];
+                attackRiskP1 = data['sum']['attackRiskList'];
+              }
+              let attackRiskP2 = data['count'][1];
+              let attackRiskListP2 = data['count'][2];
+              let avgRiskP2 = data['count'][0];
+              this.SchemeHistory[curIdx][column] = attackRiskP1;
+            })
+          }
+        }
       },
       refreshAccuracyDeviationPercent() {
         let svg = d3.select('#GeneralQuery');
@@ -3469,6 +4218,7 @@ export default {
         let attrType = this.attrList.find(d => d.Name === attr).Type;
         let attrParams = this.attrList.find(d => d.Name === attr);
         this.SchemeHistory.splice(insertPos, 0, {
+          'Victim Group Name': this.curVictimGroup,
           'Attribute': attr,
           'DP scheme-\u03B5': this.epsilon.toFixed(2)
         })
@@ -3484,12 +4234,15 @@ export default {
             'epsilon': this.epsilon,
             'BSTMap': this.BSTMap,
             'sensitivity': this.SchemeHistoryColumnSensitivity[attr],
-            'attrOption': this.QueryAttrOption,
+            'attrOption': this.attrList.map(d => d['Name']),
             'attrRisk': this.attrRiskMap,
             'SensitivityCalculationWay': this.SensitivityCalculationWay,
             'AttrsKeyMap': this.AttrsKeyMap,
             'BSTKeyMap': this.BSTKeyMap,
-            'minSensitivityMap': this.minSensitivityMap[attr]
+            'minSensitivityMap': this.minSensitivityMap[attr],
+            'Attack': this.rawData['Attack'],
+            // 'VictimFilter': this.VictimNameMap[this.curVictimGroup]
+
           }
         }).then(response => {
           let data = response.data.data;
@@ -3514,7 +4267,6 @@ export default {
 
         })
 
-        // this.SchemeHistory.push(temp)
       },
       refreshAvgRiskP() {
         for(let i = 0;i<this.SchemeHistory.length;i++) {
@@ -3533,7 +4285,7 @@ export default {
               'epsilon': epsilon,
               'BSTMap': this.BSTMap,
               'sensitivity': this.SchemeHistoryColumnSensitivity[attr],
-              'attrOption': this.QueryAttrOption,
+              'attrOption': this.attrList.map(d => d['Name']),
               'attrRisk': this.attrRiskMap,
               'SensitivityCalculationWay': this.SensitivityCalculationWay,
               'AttrsKeyMap': this.AttrsKeyMap,
@@ -3632,7 +4384,8 @@ export default {
       },
 
       RecordEpsilon() {
-        this.getNewAvgRiskP();
+        this.getNewRow();
+        // this.getNewAvgRiskP();
       },
 
 
@@ -4126,6 +4879,13 @@ export default {
       }
     },
     watch: {
+      'isFreshSchemeHistory': {
+        handler(newVal, oldVal) {
+          this.freshSchemeHistory();
+        },
+        deep: true,
+        immediate: false
+      },
       'PrivacyDeviationVal': {
         handler(newVal, oldVal) {
           if(oldVal !== 0) {
@@ -4209,7 +4969,13 @@ export default {
         deep: true,
         immediate: false
       },
-
+      'isFreshHighRiskView': {
+        handler(newVal, oldVal) {
+          this.highRiskViewInit();
+        },
+        deep: true,
+        immediate: false
+      },
       'PrivacyDeviationPercent': {
         handler(newVal, oldVal) {
           this.SchemeHistoryAttrDeviationMap[this.QueryAttr] = newVal + '%';
@@ -4241,42 +5007,42 @@ export default {
       'isInitializeSchemeHistory': {
         handler(newVal, oldVal) {
           // acquirement sensitivity first
-          axios({
-            url: 'http://127.0.0.1:8000/RiskTree/getSensitivity/',
-            method: 'post',
-            data: {
-              'filename': this.curFile,
-              'attrs': this.QueryAttrOption,
-              'attrTypes': this.QueryAttrOptionType,
-              'sensitivityWay': this.SensitivityCalculationWay
-            }
-          }).then((response) => {
-            this.SchemeHistoryColumnSensitivity = response.data.sensitivityMap;
+          // axios({
+          //   url: 'http://127.0.0.1:8000/RiskTree/getSensitivity/',
+          //   method: 'post',
+          //   data: {
+          //     'filename': this.curFile,
+          //     'attrs': this.QueryAttrOption,
+          //     'attrTypes': this.QueryAttrOptionType,
+          //     'sensitivityWay': this.SensitivityCalculationWay
+          //   }
+          // }).then((response) => {
+          //   this.SchemeHistoryColumnSensitivity = response.data.sensitivityMap;
             this.initializeSchemeHistory();
 
             // initialize minSensitivityMap
-            this.minSensitivityMap = {}
-            for(let attrParams of this.attrList) {
-              let attr = attrParams.Name;
-              let type = attrParams.Type;
-              if(type !== 'numerical') continue
-              axios({
-                url: 'http://127.0.0.1:8000/RiskTree/minSensitivityMap/',
-                method: 'post',
-                data: {
-                  'filename': this.curFile,
-                  'attrList': this.attrList,
-                  'attrOption': this.QueryAttrOption,
-                  'AttrsKeyMap': this.AttrsKeyMap,
-                  'BSTKeyMap': this.BSTKeyMap,
-                  'attr': attr,
-                }
-              }).then((response) => {
-                this.minSensitivityMap[attr] = response.data.data;
-              })
-            }
-
-          })
+          //   this.minSensitivityMap = {}
+          //   for(let attrParams of this.attrList) {
+          //     let attr = attrParams.Name;
+          //     let type = attrParams.Type;
+          //     if(type !== 'numerical') continue
+          //     axios({
+          //       url: 'http://127.0.0.1:8000/RiskTree/minSensitivityMap/',
+          //       method: 'post',
+          //       data: {
+          //         'filename': this.curFile,
+          //         'attrList': this.attrList,
+          //         'attrOption': this.attrList.map(d => d['Name']),
+          //         'AttrsKeyMap': this.AttrsKeyMap,
+          //         'BSTKeyMap': this.BSTKeyMap,
+          //         'attr': attr,
+          //       }
+          //     }).then((response) => {
+          //       this.minSensitivityMap[attr] = response.data.data;
+          //     })
+          //   }
+          //
+          // })
 
         },
         deep: true,
@@ -4406,6 +5172,16 @@ export default {
         deep: true,
         immediate: false
       },
+      'curVictimGroup': {
+        handler(newVal, oldVal) {
+          [this.attrGropeFilter, this.AttrFilterMap] = this.VictimNameMap[newVal];
+        },
+        deep: true,
+        immediate: false
+      }
+
+    },
+    created() {
 
     },
     mounted() {
@@ -4432,6 +5208,7 @@ export default {
     display: flex;
     flex-direction: row;
     background-color: #eff7fe;
+    overflow: hidden;
   }
   .RowPartMain {
     width: calc(50% - 15px);
@@ -4453,13 +5230,12 @@ export default {
   
   #DifferentialRiskIdentification {
     width: 100%;
-    height: calc(60% - 10px);
-    margin-bottom: 10px;
+    height: calc(55% - 10px + 35px);
   }
 
   #DataExploration {
     width: 100%;
-    height: 40%;
+    height: calc(45% - 70px);
   }
 
 
@@ -4536,9 +5312,9 @@ export default {
   }
 
   .TextDivider {
-    height: 70%;
+    /*height: 70%;*/
     border-color: #333333;
-    margin: 0 10px;
+    margin: 10px 10px;
   }
 
   .PanelTextDivider {
@@ -4570,14 +5346,13 @@ export default {
 
   .SqlTitle {
     font-size: 14px;
-    width: 25%;
     padding-left: 10px;
     text-align: center;
   }
 
   .SQLText {
     font-size: 10px;
-    width: calc(75% - 30px);
+    /*width: calc(75% - 30px);*/
     padding: 5px 0;
   }
 
@@ -4620,15 +5395,91 @@ export default {
   }
 
   /***************** 树视图style ******************/
-  #AttributeSet {
-    width: 50%;
+  .AttrFilterBtnGroup {
+    margin-right: -15px;
+  }
+  .vgc {
+    border: 3px solid #666;
+    width: 160px;
+    margin-left: 10px;
+    position: relative;
+    height: 40px;
+  }
+  .vgc .vgn {
+    line-height: 40px;
+    width: 100px;
+    text-align: center;
+  }
+  .vgc .confirmVictimBtn {
+    position: absolute;
+    right: 0;
+    width: 4px;
+  }
+
+  .vgcRadio {
+    position: absolute;
+    right: 10px;
+    top: -2px;
+  }
+  .VictimGroups {
+    width: 20%;
     height: 100%;
     position: relative;
   }
-  #AttributeSetTree {
-    height: calc(100% - 48px);
+  .controlBar {
+    width: 30%;
+    height: 100%;
+    position: relative;
+    margin: 0 15px 0 -15px;
+  }
+  .attrRank {
+    width: 22%;
+    height: 100%;
+    position: relative;
+  }
+  .highRisk {
+    position: relative;
+    width: calc(28% - 1px);
+  }
+  .addClickBtn {
+    border: none;
+  }
+  .addCont {
+    text-align: center;
+  }
+  #attrRankPlot, #highRiskPlot {
+    height: calc(100% - 60px);
     width: 100%;
   }
+
+  .leftHeader {
+    text-align: left;
+    position: relative;
+    padding-left: 10px;
+  }
+
+  .leftHeader::after {
+    content: '';
+    width: 115%;
+    height: 0px;
+    position: absolute;
+    border-bottom: 1px solid #999;
+    top: 2px;
+    left: -10px;
+    transform: rotate(14deg);
+  }
+  .PanelDivider {
+    margin-top: 20px;
+    height: 90%;
+  }
+
+  .rightHeader {
+    text-align: right;
+    padding-right: 10px;
+  }
+
+
+
   #AttributeSetTreeLegend {
     position: absolute;
     top: 15px;
@@ -4648,12 +5499,13 @@ export default {
   #TreeView {
     display: flex;
     flex-direction: row;
-    height: calc(100% - 40px);
+    height: calc(100% - 120px);
   }
-  #DifferentialQueryList {
-    position: relative;
-    width: calc(50% - 1px);
-  }
+
+
+
+
+
 
   #DataDistribution {
     width: 100%;
@@ -4687,8 +5539,10 @@ export default {
 
   #firstQuery, #secondQuery {
     display: flex;
+    flex-direction: column;
     align-items: center;
     position: relative;
+    width: 50%;
   }
 
   .RelativeToDiv {
@@ -4736,14 +5590,15 @@ export default {
     margin-bottom: 4px;
     border: #dcdfe6 1px dashed;
 
-    width: 210px;
-    height: 210px;
+    width: 255px;
+    height: 255px;
     /*flex: 1;*/
   }
   .SimulationViews {
     margin: 10px 20px 0 20px;
     display: flex;
     flex-direction: row;
+    width: 100%;
   }
 
   #FirstQuerySVG {
@@ -4757,7 +5612,7 @@ export default {
   }
 
   #GeneralQuery {
-    width: 340px;
+    width: calc(50% - 20px);
     margin-right: -20px;
   }
 
@@ -4777,14 +5632,14 @@ export default {
 
 /****************************************/
   #SchemeHistory {
-    border-top: 10px #eff7fe solid;
+    background-color: #fff;
     flex: 1;
 
     position: relative;
     left: 0;
     top: 10px;
     right: 0;
-    height: 307px;
+    height: calc(45% - 35px);
   }
 
 
@@ -4835,15 +5690,15 @@ export default {
 
   .SQL_panel {
     display: flex;
-    flex-direction: column;
-    justify-content: space-evenly;
-    height: calc(100% - 17px);
+    flex-direction: row;
+    /*justify-content: space-evenly;*/
+    height: calc(15%);
   }
 
   .barChart {
     margin-top: 8px;
-    width: 75px;
-    height: 45px;
+    width: 105px;
+    height: 70px;
     margin-left: -5px;
     margin-bottom: 0;
   }
@@ -4912,14 +5767,14 @@ export default {
   .examplePng {
     width: 90px;
     position: absolute;
-    bottom: 153px;
+    top: 67px;
     right: 50px;
   }
 
   #SchemeHistoryLegend {
     position: absolute;
     right: 10px;
-    bottom: -20px;
+    top: 25px;
 
     width: 170px;
     height: 270px;
@@ -4936,6 +5791,58 @@ export default {
 
   .SchemeHistoryTable {
     padding: 0 0 0 10px;
+  }
+
+
+/*  high risk view style*/
+  .AttrFilters {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+  }
+  .AttrFilter {
+    /*flex: 1;*/
+    text-align: center;
+    margin: 0 0;
+    width: 100%;
+
+    display: flex;
+    flex-direction: row;
+    justify-content: space-around;
+    align-items: center;
+  }
+  .AttrFilterContent {
+    height: 20px;
+    line-height: 20px;
+  }
+
+  .AttrFilterContent, .AttrL, .ScopeL {
+    width: 25%;
+    text-align: center;
+  }
+  .ScopeL {
+    margin-left: 8px;
+  }
+  .AttrL {
+    margin-left: 10px;
+  }
+  .cludeL {
+    margin-right: 10px;
+  }
+
+  .AttrGropeFilter {
+    width: 25%;
+  }
+  .controlLabel {
+    width: 110%;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-around;
+  }
+
+
+  .selectFilter {
+    background-color: #4c96d9;
   }
 
 
@@ -5077,7 +5984,13 @@ export default {
   .hideHalfTickEven .tick:nth-child(odd) text {
     visibility: hidden;
   }
+  .hideHalfTickEven .tick:nth-child(4n+4) text {
+    visibility: hidden;
+  }
   .hideHalfTickOdd .tick:nth-child(even) text {
+    visibility: hidden;
+  }
+  .hideHalfTickOdd .tick:nth-child(4n+5) text {
     visibility: hidden;
   }
 
@@ -5087,5 +6000,13 @@ export default {
     /*width: 50%;*/
     height: 50%;
     font-size: 30px;
+  }
+
+  .el-radio__label {
+    display: none;
+  }
+
+  .el-radio {
+    margin-right: 35px;
   }
 </style>

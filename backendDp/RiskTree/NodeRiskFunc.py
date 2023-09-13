@@ -59,7 +59,7 @@ def ConstructLattice(n, depth):
 
 def isWithinDepth(x, depth):
     indices = getCubeByIndices(x)
-    return len(indices) <= depth
+    return len(indices) < depth
 
 
 def getDataCoder(data, column_types, gap_list=None, step_list=None):
@@ -136,8 +136,6 @@ def getNodeRisk(values, DescriptionNum):
 
                 keys = key.split('-')
                 keys.pop(0)
-                if len(indices) != len(keys):
-                    print('AAA')
                 BSTKeyMap[index].append({
                     'indices': indices,
                     'keys': keys

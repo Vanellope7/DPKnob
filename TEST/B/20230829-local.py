@@ -138,7 +138,7 @@ t2 = 0
 t3 = 0
 t4 = 0
 
-Quadruple = defaultdict(list)
+Attack = defaultdict(list)
 candidateRecord = {}
 for attrIdx in specialCon.keys():
     for key in specialCon[attrIdx]:
@@ -192,11 +192,11 @@ for attrIdx in specialCon.keys():
                         nx = len(attrIdx)
                         minSensitivity[pvi][nx] = minSensitivity[pvi].get(nx, MaxS)
                         minSensitivity[pvi][nx] = min(MaxS, minSensitivity[pvi][nx])
-                        if len(list(filter(lambda d: d[0] == pvi, Quadruple[nx]))) == 0:
-                            Quadruple[nx].append([pvi, findAttr, minSensitivity[pvi][nx]])
+                        if len(list(filter(lambda d: d[0] == pvi, Attack[nx]))) == 0:
+                            Attack[nx].append([pvi, findAttr, attrs[differAttr], minSensitivity[pvi][nx]])
                     e2 = time.time()
                     t2 += e2 - s2
-print(Quadruple)
+print(Attack)
 print('t1: ', t1)
 print('t2: ', t2)
 end = time.time()
@@ -247,19 +247,19 @@ for key in NumRiskMap.keys():
 
 
 
-for nx, ats in Quadruple.items():
+for nx, ats in Attack.items():
     for i in range(len(ats)):
         pvi = ats[i][0]
         riskV = rawValues[pvi][sensitiveAttrIdx]
-        S1 = max(ats[i][2], riskV)
-        S2 = ats[i][2]
+        S1 = max(ats[i][3], riskV)
+        S2 = ats[i][3]
         if S2 == 0:
             S2 += 0.1
         D = riskV * dp
         risk = laplace_DV_P2([-D, D], S1/epsilon, S2/epsilon)
         ats[i].append(risk)
-    Quadruple[nx].sort(key=lambda d: -d[-1])
-print(Quadruple)
+    Attack[nx].sort(key=lambda d: -d[-1])
+print(Attack)
 
 charges = list(charges)
 left, right = charges[0], charges[-1]
@@ -267,7 +267,7 @@ maxRisk = laplace_DV_P2([-right*dp, right*dp], max(right/epsilon, threshold/epsi
 notContentNumL = []
 
 
-for nx, ats in Quadruple.items():
+for nx, ats in Attack.items():
     if len(ats) < 10:
         print('number: ', nx, 'smaller than 10')
         notContentNumL.append(nx)
@@ -343,25 +343,25 @@ for an in notContentNumL:
                             risk = laplace_DV_P2([-curV*dp, curV*dp], max(curV/epsilon, MaxS/epsilon), MaxS/epsilon)
                             NumRiskMap[an].append(risk)
 
-                            filterAttack = list(filter(lambda d: d[0] == pvi, Quadruple[an]))
+                            filterAttack = list(filter(lambda d: d[0] == pvi, Attack[an]))
                             if len(filterAttack) == 0:
-                                Quadruple[an].append([pvi, findAttrName, MaxS, risk])
+                                Attack[an].append([pvi, findAttrName, attrs[differAttr], MaxS, risk])
                             else:
                                 filterAttack[0][-1] = max(filterAttack[0][-1], risk)
                                 filterAttack[0][-2] = min(filterAttack[0][-2], MaxS)
 
-    Quadruple[an].sort(key=lambda d: -d[-1])
+    Attack[an].sort(key=lambda d: -d[-1])
 
     # print(NumRiskMap[an])
     NumRiskMap[an].sort(key=lambda d: -d)
     # print(NumRiskMap[an])
 
-for an in Quadruple.keys():
-    Quadruple[an] = Quadruple[an][0:10]
+# for an in Attack.keys():
+#     Attack[an] = Attack[an][0:10]
 attrs.remove(attrs[sensitiveAttrIdx])
 data = {
     'attrs': attrs,
-    'Quadruple': Quadruple,
+    'Attack': Attack,
 }
 with open("data/Ldata.json", "w", encoding="utf-8") as f:
     f.write(json.dumps(data, indent=4))

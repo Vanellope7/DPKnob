@@ -11,4 +11,5 @@ urlpatterns = [
     path('AttackSimulation/', include('AttackSimulation.urls')),
     path('DpDecisionMaker/', include('DpDecisionMaker.urls')),
     path('RiskTree/', include('RiskTree.urls')),
+    path('HighRisk/', include('HighRisk.urls')),
 ]
