@@ -73,7 +73,7 @@ def fileReceive(request):
             Mode = df[attr].mode().tolist()[0]
             Range = df[attr].value_counts().index.tolist()
             AttrList.append({
-                'Name': attr,
+                'Attribute': attr,
                 'Type': 'categorical',
                 'Range': Range,
                 # 'Range Width': len(Range),
@@ -94,7 +94,7 @@ def fileReceive(request):
             MinEdge = getMinEdge(width, Min)
             MaxEdge = getMaxEdge(width, MinEdge, Max)
             AttrList.append({
-                'Name': attr,
+                'Attribute': attr,
                 'Type': 'numerical',
                 'Range': "{0}~{1}".format(Min, Max),
                 # 'Range Width': Max - Min,
@@ -147,7 +147,7 @@ def QueryWheres(request):
     bitmap = postData['bitmap']
     R = pd.read_csv('data/' + filename)
     Indices = getCubeByIndices(bitmap)
-    keepAttr = list(map(lambda d: d['Name'], attrList))
+    keepAttr = list(map(lambda d: d['Attribute'], attrList))
     cur_keepAttr = [keepAttr[i] for i in Indices]
     cur_attrList = [attrList[i] for i in Indices]
     R = R[cur_keepAttr]
@@ -183,7 +183,7 @@ def BSTTree(request):
     global m, DCs, R
     R = pd.read_csv('data/' + filename)
 
-    keepAttr = list(map(lambda d: d['Name'], attrList))
+    keepAttr = list(map(lambda d: d['Attribute'], attrList))
     cur_keepAttr = [keepAttr[i] for i in indices]
     cur_attrList = [attrList[i] for i in indices]
 
@@ -242,7 +242,7 @@ def DataDistribution(request):
             ret = json.load(f)
     else:
         R = pd.read_csv('data/' + filename)
-        attrs = list(map(lambda d: d['Name'], attrList))
+        attrs = list(map(lambda d: d['Attribute'], attrList))
         R = R[attrs]
         R.fillna(0, inplace=True)
         m = R.shape[1]
@@ -259,14 +259,14 @@ def DataDistribution(request):
                 Tick_Values = [Search_Min + i * Granularity for i in range(100) if Search_Min + i * Granularity <= Search_Max]
                 padding = (Search_Max - Search_Min) / 20
                 ScaleData.append({
-                    'name': attr['Name'],
+                    'name': attr['Attribute'],
                     'type': attr['Type'],
                     'domain': [Search_Min - padding, Search_Max + padding],
                     'Tick_Values': Tick_Values
                 })
             else:
                 ScaleData.append({
-                    'name': attr['Name'],
+                    'name': attr['Attribute'],
                     'type': attr['Type'],
                     'domain': list(DCs[i].params['map'].keys())
                 })
@@ -291,9 +291,9 @@ def DataDistribution(request):
         MaxMap = {}
         for i, attr in enumerate(attrList):
             if attr['Type'] == 'numerical':
-                MaxMap[attr['Name']] = DCs[i].params['Max']
+                MaxMap[attr['Attribute']] = DCs[i].params['Max']
             else:
-                MaxMap[attr['Name']] = max(R[attr['Name']].value_counts().tolist())
+                MaxMap[attr['Attribute']] = max(R[attr['Attribute']].value_counts().tolist())
 
         ret = {'ScaleData': ScaleData,
                'TableData': TableData,

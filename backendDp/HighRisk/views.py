@@ -16,6 +16,7 @@ def highRiskData(request):
     postData = json.loads(request.body)
     filename = postData['filename']
     attrList = postData['attrList']
+    attrNameList = list(map(lambda d: d['Attribute'], attrList))
     sensitivityWay = postData['sensitivityWay']
     TopNum = postData['TopNum']
     QueryType = postData['QueryType']
@@ -24,6 +25,7 @@ def highRiskData(request):
     qc = postData['QueryContent']
     VictimFilter = postData['VictimFilter']
     df = pd.read_csv('data/{0}'.format(filename))
+    df = df[attrNameList]
     if sensitivityWay == 'Global sensitivity' or sensitivityWay == 'Global':
         ret = GlobalAlgorithm(df, qc, attrList, TopNum, QueryType, epsilon, deviationRatio, VictimFilter)
     else:
@@ -40,7 +42,7 @@ def ValueFilter(values, VictimfilterScope, ATTRS):
             # 数值型
             values = list(filter(lambda d: s[0] <= d[idx] <= s[1], values))
         else:
-            values = list(filter(lambda d: s.index(d[idx]) >= 0, values))
+            values = list(filter(lambda d: d[idx] in s, values))
     return values
 
 def getKeyMap(request):
@@ -52,7 +54,7 @@ def getKeyMap(request):
     global m, DCs, R
     R = pd.read_csv('data/' + filename)
 
-    keepAttr = list(map(lambda d: d['Name'], attrList))
+    keepAttr = list(map(lambda d: d['Attribute'], attrList))
     cur_keepAttr = [keepAttr[i] for i in indices]
     cur_attrList = [attrList[i] for i in indices]
 
@@ -98,7 +100,9 @@ def GlobalAlgorithm(df, qc, attrList, TopNum, QueryType, epsilon, deviationRatio
     sensitiveAttrIdx = attrs.index(sensitiveAttr)
     DCs = getDataCoder(df, attrList)
     values = df.values
-    getCodedData(values, DCs, attrs, sensitiveAttr)
+    isCategorical = type(values[0][sensitiveAttrIdx]) == str
+    QueryType = 'count' if isCategorical else 'sum'
+    getCodedData(values, DCs, attrs, '' if isCategorical else sensitiveAttr)
 
 
     # 过滤属性范围
@@ -217,8 +221,9 @@ def GlobalAlgorithm(df, qc, attrList, TopNum, QueryType, epsilon, deviationRatio
                         attrSetIdxMap[findAttr].append(pvi)
 
 
-                        D = rawValues[pvi][sensitiveAttrIdx] * dp
+
                         if QueryType == 'sum':
+                            D = rawValues[pvi][sensitiveAttrIdx] * dp
                             risk = laplace_DV_P([-D, D], MaxS / epsilon)
                         else:
                             risk = laplace_DV_P([-0.5, 0], MaxS / epsilon) + 0.5
@@ -321,7 +326,8 @@ def GlobalAlgorithm(df, qc, attrList, TopNum, QueryType, epsilon, deviationRatio
 
 
     print(riskMap)
-
+    for an in Attack.keys():
+        Attack[an] = Attack[an][0:TopNum]
     attrs.remove(attrs[sensitiveAttrIdx])
     data = {
         'attrs': attrs,
@@ -362,7 +368,9 @@ def LocalAlgorithm(df, qc, attrList, TopNum, QueryType, epsilon, deviationRatio,
 
     DCs = getDataCoder(df, attrList)
     codedValues = df.values
-    getCodedData(codedValues, DCs, attrs, sensitiveAttr)
+    isCategorical = type(codedValues[0][sensitiveAttrIdx]) == str
+    QueryType = 'count' if isCategorical else 'sum'
+    getCodedData(codedValues, DCs, attrs, '' if isCategorical else sensitiveAttr)
     valuesList = []
     Attack = defaultdict(list)
     for i in range(5):
@@ -527,8 +535,9 @@ def LocalAlgorithm(df, qc, attrList, TopNum, QueryType, epsilon, deviationRatio,
                 S2 = ats[i][3]
                 if S2 == 0:
                     S2 += 0.1
-                D = riskV * dp
+
                 if QueryType == 'sum':
+                    D = riskV * dp
                     risk = laplace_DV_P2([-D, D], S1 / epsilon, S2 / epsilon)
                 else:
                     risk = laplace_DV_P([-0.5, 0], 1 / epsilon) + 0.5

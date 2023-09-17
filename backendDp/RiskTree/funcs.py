@@ -171,7 +171,7 @@ def indices2bitmap(indices):
 
 def getRiskRecord(filename, attrList, indices, RiskRatioMap, DescriptionNum):
     R = pd.read_csv('data/{0}'.format(filename))
-    keepAttr = map(lambda d: d['Name'], attrList)
+    keepAttr = map(lambda d: d['Attribute'], attrList)
     BSTMap = {}
     BSTKeyMap = defaultdict(list)
     R = R[keepAttr]
@@ -558,9 +558,9 @@ def Attack2RiskMap(values, Attack, attrParams, epsilon):
                     D = values[pvi] * deviationRatio
                     S = at[3]
                     if S != max(values[pvi], S):
-                        risk = laplace_DV_P2([-D, D], max(values[pvi], S), S)
+                        risk = laplace_DV_P2([-D, D], max(values[pvi], S/epsilon), S/epsilon)
                     else:
-                        risk = laplace_DV_P([-D, D], S)
+                        risk = laplace_DV_P([-D, D], S/epsilon)
                     temp[int(risk*10)] += 1
             for i in range(10):
                 temp[i] /= AttackNum

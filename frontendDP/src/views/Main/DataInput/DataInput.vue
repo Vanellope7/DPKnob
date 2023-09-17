@@ -23,11 +23,11 @@
       @cell-mouse-leave="handleCellLeave"
       style="width: 100%; height: calc(50% - 30px)">
     <el-table-column type="selection" width="30" v-if="attrListColumn.length !== 0" />
-    <el-table-column label="Sensitive attribute"
+    <el-table-column label="Sensitive"
                      align="center"
                      width="150" v-if="attrListColumn.length !== 0">
       <template #default="scope">
-        <el-checkbox v-model="scope.row['Sensitive attribute']" size="large" />
+        <el-checkbox v-model="scope.row['Sensitive']" size="large" />
       </template>
     </el-table-column>
     <el-table-column
@@ -85,13 +85,13 @@
         return this.fileList === [] ? '' : this.fileList[0].name;
       },
       attrListColumn() {
-        return this.attrList.length === 0 ? [] : ['Name', 'Type', 'Range', 'Query Granularity'];
+        return this.attrList.length === 0 ? [] : ['Attribute', 'Type', 'Range', 'Query Granularity'];
       }
     },
     methods: {
       uploadSuccess(response, file, fileList) {
         this.attrList = response.data;
-        // this.attrList.find(d => d['Name'] === 'charges')['Sensitive attribute'] = true;
+        // this.attrList.find(d => d['Name'] === 'charges')['Sensitive'] = true;
         this.$nextTick(() => {
           this.toggleSelection(this.attrList);
         })

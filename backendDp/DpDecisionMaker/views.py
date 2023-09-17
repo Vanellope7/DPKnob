@@ -27,8 +27,9 @@ def UpdateEpsilonWithPrivacy(request):
     else:
         b = binarySearch(left, right, precision, func=func, params=[-d, d], target=SRT)
     if b == 0:
-        b = 0.01
-    epsilon = round(Sensitivity / b, 2)
+        epsilon = 0.01
+    else:
+        epsilon = round(Sensitivity / b, 2)
     if curB1 != curB2:
         print('-----------------------------------------')
         print(SRT, laplace_DV_P2([-d, d], b, b/curB1*curB2))

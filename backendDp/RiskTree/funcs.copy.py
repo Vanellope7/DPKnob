@@ -168,7 +168,7 @@ def indices2bitmap(indices):
 
 def getRiskRecord(filename, attrList, indices, RiskRatioMap, DescriptionNum):
     R = pd.read_csv('data/{0}'.format(filename))
-    keepAttr = map(lambda d: d['Name'], attrList)
+    keepAttr = map(lambda d: d['Attribute'], attrList)
     BSTMap = {}
     BSTKeyMap = defaultdict(list)
     R = R[keepAttr]
