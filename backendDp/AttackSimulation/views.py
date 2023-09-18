@@ -20,10 +20,11 @@ def GetNoisyDataDistribution(request):
     res = float(eval("dfp.{0}()".format(postData['QueryType'])))
     sensitivities = dfp.getSensitivity(postData['QueryType'])
     sensitivity = dfp.getCurSensitivity(postData['QueryType'])
-
     b = float(sensitivity / postData['epsilon'])
     L = Laplace(b)
     D = []
+    if privateVal == 0:
+        privateVal = 1
     scope = [res - privateVal * 2, res + privateVal] if postData['scope'] == -1 else postData['scope']
     for x in np.linspace(scope[0], scope[1], 1000):
         D.append([x, L.laplace_f(x - res)])

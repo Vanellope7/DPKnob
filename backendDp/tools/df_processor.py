@@ -51,7 +51,7 @@ class DFProcessor:
     def getCurSensitivity(self, way):
         df = self.sensitivityDF
         if df.shape[0] == 0 or df.shape[0] == 1:
-            return 'None'
+            return 1
         Sensitivity = 1
         if way == 'sum':
             Sensitivity = df.max(numeric_only=True)[self.attr]
@@ -67,7 +67,9 @@ class DFProcessor:
         dfs = [self._df, self._queryDF]
         Sensitivity = []
         for df in dfs:
-            if way == 'sum':
+            if len(df) == 0:
+                Sensitivity.append(1)
+            elif way == 'sum':
                 Sensitivity.append(df.max()[self.attr])
             elif way == 'count':
                 Sensitivity.append(1)

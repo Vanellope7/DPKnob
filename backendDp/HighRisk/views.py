@@ -40,7 +40,7 @@ def ValueFilter(values, VictimfilterScope, ATTRS):
         idx = ATTRS.index(attr)
         if len(s) == 2 and type(s[0]) != str:
             # 数值型
-            values = list(filter(lambda d: s[0] <= d[idx] <= s[1], values))
+            values = list(filter(lambda d: s[0] - 1 <= d[idx] <= s[1] + 1, values))
         else:
             values = list(filter(lambda d: d[idx] in s, values))
     return values
@@ -179,6 +179,8 @@ def GlobalAlgorithm(df, qc, attrList, TopNum, QueryType, epsilon, deviationRatio
 
             for combi, comb in enumerate(combList):
                 an = combi + 1
+                if pvi == 534 and an == 2:
+                    print('xxx')
                 if an in finishedAn:
                     continue
 
@@ -223,6 +225,8 @@ def GlobalAlgorithm(df, qc, attrList, TopNum, QueryType, epsilon, deviationRatio
 
 
                         if QueryType == 'sum':
+                            if pvi == 543:
+                                print('xxx')
                             D = rawValues[pvi][sensitiveAttrIdx] * dp
                             risk = laplace_DV_P([-D, D], MaxS / epsilon)
                         else:
@@ -373,6 +377,8 @@ def LocalAlgorithm(df, qc, attrList, TopNum, QueryType, epsilon, deviationRatio,
     getCodedData(codedValues, DCs, attrs, '' if isCategorical else sensitiveAttr)
     valuesList = []
     Attack = defaultdict(list)
+    attrKeyRange = {}
+    temp = {}
     for i in range(5):
         curValues = list(codedValues.copy())
         for attrI, attr in enumerate(attrs):
@@ -394,6 +400,12 @@ def LocalAlgorithm(df, qc, attrList, TopNum, QueryType, epsilon, deviationRatio,
             specialKey = '-'.join(str(int(v)) for (idx, v) in enumerate(d.tolist()) if idx != sensitiveAttrIdx)
             specialCntMap[specialKey].append(i)
             idxKeyMap[i] = key
+            if attrKeyRange == {}:
+                for vi, v in enumerate(d):
+                    temp[vi] = temp.get(vi, [int(v), int(v)])
+                    temp[vi][0] = min(temp[vi][0], int(v))
+                    temp[vi][1] = max(temp[vi][1], int(v))
+        attrKeyRange = temp
 
         specialCnt = 0
         specialIdx = []
@@ -494,30 +506,62 @@ def LocalAlgorithm(df, qc, attrList, TopNum, QueryType, epsilon, deviationRatio,
                                 attrSetIdxMap[tuple(findAttr)].append(pvi)
 
                                 # 更新局部敏感度
-                                secondQueryGroup = mapKeys
-                                curCon = []
-                                for i, attr in enumerate(attrIdx):
-                                    curCon.append((attr, int(keyL[i])))
-                                    if candidateRecord.get(tuple(curCon), 0) == 0:
-                                        secondQueryGroup = list(filter(lambda d: d[attr] == keyL[i], secondQueryGroup))
-                                        candidateRecord[tuple(curCon)] = secondQueryGroup
+                                if differVal > 0:
+                                    differVRange = [0, -100, -1]
+                                else:
+                                    differVRange = [0, 100, 1]
+                                for differV in range(*differVRange):
+                                    secondQueryGroup = mapKeys
+                                    curCon = []
+                                    DV = int(keyL[i]) + differV
+                                    for i, attr in enumerate(attrIdx):
+                                        if attr == differAttr:
+                                            if differV >= 0:
+                                                curCon.append((attr, (int(keyL[i]), int(keyL[i]) + differV)))
+                                                if candidateRecord.get(tuple(curCon), 0) == 0:
+                                                    secondQueryGroup = list(
+                                                        filter(lambda d: int(keyL[i]) <= int(d[attr]) <= int(keyL[i]) + differV,
+                                                               secondQueryGroup))
+                                                    candidateRecord[tuple(curCon)] = secondQueryGroup
+                                                else:
+                                                    secondQueryGroup = candidateRecord.get(tuple(curCon))
+                                            else:
+                                                curCon.append((attr, ((int(keyL[i]) + differV), int(keyL[i]))))
+                                                if candidateRecord.get(tuple(curCon), 0) == 0:
+                                                    secondQueryGroup = list(
+                                                        filter(lambda d: int(keyL[i]) + differV <= int(d[attr]) <= int(
+                                                            keyL[i]),
+                                                               secondQueryGroup))
+                                                    candidateRecord[tuple(curCon)] = secondQueryGroup
+                                                else:
+                                                    secondQueryGroup = candidateRecord.get(tuple(curCon))
+                                        else:
+                                            curCon.append((attr, int(keyL[i])))
+                                            if candidateRecord.get(tuple(curCon), 0) == 0:
+                                                secondQueryGroup = list(filter(lambda d: d[attr] == keyL[i], secondQueryGroup))
+                                                candidateRecord[tuple(curCon)] = secondQueryGroup
+                                            else:
+                                                secondQueryGroup = candidateRecord.get(tuple(curCon))
+                                    MaxS = 0
+                                    secondQueryGroupIdx = []
+                                    for secondK in secondQueryGroup:
+                                        S = \
+                                        rawValues[max(cntMap['-'.join(secondK)], key=lambda d: rawValues[d][sensitiveAttrIdx])][
+                                            sensitiveAttrIdx]
+                                        MaxS = max(S, MaxS)
+                                        secondQueryGroupIdx.extend(cntMap['-'.join(secondK)])
+                                    secondQueryGroupIdx = list(set(secondQueryGroupIdx))
+                                    if len(secondQueryGroupIdx) > 1:
+                                        nx = len(attrIdx)
+                                        minSensitivity[pvi][nx] = minSensitivity[pvi].get(nx, MaxS)
+                                        minSensitivity[pvi][nx] = min(MaxS, minSensitivity[pvi][nx])
+                                        if len(list(filter(lambda d: d[0] == pvi, Attack[nx]))) == 0:
+                                            Attack[nx].append([pvi, findAttr, attrs[differAttr], minSensitivity[pvi][nx], secondQueryGroupIdx, specialKeyL])
+                                        break
                                     else:
-                                        secondQueryGroup = candidateRecord.get(tuple(curCon))
-                                MaxS = 0
-                                secondQueryGroupIdx = []
-                                for secondK in secondQueryGroup:
-                                    S = \
-                                    rawValues[max(cntMap['-'.join(secondK)], key=lambda d: rawValues[d][sensitiveAttrIdx])][
-                                        sensitiveAttrIdx]
-                                    MaxS = max(S, MaxS)
-                                    secondQueryGroupIdx.extend(cntMap['-'.join(secondK)])
-                                secondQueryGroupIdx = list(set(secondQueryGroupIdx))
-                                if len(secondQueryGroupIdx) > 1:
-                                    nx = len(attrIdx)
-                                    minSensitivity[pvi][nx] = minSensitivity[pvi].get(nx, MaxS)
-                                    minSensitivity[pvi][nx] = min(MaxS, minSensitivity[pvi][nx])
-                                    if len(list(filter(lambda d: d[0] == pvi, Attack[nx]))) == 0:
-                                        Attack[nx].append([pvi, findAttr, attrs[differAttr], minSensitivity[pvi][nx], secondQueryGroupIdx, specialKeyL])
+                                        if DV > attrKeyRange[differAttr][1] or DV < attrKeyRange[differAttr][0]:
+                                            break
+
                             e2 = time.time()
                             t2 += e2 - s2
 

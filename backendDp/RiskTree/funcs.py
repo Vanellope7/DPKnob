@@ -555,13 +555,23 @@ def Attack2RiskMap(values, Attack, attrParams, epsilon):
 
                 for at in ats:
                     pvi = int(at[0])
+                    if pvi == 543:
+                        print('xxx')
                     D = values[pvi] * deviationRatio
                     S = at[3]
                     if S != max(values[pvi], S):
-                        risk = laplace_DV_P2([-D, D], max(values[pvi], S/epsilon), S/epsilon)
+                        risk = laplace_DV_P2([-D, D], max(values[pvi]/epsilon, S/epsilon), S/epsilon)
                     else:
                         risk = laplace_DV_P([-D, D], S/epsilon)
-                    temp[int(risk*10)] += 1
+                    risk = round(risk, 2)
+                    if round(risk, 1) == risk and risk != 1 and risk != 0:
+                        temp[int(risk * 10) - 1] += 1
+                    else:
+                        temp[int(risk * 10)] += 1
+                    if len(ARL) == 4 and int(risk*10) >= 2:
+                        print('xxx')
+
+
             for i in range(10):
                 temp[i] /= AttackNum
             ARL.append(temp)

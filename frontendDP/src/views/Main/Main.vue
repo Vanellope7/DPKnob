@@ -4,7 +4,7 @@
       <div id="DifferentialRiskIdentification" class="BaseMain">
           <div class="MainLabel">Attack Cases Exploration</div>
         <div id="QT_Panel" class="Panel">
-          <div style="margin-right: 3px">Query Content</div>
+          <div style="margin-right: 3px">Query content</div>
           <el-divider direction="vertical" border-style="dashed" class="PanelTextDivider"/>
           <span>Attribute: </span>
           <el-select class="marginLeft10px" v-model="QueryAttr" placeholder="Select" size="small" style="width: 100px">
@@ -69,7 +69,7 @@
 
         </div>
         <div id="DPS_Panel" class="Panel">
-          <div style="margin-right: 17px">DP Scheme</div>
+          <div style="margin-right: 22px">DP scheme</div>
           <el-divider direction="vertical" border-style="dashed" class="PanelTextDivider"/>
           <span>&epsilon;: </span>
           <el-input-number
@@ -123,7 +123,7 @@
 
           </div>
           <div class="controlBar">
-            <div class="SecondaryLabel">Case Filter</div>
+            <div class="SecondaryLabel">Attack Filter</div>
             <div class="controlLabel">
               <div class="ScopeL">
                 <span>Scope</span>
@@ -226,12 +226,12 @@
           </div>
           <el-divider class="PanelDivider" direction="vertical" border-style="dashed"/>
           <div class="attrRank">
-            <div class="SecondaryLabel rotateLabel">Case recommendation</div>
+            <div class="SecondaryLabel" style="width: 200px">Group Description</div>
+<!--            <div class="SecondaryLabel rotateLabel">Attack recommendation</div>-->
             <svg id="attrRankPlot"></svg>
           </div>
 
           <div class="highRisk">
-            <div class="SecondaryLabel">Group Description</div>
             <svg id="highRiskPlot">
               <text x="80" y="390">Succ rate of attack</text>
               <text x="0" y="25">#Attributes used in query conditions</text>
@@ -356,9 +356,9 @@
                   </g>
 
                   <g class="decorationG" transform="translate(2, 3)">
-                    <line :x1="(curSchemeHistoryColumnWidth - 20) / 10*sumAttackSRTPercent/10"
-                          :x2="(curSchemeHistoryColumnWidth - 20) / 10*sumAttackSRTPercent/10"
-                          :y1="barChartHeight - 10 - (barChartHeight - 10) / 10 * PrivacyDeviationPercent/10"
+                    <line :x1="(curSchemeHistoryColumnWidth - 20) / 10*SchemeThresholdMap[attr][1]/10"
+                          :x2="(curSchemeHistoryColumnWidth - 20) / 10*SchemeThresholdMap[attr][1]/10"
+                          :y1="barChartHeight - 10 - (barChartHeight - 10) / 10 * SchemeThresholdMap[attr][0]/10"
                           :y2="barChartHeight - 10"
                           :stroke="colorMap['risk']"
                           stroke-width="2px"
@@ -366,8 +366,8 @@
                     ></line>
                     <line x1="0"
                           :x2="10*(curSchemeHistoryColumnWidth - 20) / 10"
-                          :y1="barChartHeight - 10 - (barChartHeight - 10) / 10 * PrivacyDeviationPercent/10"
-                          :y2="barChartHeight - 10 - (barChartHeight - 10) / 10 * PrivacyDeviationPercent/10"
+                          :y1="barChartHeight - 10 - (barChartHeight - 10) / 10 * SchemeThresholdMap[attr][0]/10"
+                          :y2="barChartHeight - 10 - (barChartHeight - 10) / 10 * SchemeThresholdMap[attr][0]/10"
 
                           :stroke="colorMap['deep-grey']"
                           stroke-width="2px"
@@ -379,38 +379,39 @@
                 <!--                <span v-if="scope.row[attr + '-' + secondaryColumn] === undefined">In calculation</span>-->
               </template>
               <template #default="scope" v-if="attr !== 'DP scheme' && QueryType === 'count'">
-                <svg class="barChart" v-if="(typeof scope.row[attr]) === 'object'">
-                  <text x="40" y="14" style="text-anchor: middle; font-size: 14px">{{ 'Avg: ' + (scope.row[attr][0] * 100).toFixed(0) + '%'}}</text>
+                <svg class="barChart" v-if="(typeof scope.row[attr]) === 'object'"
+                     :style="{height: barChartHeight, width: curSchemeHistoryColumnWidth}"
+                >
+<!--                  <text :x="curSchemeHistoryColumnWidth/2" y="14" style="text-anchor: middle; font-size: 14px">{{ 'Avg: ' + (scope.row[attr][0] * 100).toFixed(0) + '%'}}</text>-->
                   <g class="background">
-                    <rect x="0" y="22" width="75" height="80"
+                    <rect x="0" y="0" :width="curSchemeHistoryColumnWidth - 15" :height="barChartHeight-5"
                           fill="none"
                           :stroke="colorMap['normal-grey']"
                           stroke-width="1px"
                     ></rect>
                   </g>
-                  <g class="bodyG" transform="translate(2, 25)">
+                  <g class="bodyG" :transform="`translate(2, -2)`">
                     <g class="bodyRectG"
                        :transform="`translate(${0},${0})`"
                     >
                       <rect
                           v-for="(d, i) in scope.row[attr][1]"
-                          :x="i*10"
-                          :y="0"
-                          :width="10"
-                          :height="35"
+                          :x="i*(curSchemeHistoryColumnWidth - 20) / 10"
+                          :y="5"
+                          :width="(curSchemeHistoryColumnWidth - 20) / 10"
+                          :height="(barChartHeight - 10)"
                           :fill="schemeHistoryRectColorScale(d)"
                       ></rect>
                     </g>
                   </g>
 
                   <g class="decorationG" transform="translate(2, 5)">
-                    <line :x1="10*(Math.floor(countAttackSRTPercent/10))"
-                          :x2="10*(Math.floor(countAttackSRTPercent/10))"
-                          :y1="20"
-                          y2="35"
+                    <line :x1="(curSchemeHistoryColumnWidth - 20) / 10*SchemeThresholdMap[attr][1]/10"
+                          :x2="(curSchemeHistoryColumnWidth - 20) / 10*SchemeThresholdMap[attr][1]/10"
+                          :y1="5"
+                          :y2="barChartHeight - 10"
                           :stroke="colorMap['risk']"
                           stroke-width="2px"
-
                     ></line>
                   </g>
                 </svg>
@@ -548,7 +549,7 @@
             <span style="top: 1px" class="percentageMasker" :class="{hidden: !isPercentage1}">%</span>
             <el-button type="primary" @click="switchPercentage1" class="refreshBtn blueBtn">
               <el-icon><Refresh /></el-icon>
-              <span class="oppositeDeviation">{{ isPercentage1 ? PrivacyDeviationVal.toFixed(0) : PrivacyDeviationPercent + '%' }}</span>
+              <span class="oppositeDeviation">{{ isPercentage1 ? PrivacyDeviationVal.toFixed(0) : SchemeThresholdMap[this.curVictimGroup][0] + '%' }}</span>
             </el-button>
 
           </div>
@@ -568,7 +569,7 @@
 <!--            </svg>-->
 <!--            <span class="RelativeToDiv" style="width: 400px">P<sub>set_leak</sub> ({{ curAttrRiskStr }})	&times; P<sub>infer_suc</sub> ({{ deviationP1.toFixed(2) * 100 + '%' }})</span>-->
             <el-input-number
-                v-model="sumAttackSRTPercent"
+                v-model="SchemeThresholdMap[this.curVictimGroup][1]"
                 :min="0"
                 :max="100"
                 :step="1"
@@ -579,23 +580,23 @@
             <span class="percentageMasker">%</span>
           </div>
           <div class="flexLayout relativeDiv" v-else>
-            <span class="relativeTop5px">Succ rate threshold: </span>
-            <svg class="RelativeToDiv SuccTextSvg">
-<!--              <text x="0" y="20" style="font-size: 12px">P</text>-->
-<!--              <text x="6" y="23" style="font-size: 9px">leak</text>-->
-<!--              <text x="27" y="20" style="font-size: 12px">({{ (curAttrRisk * 100).toFixed(0) + '%' }})</text>-->
-<!--              <text :x="curAttrRisk === 1 ? 67 : 61" y="22 ">&times;</text>-->
+            <span >Succ rate threshold: </span>
+<!--            <svg class="RelativeToDiv SuccTextSvg">-->
+<!--&lt;!&ndash;              <text x="0" y="20" style="font-size: 12px">P</text>&ndash;&gt;-->
+<!--&lt;!&ndash;              <text x="6" y="23" style="font-size: 9px">leak</text>&ndash;&gt;-->
+<!--&lt;!&ndash;              <text x="27" y="20" style="font-size: 12px">({{ (curAttrRisk * 100).toFixed(0) + '%' }})</text>&ndash;&gt;-->
+<!--&lt;!&ndash;              <text :x="curAttrRisk === 1 ? 67 : 61" y="22 ">&times;</text>&ndash;&gt;-->
 
-              <g :transform="`translate(${curAttrRisk === 1 ? 75 : 70}, 0)`">
-                <text x="0" y="20" style="font-size: 12px">P</text>
-                <text x="6" y="23" style="font-size: 9px">infer</text>
-                <text x="27" y="20" style="font-size: 12px">({{ (Math.max(...deduceData) * 100).toFixed(0) + '%' }})</text>
-              </g>
-            </svg>
+<!--              <g :transform="`translate(${curAttrRisk === 1 ? 75 : 70}, 0)`">-->
+<!--                <text x="0" y="20" style="font-size: 12px">P</text>-->
+<!--                <text x="6" y="23" style="font-size: 9px">infer</text>-->
+<!--                <text x="27" y="20" style="font-size: 12px">({{ (Math.max(...deduceData) * 100).toFixed(0) + '%' }})</text>-->
+<!--              </g>-->
+<!--            </svg>-->
             <el-input-number
-                v-model="countAttackSRTPercent"
-                :min="Math.round(curAttrRisk * 100 * 0.5)"
-                :max="Math.round(curAttrRisk * 100) - 1"
+                v-model="sumAttackSRTPercent"
+                :min="0"
+                :max="100"
                 :step="1"
                 controls-position="right"
                 class="thresholdInput"
@@ -911,6 +912,7 @@ export default {
         excludeAttrsNums: 0,
         hoveringMap: {},
         AttackMap: {},
+        SchemeThresholdMap: {'All': [80, 20]}
       }
     },
     computed: {
@@ -1387,7 +1389,7 @@ export default {
                             .data(AlignData)
                             .join('path')
                             .attr('transform', d => `translate(0, ${yScale(d)})`)
-                            .attr('d', (d, i) => AlignLine([0, BottomData[d]]))
+                            .attr('d', (d, i) => AlignLine(xRScale.domain()))
                             .attr('stroke', this.colorMap["deep-grey"])
                             .attr('stroke-dasharray', '5 2');
         rightPanel.selectAll("myViolin")
@@ -1398,7 +1400,7 @@ export default {
             .append("path")
             .datum(function(d){ return(d[1])})     // So now we are working bin per bin
             .style("stroke", "none")
-            .style("fill","#aaa")
+            .style("fill",this.colorMap['light-grey'])
             .attr("d", d3.area()
                 .y0(d => { return(yNum(-d.length)) } )
                 .y1(d => { return(yNum(d.length)) } )
@@ -1527,6 +1529,7 @@ export default {
         }).then(() => {
           this.clickQueryNode(d);
           this.initializeAttackSimulationViews(d);
+          this.curAttackTarget = d;
         });
 
       },
@@ -1631,6 +1634,8 @@ export default {
 
       // Attribute Set Tree function
       initializeTree([data, curFile, attrList, DescriptionNum]) {
+        // this.SchemeThresholdMap[this.curVictimGroup] = [this.PrivacyDeviationPercent, this.sumAttackSRTPercent]
+        console.log(this.SchemeThresholdMap)
         this.DescriptionNum = DescriptionNum;
         // this.riskRecord = data.riskRecord;
         console.log(this.riskRecord)
@@ -4497,12 +4502,9 @@ export default {
 
       hoverRowClassName({ row, rowIndex }) {
         let classNames = []
-        if(rowIndex === this.AttrLockMap[row['DP scheme']]) {
-          console.log('xxx')
-        }
         console.log(rowIndex,  this.AttrLockMap)
         if ((rowIndex === this.AttrLockMap[row['DP scheme']]) || (row['DP scheme'] === this.hoverRowAttr)) {
-          classNames.push('hover-row');
+          classNames.push('hoverRow');
         }
         // if(this.AttrLockMap[row['Attribute']] !== -1 && rowIndex !== this.AttrLockMap[row['Attribute']]) {
         //   classNames.push('unlock-row');
@@ -5072,6 +5074,7 @@ export default {
       'AttackSRT': {
         handler(newVal, oldVal) {
           this.UpdateEpsilonWithPrivacy();
+          // this.SchemeThresholdMap[this.curVictimGroup] = [this.PrivacyDeviationPercent, this.sumAttackSRTPercent]
         },
         deep: true,
         immediate: false
@@ -5143,7 +5146,7 @@ export default {
       'PrivacyDeviationPercent': {
         handler(newVal, oldVal) {
           this.SchemeHistoryAttrDeviationMap[this.QueryAttr] = newVal + '%';
-
+          this.SchemeThresholdMap[this.curVictimGroup][0] = newVal;
         },
         deep: true,
         immediate: false
@@ -5273,11 +5276,11 @@ export default {
             }, 1000)
           }
           // for sumAttackSRT
-          if(this.sumAttackSRTPercent >= max) {
+          if(this.SchemeThresholdMap[this.curVictimGroup][1] >= max) {
             // Delay adjustment
             setTimeout(() => {
               let temp = Math.round(max / 2);
-              this.sumAttackSRTPercent = temp;
+              this.SchemeThresholdMap[this.curVictimGroup][1] = temp;
 
             }, 1000)
           }
@@ -5339,6 +5342,21 @@ export default {
       'curVictimGroup': {
         handler(newVal, oldVal) {
           [this.attrGropeFilter, this.AttrFilterMap] = this.VictimNameMap[newVal];
+          if(this.isPercentage1) {
+            if(!this.SchemeThresholdMap[this.curVictimGroup]) {
+              this.SchemeThresholdMap[this.curVictimGroup] = JSON.parse(JSON.stringify(this.SchemeThresholdMap[oldVal]));
+            }
+            [this.PrivacyDeviation, this.sumAttackSRTPercent] = this.SchemeThresholdMap[this.curVictimGroup]
+          }
+          else {
+            if(!this.SchemeThresholdMap[this.curVictimGroup]) {
+              let temp;
+              this.SchemeThresholdMap[this.curVictimGroup] = JSON.parse(JSON.stringify(this.SchemeThresholdMap[oldVal]));
+            }
+            [temp, this.sumAttackSRTPercent] = this.SchemeThresholdMap[this.curVictimGroup]
+            this.PrivacyDeviation = temp / 100 * this.privateVal;
+          }
+
         },
         deep: true,
         immediate: false
@@ -5619,7 +5637,7 @@ export default {
     text-align: center;
     height: 38px;
   }
-  #attrRankPlot {
+  #highRiskPlot {
     margin-top: 52px;
   }
   #attrRankPlot, #highRiskPlot {
@@ -6145,7 +6163,7 @@ export default {
   .hoverPath {
     stroke: rgba(236, 204, 104,1.0);
   }
-  .el-table__body .el-table__row.hover-row td{
+  .el-table__body .el-table__row.hoverRow td{
     background-color: #f5f7fa !important;
   }
   .el-table__body .hover-cell {
@@ -6259,7 +6277,7 @@ export default {
   }
 
   .el-radio {
-    margin-right: 35px;
+    margin-right: 45px;
   }
 
   .el-upload-list__item {
