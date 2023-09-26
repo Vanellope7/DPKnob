@@ -8,6 +8,7 @@ from django.http import JsonResponse
 from django.shortcuts import render
 
 from HighRisk.utils import laplace_DV_P2, listIncluded, laplace_DV_P
+from RiskTree.Class import JsonEncoder
 from RiskTree.funcs import getDataCoder, key2string, getCodedData
 
 
@@ -24,14 +25,36 @@ def highRiskData(request):
     deviationRatio = postData['deviationRatio']
     qc = postData['QueryContent']
     VictimFilter = postData['VictimFilter']
+    data = postData['Attacks']
     df = pd.read_csv('data/{0}'.format(filename))
     df = df[attrNameList]
-    if sensitivityWay == 'Global sensitivity' or sensitivityWay == 'Global':
-        ret = GlobalAlgorithm(df, qc, attrList, TopNum, QueryType, epsilon, deviationRatio, VictimFilter)
+    if data == '':
+        if sensitivityWay == 'Global sensitivity' or sensitivityWay == 'Global' or QueryType == 'count':
+            ret = GlobalAlgorithm(df, qc, attrList, TopNum, QueryType, epsilon, deviationRatio, VictimFilter)
+        else:
+            ret = LocalAlgorithm(df, qc, attrList, TopNum, QueryType, epsilon, deviationRatio, VictimFilter)
     else:
-        ret = LocalAlgorithm(df, qc, attrList, TopNum, QueryType, epsilon, deviationRatio, VictimFilter)
+        ret = refreshRisk(data, df, qc, epsilon, QueryType, deviationRatio)
+
     return JsonResponse({'data': ret})
 
+def refreshRisk(data, df, qc, epsilon, QueryType, deviationRatio):
+    attrs = df.columns.tolist()
+    df.fillna(0, inplace=True)
+    rawValues = df.values
+    sensitiveAttr = qc
+    sensitiveAttrIdx = attrs.index(sensitiveAttr)
+    Attack = data['Attack']
+    for nx, ats in Attack.items():
+        for i in range(len(ats)):
+            if QueryType == 'sum':
+                pvi = ats[i][0]
+                D = rawValues[pvi][sensitiveAttrIdx] * deviationRatio
+                risk = laplace_DV_P([-D, D], ats[i][3] / epsilon)
+            else:
+                risk = laplace_DV_P([-0.5, 0], 1 / epsilon) + 0.5
+            ats[i][-1] = risk
+    return data
 
 def ValueFilter(values, VictimfilterScope, ATTRS):
     if VictimfilterScope == {}:
@@ -81,8 +104,7 @@ def getKeyMap(request):
     json_data = {
         'keyMap': keyMap,
     }
-
-    return JsonResponse(json_data)
+    return JsonResponse(json_data, encoder=JsonEncoder)
 
 def GlobalAlgorithm(df, qc, attrList, TopNum, QueryType, epsilon, deviationRatio, VictimFilter):
     start = time.time()
@@ -92,7 +114,10 @@ def GlobalAlgorithm(df, qc, attrList, TopNum, QueryType, epsilon, deviationRatio
     # df.drop('ID', axis=1, inplace=True)
     attrs = df.columns.tolist()
     df.fillna(0, inplace=True)
-    sortedIdx = df.sort_values(by=qc, ascending=False).index
+    if QueryType == 'sum':
+        sortedIdx = df.sort_values(by=qc, ascending=False).index
+    else:
+        sortedIdx = range(len(df.index))
     rawValues = df.values
     end = time.time()
     print("排序运行时间:", end - start, '秒')
@@ -101,7 +126,7 @@ def GlobalAlgorithm(df, qc, attrList, TopNum, QueryType, epsilon, deviationRatio
     DCs = getDataCoder(df, attrList)
     values = df.values
     isCategorical = type(values[0][sensitiveAttrIdx]) == str
-    QueryType = 'count' if isCategorical else 'sum'
+    # QueryType = 'count' if isCategorical else 'sum'
     getCodedData(values, DCs, attrs, '' if isCategorical else sensitiveAttr)
 
 
@@ -109,7 +134,7 @@ def GlobalAlgorithm(df, qc, attrList, TopNum, QueryType, epsilon, deviationRatio
 
     n = len(values)
 
-    print(df.columns.tolist())
+    # print(df.columns.tolist())
 
 
     cntMap = defaultdict(list)
@@ -179,8 +204,7 @@ def GlobalAlgorithm(df, qc, attrList, TopNum, QueryType, epsilon, deviationRatio
 
             for combi, comb in enumerate(combList):
                 an = combi + 1
-                if pvi == 534 and an == 2:
-                    print('xxx')
+
                 if an in finishedAn:
                     continue
 
@@ -225,8 +249,7 @@ def GlobalAlgorithm(df, qc, attrList, TopNum, QueryType, epsilon, deviationRatio
 
 
                         if QueryType == 'sum':
-                            if pvi == 543:
-                                print('xxx')
+
                             D = rawValues[pvi][sensitiveAttrIdx] * dp
                             risk = laplace_DV_P([-D, D], MaxS / epsilon)
                         else:
@@ -280,6 +303,8 @@ def GlobalAlgorithm(df, qc, attrList, TopNum, QueryType, epsilon, deviationRatio
                                     secondQueryGroupIdx.extend(cntMap['-'.join(secondK)])
                                 secondQueryGroupIdx = list(set(secondQueryGroupIdx))
                                 if len(secondQueryGroupIdx) > 1:
+                                    if differAttr == 1 and abs(differVal) > 10:
+                                        print(pvi, findAttrName)
                                     Attack[len(findAttr)].append(
                                         [pvi, findAttrName, attrs[differAttr], MaxS, secondQueryGroupIdx, keyL, risk])
                                     findQuery = True
@@ -308,7 +333,7 @@ def GlobalAlgorithm(df, qc, attrList, TopNum, QueryType, epsilon, deviationRatio
     #     Attack[an] = Attack[an][0:TopNum]
 
     ASIM = dict(attrSetIdxMap)
-    print(ASIM)
+    # print(ASIM)
     IASM = defaultdict(list)
     for k, v in ASIM.items():
         for idx in v:
@@ -329,7 +354,7 @@ def GlobalAlgorithm(df, qc, attrList, TopNum, QueryType, epsilon, deviationRatio
 
 
 
-    print(riskMap)
+    # print(riskMap)
     for an in Attack.keys():
         Attack[an] = Attack[an][0:TopNum]
     attrs.remove(attrs[sensitiveAttrIdx])
@@ -373,7 +398,7 @@ def LocalAlgorithm(df, qc, attrList, TopNum, QueryType, epsilon, deviationRatio,
     DCs = getDataCoder(df, attrList)
     codedValues = df.values
     isCategorical = type(codedValues[0][sensitiveAttrIdx]) == str
-    QueryType = 'count' if isCategorical else 'sum'
+    # QueryType = 'count' if isCategorical else 'sum'
     getCodedData(codedValues, DCs, attrs, '' if isCategorical else sensitiveAttr)
     valuesList = []
     Attack = defaultdict(list)
@@ -587,7 +612,7 @@ def LocalAlgorithm(df, qc, attrList, TopNum, QueryType, epsilon, deviationRatio,
                     risk = laplace_DV_P([-0.5, 0], 1 / epsilon) + 0.5
                 ats[i].append(risk)
             Attack[nx].sort(key=lambda d: -d[-1])
-        print(Attack)
+        # print(Attack)
 
         charges = list(charges)
         left, right = charges[0], charges[-1]

@@ -78,7 +78,7 @@ def fileReceive(request):
                 'Range': Range,
                 # 'Range Width': len(Range),
                 'Search Range': '-',
-                'Query Granularity': '-',
+                'Query granularity': '-',
                 'Leakage Probability': '100%'
                 #     '80%' if attr in AttrMap[filename]['ExplicitDescription'] else
                 # ('70%' if attr in AttrMap[filename]['NormalDescription'] else
@@ -99,7 +99,7 @@ def fileReceive(request):
                 'Range': "{0}~{1}".format(Min, Max),
                 # 'Range Width': Max - Min,
                 'Search Range': '{0}~{1}'.format(MinEdge, MaxEdge),
-                'Query Granularity': width,
+                'Query granularity': width,
                 'Leakage Probability': '100%'
                 #     '80%' if attr in AttrMap[filename]['ExplicitDescription'] else
                 # ('70%' if attr in AttrMap[filename]['NormalDescription'] else
@@ -255,7 +255,7 @@ def DataDistribution(request):
                 SearchRange = attr['Search Range'].split('~')
                 Search_Min = float(SearchRange[0])
                 Search_Max = float(SearchRange[1])
-                Granularity = attr['Query Granularity']
+                Granularity = attr['Query granularity']
                 Tick_Values = [Search_Min + i * Granularity for i in range(100) if Search_Min + i * Granularity <= Search_Max]
                 padding = (Search_Max - Search_Min) / 20
                 ScaleData.append({

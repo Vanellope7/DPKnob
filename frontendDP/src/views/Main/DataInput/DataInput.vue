@@ -22,12 +22,13 @@
       @cell-mouse-enter="handleCellEnter"
       @cell-mouse-leave="handleCellLeave"
       style="width: 100%; height: calc(50% - 30px)">
-    <el-table-column type="selection" width="30" v-if="attrListColumn.length !== 0" />
+<!--    <el-table-column type="selection" width="30" v-if="attrListColumn.length !== 0" />-->
     <el-table-column label="Sensitive"
                      align="center"
                      width="150" v-if="attrListColumn.length !== 0">
       <template #default="scope">
-        <el-checkbox v-model="scope.row['Sensitive']" size="large" />
+        <el-radio v-model="SensitiveAttr" :label="scope.row['Attribute']">&nbsp;</el-radio>
+<!--        <el-checkbox v-model="scope.row['Sensitive']" size="large" />-->
       </template>
     </el-table-column>
     <el-table-column
@@ -72,12 +73,13 @@
         multipleSelection: [],
 
         // 需要编辑的属性
-        editProp: ['Query Granularity'],
+        editProp: ['Query granularity'],
         // columnWidth: [140, 130, 200, 160, 190, 190],
         // 保存进入编辑的cell
         clickCellMap: {},
         lastCell: 0,
         lastEnterCell: 0,
+        SensitiveAttr: ''
       }
     },
     computed: {
@@ -85,12 +87,14 @@
         return this.fileList === [] ? '' : this.fileList[0].name;
       },
       attrListColumn() {
-        return this.attrList.length === 0 ? [] : ['Attribute', 'Type', 'Range', 'Query Granularity'];
+        return this.attrList.length === 0 ? [] : ['Attribute', 'Type', 'Range', 'Query granularity'];
       }
     },
     methods: {
       uploadSuccess(response, file, fileList) {
         this.attrList = response.data;
+        this.SensitiveAttr = this.attrList[0]['Attribute']
+        this.attrList[0]['Sensitive'] = true;
         // this.attrList.find(d => d['Name'] === 'charges')['Sensitive'] = true;
         this.$nextTick(() => {
           this.toggleSelection(this.attrList);
@@ -179,6 +183,25 @@
         // }
       }
     },
+    watch: {
+      'SensitiveAttr': {
+        handler(newVal, oldVal) {
+          let idx = this.attrList.findIndex(d => d['Attribute'] === this.SensitiveAttr);
+          for(let i in this.attrList) {
+            let ii = parseInt(i);
+            if(ii === idx) {
+              this.attrList[ii]['Sensitive'] = true;
+            }
+            else {
+              this.attrList[ii]['Sensitive'] = false;
+            }
+          }
+        },
+        deep: true,
+        immediate: false
+      },
+
+    },
     mounted() {
 
     }
@@ -188,7 +211,7 @@
 <style scoped>
   .ConfirmBtn {
     height: 60px;
-    margin: 15px 0;
+    margin-top: 35px;
     text-align: center;
   }
 
@@ -216,6 +239,8 @@
   .item .item__input .el-input__inner{
     height: 23px!important;
     text-align: center;
+    padding: 0 30px;
+    font-size: 20px !important;
   }
 
   .item .item__txt{
@@ -236,4 +261,18 @@
     margin-bottom: 10px;
     vertical-align: center;
   }
+
+
+  .DataInput .el-table .cell{
+    font-size: 20px !important;
+  }
+
+  .el-upload-list__item-file-name {
+    font-size: 20px;
+  }
+
+  .DataInput .el-table th .cell {
+    padding-bottom: 5px;
+  }
+
 </style>

@@ -30,9 +30,9 @@ def UpdateEpsilonWithPrivacy(request):
         epsilon = 0.01
     else:
         epsilon = round(Sensitivity / b, 2)
-    if curB1 != curB2:
-        print('-----------------------------------------')
-        print(SRT, laplace_DV_P2([-d, d], b, b/curB1*curB2))
+    # if curB1 != curB2:
+    #     print('-----------------------------------------')
+    #     print(SRT, laplace_DV_P2([-d, d], b, b/curB1*curB2))
     if curB1 == curB2:
         dp = laplace_DV_P([-d, d], curB1)  # deviation p
     else:

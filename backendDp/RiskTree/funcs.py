@@ -69,7 +69,7 @@ def getDataCoder(data, attrList):
         # 首先得知道数据的范围
         type = attrList[i]['Type']
         if type == 'numerical':
-            Width = attrList[i]['Query Granularity']
+            Width = attrList[i]['Query granularity']
             splitEdge = attrList[i]['Search Range'].split('~')
             MinEdge = float(splitEdge[0])
             MaxEdge = float(splitEdge[1])
@@ -564,7 +564,7 @@ def Attack2RiskMap(values, Attack, attrParams, epsilon):
                     else:
                         risk = laplace_DV_P([-D, D], S/epsilon)
                     risk = round(risk, 2)
-                    if round(risk, 1) == risk and risk != 1 and risk != 0:
+                    if abs(risk - round(risk, 1)) <= 1e-3 and risk != 1 and int(risk * 10)  != 0:
                         temp[int(risk * 10) - 1] += 1
                     else:
                         temp[int(risk * 10)] += 1
@@ -577,4 +577,8 @@ def Attack2RiskMap(values, Attack, attrParams, epsilon):
             ARL.append(temp)
     # 求count的结果
     attackRisk = laplace_DV_P([0, 0.5], 1 / epsilon) + 0.5
-    return {'sum': sumRet, 'count': [attackRisk, attackRisk, [1 if i == int(attackRisk*10) else 0 for i in range(10)]]}
+    attackRiskIdx = int(attackRisk*10)
+    if abs(attackRisk - round(attackRisk, 1)) <= 1e-3 and attackRisk != 1 and attackRiskIdx != 0:
+        attackRiskIdx -= 1
+    return {'sum': sumRet, 'count': [attackRisk, attackRisk,
+                                     [1 if i == attackRiskIdx else 0 for i in range(10)]]}
