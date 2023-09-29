@@ -36,7 +36,7 @@ def highRiskData(request):
     else:
         ret = refreshRisk(data, df, qc, epsilon, QueryType, deviationRatio)
 
-    return JsonResponse({'data': ret})
+    return JsonResponse({'data': ret}, encoder=JsonEncoder)
 
 def refreshRisk(data, df, qc, epsilon, QueryType, deviationRatio):
     attrs = df.columns.tolist()

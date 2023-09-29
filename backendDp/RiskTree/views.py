@@ -30,7 +30,9 @@ def fileReceive(request):
     if default_storage.exists(path):
         default_storage.delete(path)
     storageTempPath = default_storage.save('data/{}'.format(file), ContentFile(file.read()))
-
+    backName = storageTempPath.split(".")[-1]
+    if backName != 'csv':
+        return JsonResponse({'data': 'wrong file type'})
     df = pd.read_csv(storageTempPath)
     df.fillna(0, inplace=True)
 

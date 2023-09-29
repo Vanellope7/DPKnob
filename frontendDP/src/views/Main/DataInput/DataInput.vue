@@ -60,6 +60,8 @@
 <script>
   import {UploadFilled} from "@element-plus/icons-vue/";
   import axios from "axios";
+  import {ElNotification} from "element-plus";
+  import { h } from 'vue'
 
   export default {
     name: "DataInput",
@@ -92,6 +94,13 @@
     },
     methods: {
       uploadSuccess(response, file, fileList) {
+        if(response.data === 'wrong file type') {
+          // ElNotification({
+          //   title: 'Title',
+          //   message: h('i', { style: 'color: teal' }, 'This is a reminder'),
+          // })
+          return;
+        }
         this.attrList = response.data;
         this.SensitiveAttr = this.attrList[0]['Attribute']
         this.attrList[0]['Sensitive'] = true;

@@ -8,7 +8,11 @@
 + node = 14.16.0
 + python 3.9
 
+# Input file type
+
+csv
+
 ## Usage
 
-Double-click start.bat
+Double-click start.bat. And use web pages full screen
 
