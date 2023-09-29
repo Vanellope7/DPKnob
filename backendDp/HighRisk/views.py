@@ -63,7 +63,7 @@ def ValueFilter(values, VictimfilterScope, ATTRS):
         idx = ATTRS.index(attr)
         if len(s) == 2 and type(s[0]) != str:
             # 数值型
-            values = list(filter(lambda d: s[0] - 1 <= d[idx] <= s[1] + 1, values))
+            values = list(filter(lambda d: s[0] <= int(d[idx]) <= s[1], values))
         else:
             values = list(filter(lambda d: d[idx] in s, values))
     return values
@@ -201,18 +201,21 @@ def GlobalAlgorithm(df, qc, attrList, TopNum, QueryType, epsilon, deviationRatio
             # 判断个体是否在用户指定的范围内
             if len(ValueFilter([rawValues[pvi]], VictimFilterScope, attrs)) == 0:
                 continue
-
+            findCurAttack = False
             for combi, comb in enumerate(combList):
                 an = combi + 1
 
                 if an in finishedAn:
                     continue
-
+                if findCurAttack == True:
+                    break
 
                 for attrSet in comb:
                     attrIdxSet = [ord(j) - ord('a') for j in attrSet]
                     findAttrName = [attrs[idx] for idx in attrIdxSet]
                     isContent = True
+                    if findCurAttack == True:
+                        break
                     for ia in IncludeAttr:
                         if ia not in findAttrName:
                             isContent = False
@@ -308,6 +311,7 @@ def GlobalAlgorithm(df, qc, attrList, TopNum, QueryType, epsilon, deviationRatio
                                     Attack[len(findAttr)].append(
                                         [pvi, findAttrName, attrs[differAttr], MaxS, secondQueryGroupIdx, keyL, risk])
                                     findQuery = True
+                                    findCurAttack = True
                                 # len(secondQueryGroupIdx) == 1 本应有更好的处理
                                 elif len(secondQueryGroupIdx) == 0 or len(secondQueryGroupIdx) == 1:
                                     if differVal > 0:
@@ -529,33 +533,34 @@ def LocalAlgorithm(df, qc, attrList, TopNum, QueryType, epsilon, deviationRatio,
                                 if isContent == False:
                                     continue
                                 attrSetIdxMap[tuple(findAttr)].append(pvi)
-
+                                if pvi == 286 and findAttr == ['bmi']:
+                                    print('xxx')
                                 # 更新局部敏感度
                                 if differVal > 0:
-                                    differVRange = [0, -100, -1]
+                                    differVRange = [-1, -100, -1]
                                 else:
-                                    differVRange = [0, 100, 1]
+                                    differVRange = [1, 100, 1]
                                 for differV in range(*differVRange):
                                     secondQueryGroup = mapKeys
                                     curCon = []
-                                    DV = int(keyL[i]) + differV
+
                                     for i, attr in enumerate(attrIdx):
                                         if attr == differAttr:
+                                            DV = int(keyL[i]) + differVal + differV
                                             if differV >= 0:
-                                                curCon.append((attr, (int(keyL[i]), int(keyL[i]) + differV)))
+                                                curCon.append((attr, (int(keyL[i])+ differVal, DV)))
                                                 if candidateRecord.get(tuple(curCon), 0) == 0:
                                                     secondQueryGroup = list(
-                                                        filter(lambda d: int(keyL[i]) <= int(d[attr]) <= int(keyL[i]) + differV,
+                                                        filter(lambda d: int(keyL[i])+ differVal < int(d[attr]) <= DV,
                                                                secondQueryGroup))
                                                     candidateRecord[tuple(curCon)] = secondQueryGroup
                                                 else:
                                                     secondQueryGroup = candidateRecord.get(tuple(curCon))
                                             else:
-                                                curCon.append((attr, ((int(keyL[i]) + differV), int(keyL[i]))))
+                                                curCon.append((attr, (DV, int(keyL[i])+ differVal)))
                                                 if candidateRecord.get(tuple(curCon), 0) == 0:
                                                     secondQueryGroup = list(
-                                                        filter(lambda d: int(keyL[i]) + differV <= int(d[attr]) <= int(
-                                                            keyL[i]),
+                                                        filter(lambda d: DV <= int(d[attr]) < int(keyL[i]) + differVal,
                                                                secondQueryGroup))
                                                     candidateRecord[tuple(curCon)] = secondQueryGroup
                                                 else:

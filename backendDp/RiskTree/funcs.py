@@ -567,13 +567,16 @@ def Attack2RiskMap(values, Attack, attrParams, epsilon):
                     if abs(risk - round(risk, 1)) <= 1e-3 and risk != 1 and int(risk * 10)  != 0:
                         temp[int(risk * 10) - 1] += 1
                     else:
-                        temp[int(risk * 10)] += 1
+                        if risk == 1:
+                            temp[int(risk * 10) - 1] += 1
+                        else:
+                            temp[int(risk * 10)] += 1
                     if len(ARL) == 4 and int(risk*10) >= 2:
                         print('xxx')
 
-
-            for i in range(10):
-                temp[i] /= AttackNum
+            if AttackNum != 0:
+                for i in range(10):
+                    temp[i] /= AttackNum
             ARL.append(temp)
     # 求count的结果
     attackRisk = laplace_DV_P([0, 0.5], 1 / epsilon) + 0.5
