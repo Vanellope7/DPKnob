@@ -55,7 +55,7 @@ def UpdateEpsilonWithAccuracy(request):
         b = 0.01
     epsilon = round(Sensitivity / b, 2)
 
-    # dp = laplace_P([-d, d], curB)  # deviation p
+    dp = laplace_P([-d, d], curB)  # deviation p
     return JsonResponse({'epsilon': epsilon})
 
 
