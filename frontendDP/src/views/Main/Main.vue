@@ -417,8 +417,8 @@
               </g>
             </svg>
             <svg id="highRiskPlot">
-              <text x="80" y="380">Succ rate of attacks</text>
-              <text :x="attrList.length < 8 ? 5 : 0" y="25">#Attributes used in query conditions</text>
+              <text x="50" y="380">Succ rate of attacks</text>
+              <text :x="attrList.length < 8 ? 5 : 0" y="25">#Attrs used in query conditions</text>
               <text x="45" y="180" v-if="AttacksNum===0">No effective attack is found</text>
             </svg>
           </div>
