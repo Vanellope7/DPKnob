@@ -152,43 +152,69 @@
               <div class="AttrFilters">
               <div class="AttrFilter" v-for="(attr, i) in attrList">
                 <div v-if="attr['Attribute'] !== QueryAttr" class="AttrGropeFilter">
-                  <el-slider v-if="attr['Type'] === 'numerical'"
-                             range
-                             style="width: 75%; margin: 0 auto"
-                             size="small"
-                             @change="changeSlider(attr['Attribute'])"
-                             @input="hoveringSlider(attr['Attribute'])"
-                             v-model="attrGropeFilter[attr['Attribute']]"
-                             :min="parseInt(MinMap[attr['Attribute']].toFixed(0))"  :max="parseInt(MaxMap[attr['Attribute']].toFixed(0))"
-                             :show-tooltip="false"
-                             ></el-slider>
-                  <span :style="{'visibility': hoveringMap[attr['Attribute']], 'display': showAttrRangeInputMap[attr['Attribute'] + '-l'] ? 'none': 'block'}"
-                        v-if="attr['Type'] === 'numerical'"
-                        @dblclick="showAttrRangeInput(attr['Attribute'] + '-l', 0)"
-                        class="selectedRangeLeft attrRangeInput smallFont">
-                    {{attrGropeFilter[attr['Attribute']][0]}}
-                  </span>
-                  <input type="text"
-                         :style="{'display': showAttrRangeInputMap[attr['Attribute'] + '-l'] ? 'block': 'none'}"
-                         class="selectedRangeLeft rangeInputL"
-                         @keyup.enter="hiddenAttrRangeInput(attr['Attribute'] + '-l', 0)"
-                         v-model="rangeInputTemp">
+                  <div class="numericalScope" v-if="attr['Type'] === 'numerical'">
+                    <div class="numericalScopeInput" v-if="isClickAddVictim">
+                      <el-slider 
+                                range
+                                style="width: 75%; margin: 0 auto"
+                                size="small"
+                                @change="changeSlider(attr['Attribute'])"
+                                @input="hoveringSlider(attr['Attribute'])"
+                                v-model="attrGropeFilter[attr['Attribute']]"
+                                :step="10 ** (-1 * Math.max(getDecimalPlace(MaxMap[attr['Attribute']]), getDecimalPlace(MinMap[attr['Attribute']])))"
+                                :min="MinMap[attr['Attribute']]"  :max="MaxMap[attr['Attribute']]"
+                                :show-tooltip="false"
+                                ></el-slider>
 
-                  <span :style="{'visibility': hoveringMap[attr['Attribute']]}"
-                        v-if="attr['Type'] === 'numerical'"
-                        @dblclick="showAttrRangeInput(attr['Attribute'] + '-r', 1)"
-                        class="selectedRangeRight attrRangeInput smallFont">
-                    {{attrGropeFilter[attr['Attribute']][1]}}
-                  </span>
-                  <input type="text"
-                         :style="{'display': showAttrRangeInputMap[attr['Attribute'] + '-r'] ? 'block': 'none'}"
-                         class="selectedRangeRight rangeInputR"
-                         @keyup.enter="hiddenAttrRangeInput(attr['Attribute'] + '-r', 1)"
-                         v-model="rangeInputTemp">
-                  <span v-if="attr['Type'] === 'numerical'" class="totalRangeLeft smallFont">{{MinMap[attr['Attribute']].toFixed(0)}}</span>
-                  <span v-if="attr['Type'] === 'numerical'" class="totalRangeRight smallFont">{{MaxMap[attr['Attribute']].toFixed(0)}}</span>
+                      <span :style="{'visibility': hoveringMap[attr['Attribute']], 'display': showAttrRangeInputMap[attr['Attribute'] + '-l'] ? 'none': 'block'}"
+                          
+                            @dblclick="showAttrRangeInput(attr['Attribute'] + '-l', 0)"
+                            class="selectedRangeLeft attrRangeInput smallFont">
+                        {{attrGropeFilter[attr['Attribute']][0]}}
+                      </span>
+                      <input type="text"
+                            :style="{'display': showAttrRangeInputMap[attr['Attribute'] + '-l'] ? 'block': 'none'}"
+                            class="selectedRangeLeft rangeInputL"
+                            @keyup.enter="hiddenAttrRangeInput(attr['Attribute'] + '-l', 0)"
+                            v-model="rangeInputTemp">
+
+                      <span :style="{'visibility': hoveringMap[attr['Attribute']]}"
+                          
+                            @dblclick="showAttrRangeInput(attr['Attribute'] + '-r', 1)"
+                            class="selectedRangeRight attrRangeInput smallFont">
+                        {{attrGropeFilter[attr['Attribute']][1]}}
+                      </span>
+                      <input type="text"
+                            :style="{'display': showAttrRangeInputMap[attr['Attribute'] + '-r'] ? 'block': 'none'}"
+                            class="selectedRangeRight rangeInputR"
+                            @keyup.enter="hiddenAttrRangeInput(attr['Attribute'] + '-r', 1)"
+                            v-model="rangeInputTemp">
+                      <span  class="totalRangeLeft smallFont">{{MinMap[attr['Attribute']]}}</span>
+                      <span  class="totalRangeRight smallFont">{{MaxMap[attr['Attribute']]}}</span>
+                    </div>
+
+                    <div class="numericalScopeMess" v-if="!isClickAddVictim">
+                      <span v-if="MinMap[attr['Attribute']] !== attrGropeFilter[attr['Attribute']][0] || MaxMap[attr['Attribute']] !== attrGropeFilter[attr['Attribute']][1]">
+                        {{attrGropeFilter[attr['Attribute']].join('~')}}
+                      </span>
+                      <div v-else class="filterSelectGroupContainer FilterAllBtn">
+                        <el-tooltip
+                            class="box-item"
+                            effect="light"
+                            content="All"
+                            placement="bottom"
+                        >
+                          <button :class="{'selectFilter': true, 'attrFilterBtn': true, 'smallFont': true}"
+                                
+                          >All</button>
+                        </el-tooltip>
+                      </div>
+
+                    </div>
+                  </div>
+                  
                   <div v-else class="filterSelectGroup">
-                    <div v-for="select in attrSelects[attr['Attribute']]"
+                    <div v-for="select in attrSelects[attr['Attribute']]" v-if="isClickAddVictim"
                         class="filterSelectGroupContainer">
                       <el-tooltip
                           class="box-item"
@@ -200,6 +226,32 @@
                                 @click="attrGropeFilterChange(attr['Attribute'], select)"
                         >{{select}}</button>
                       </el-tooltip>
+                    </div>
+                    <div v-else class="filterSelectGroupContainer FilterAllBtn">
+                      <div v-if="attrGropeFilter[attr['Attribute']].length !== attrSelects[attr['Attribute']].length"  class="filterSelectGroupContainer">
+                        <el-tooltip
+                            class="box-item"
+                            effect="light"
+                            :content="attrGropeFilter[attr['Attribute']].join(', ')"
+                            placement="bottom"
+                        >
+                          <button :class="{'selectFilter': true, 'attrFilterBtn': true, 'smallFont': true}"
+                                  
+                          >{{attrGropeFilter[attr['Attribute']].join(', ')}}</button>
+                        </el-tooltip>
+                      </div>
+                      <div v-else class="filterSelectGroupContainer FilterAllBtn">
+                        <el-tooltip
+                            class="box-item"
+                            effect="light"
+                            content="All"
+                            placement="bottom"
+                        >
+                          <button :class="{'selectFilter': true, 'attrFilterBtn': true, 'smallFont': true}"
+                                
+                          >All</button>
+                        </el-tooltip>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -219,42 +271,67 @@
               </div>
               <div class="AttrFilter">
                 <div class="AttrGropeFilter">
-                  <el-slider v-if="QueryAttrType === 'numerical'"
-                             range
-                             style="width: 75%; margin: 0 auto"
-                             size="small"
-                             @change="changeSlider(QueryAttr)"
-                             @input="hoveringSlider(QueryAttr)"
-                             v-model="attrGropeFilter[QueryAttr]"
-                             :min="parseInt(MinMap[QueryAttr].toFixed(0))"  :max="parseInt(MaxMap[QueryAttr].toFixed(0))"
-                             :show-tooltip="false"
-                  ></el-slider>
-                  <span :style="{visibility: hoveringMap[QueryAttr], 'display': showAttrRangeInputMap[QueryAttr + '-l'] ? 'none': 'block'}"
-                        v-if="QueryAttrType === 'numerical'"
-                        @dblclick="showAttrRangeInput(QueryAttr + '-l', 0)"
-                        class="selectedRangeLeft attrRangeInput smallFont">
-                    {{attrGropeFilter[QueryAttr][0]}}
-                  </span>
-                  <input type="text"
-                         :style="{'display': showAttrRangeInputMap[QueryAttr + '-l'] ? 'block': 'none'}"
-                         class="selectedRangeLeft rangeInputL"
-                         @keyup.enter="hiddenAttrRangeInput(QueryAttr + '-l', 0)"
-                         v-model="rangeInputTemp">
-                  <span :style="{visibility: hoveringMap[QueryAttr], 'display': showAttrRangeInputMap[QueryAttr + '-r'] ? 'none': 'block'}"
-                        v-if="QueryAttrType === 'numerical'"
-                        @dblclick="showAttrRangeInput(QueryAttr + '-r', 1)"
-                        class="selectedRangeRight attrRangeInput smallFont">
-                    {{attrGropeFilter[QueryAttr][1]}}
-                  </span>
-                  <input type="text"
-                         :style="{'display': showAttrRangeInputMap[QueryAttr + '-r'] ? 'block': 'none'}"
-                         class="selectedRangeRight rangeInputR"
-                         @keyup.enter="hiddenAttrRangeInput(QueryAttr + '-r', 1)"
-                         v-model="rangeInputTemp">
-                  <span v-if="QueryAttrType === 'numerical'" class="totalRangeLeft smallFont ">{{MinMap[QueryAttr].toFixed(0)}}</span>
-                  <span v-if="QueryAttrType === 'numerical'" class="totalRangeRight smallFont ">{{MaxMap[QueryAttr].toFixed(0)}}</span>
+                <div class="numericalScope" v-if="QueryAttrType === 'numerical'">
+                    <div class="numericalScopeInput" v-if="isClickAddVictim">
+                      <el-slider v-if="QueryAttrType === 'numerical'"
+                                range
+                                style="width: 75%; margin: 0 auto"
+                                size="small"
+                                @change="changeSlider(QueryAttr)"
+                                @input="hoveringSlider(QueryAttr)"
+                                v-model="attrGropeFilter[QueryAttr]"
+                                :step="10 ** (-1 * Math.max(getDecimalPlace(MaxMap[QueryAttr]), getDecimalPlace(MinMap[QueryAttr])))"
+                                :min="MinMap[QueryAttr]"  :max="MaxMap[QueryAttr]"
+                                :show-tooltip="false"
+                      ></el-slider>
+                      <span :style="{visibility: hoveringMap[QueryAttr], 'display': showAttrRangeInputMap[QueryAttr + '-l'] ? 'none': 'block'}"
+                            v-if="QueryAttrType === 'numerical'"
+                            @dblclick="showAttrRangeInput(QueryAttr + '-l', 0)"
+                            class="selectedRangeLeft attrRangeInput smallFont">
+                        {{attrGropeFilter[QueryAttr][0]}}
+                      </span>
+                      <input type="text"
+                            :style="{'display': showAttrRangeInputMap[QueryAttr + '-l'] ? 'block': 'none'}"
+                            class="selectedRangeLeft rangeInputL"
+                            @keyup.enter="hiddenAttrRangeInput(QueryAttr + '-l', 0)"
+                            v-model="rangeInputTemp">
+                      <span :style="{visibility: hoveringMap[QueryAttr], 'display': showAttrRangeInputMap[QueryAttr + '-r'] ? 'none': 'block'}"
+                            v-if="QueryAttrType === 'numerical'"
+                            @dblclick="showAttrRangeInput(QueryAttr + '-r', 1)"
+                            class="selectedRangeRight attrRangeInput smallFont">
+                        {{attrGropeFilter[QueryAttr][1]}}
+                      </span>
+                      <input type="text"
+                            :style="{'display': showAttrRangeInputMap[QueryAttr + '-r'] ? 'block': 'none'}"
+                            class="selectedRangeRight rangeInputR"
+                            @keyup.enter="hiddenAttrRangeInput(QueryAttr + '-r', 1)"
+                            v-model="rangeInputTemp">
+                      <span v-if="QueryAttrType === 'numerical'" class="totalRangeLeft smallFont ">{{MinMap[QueryAttr].toFixed(0)}}</span>
+                      <span v-if="QueryAttrType === 'numerical'" class="totalRangeRight smallFont ">{{MaxMap[QueryAttr].toFixed(0)}}</span>
+                    </div>
+
+                    <div class="numericalScopeMess" v-else>
+                      <span v-if="MinMap[QueryAttr] !== attrGropeFilter[QueryAttr][0] || MaxMap[QueryAttr] !== attrGropeFilter[QueryAttr][1]">
+                        {{attrGropeFilter[QueryAttr].join('~')}}
+                      </span>
+                      <div v-else class="filterSelectGroupContainer FilterAllBtn">
+                        <el-tooltip
+                            class="box-item"
+                            effect="light"
+                            content="All"
+                            placement="bottom"
+                        >
+                          <button :class="{'selectFilter': true, 'attrFilterBtn': true, 'smallFont': true}"
+                                
+                          >All</button>
+                        </el-tooltip>
+                      </div>
+                    </div>
+                  </div>
+
+
                   <div v-else class="filterSelectGroup">
-                    <div v-for="select in attrSelects[QueryAttr]"
+                    <div v-for="select in attrSelects[QueryAttr]"  v-if="isClickAddVictim"
                          class="filterSelectGroupContainer">
                       <el-tooltip
                           class="box-item"
@@ -267,6 +344,35 @@
                         >{{select}}</button>
                       </el-tooltip>
                     </div>
+                    <div v-else class="filterSelectGroupContainer FilterAllBtn">
+                      <div v-if="attrGropeFilter[QueryAttr] && attrGropeFilter[QueryAttr].length !== attrSelects[QueryAttr].length" class="filterSelectGroupContainer">
+                        <el-tooltip
+                          class="box-item"
+                          effect="light"
+                          :content="attrGropeFilter[QueryAttr].join(', ')"
+                          placement="bottom"
+                        >
+                          <button :class="{'selectFilter': true, 'attrFilterBtn': true, 'smallFont': true}"
+                                  @click="attrGropeFilterChange(QueryAttr, select)"
+                          >{{attrGropeFilter[QueryAttr].join(', ')}}</button>
+                        </el-tooltip>
+                      </div>
+                      <div v-else class="filterSelectGroupContainer FilterAllBtn">
+                        <el-tooltip
+                            class="box-item"
+                            effect="light"
+                            content="All"
+                            placement="bottom"
+                        >
+                          <button :class="{'selectFilter': true, 'attrFilterBtn': true, 'smallFont': true}"
+                                
+                          >All</button>
+                        </el-tooltip>
+                      </div>
+                    </div>
+
+
+                    
                   </div>
                 </div>
                 <div class="AttrFilterContent smallFont" :style="{'background-color': '#aaa', 'color': '#eee'}"
@@ -822,7 +928,7 @@ export default {
         colorMap: {'blue-normal':      'rgba(52, 152, 219,1.0)',
                    'blue-normal-opacity':'rgba(52, 152, 219,0.5)',
                    'risk':             'rgb(234,120,119)',
-                   'risk-opacity':     'rgba(234,120,119, 0.5)',
+                   'risk-opacity':     'rgba(234,120,119, 1.0)',
                    'deep-red':         'rgb(241,68,68)',
                    'light-grey':      'rgb(220,220,220)',
                    'normal-grey':      'rgb(176,176,176)',
@@ -1023,7 +1129,9 @@ export default {
         SchemeHistoryLoading: false,
         SimulationLoading: false,
         SchemeFreshNum: 0,
-        AttacksNum: 1
+        AttacksNum: 1,
+
+
       }
     },
     computed: {
@@ -1320,7 +1428,7 @@ export default {
           }
           let AttacksNum = this.AttacksNum = Object.values(Attacks).reduce((prev, cur) => prev + cur.length, 0)
           if(AttacksNum === 0) leftAddNum = 0
-          let xLScale = d3.scaleLinear([0, d3.max(Object.values(Attacks), dl => d3.max(dl, d=>d[6]+0.05))], [0, svgLWidth-2*padding]);
+          let xLScale = d3.scaleLinear([0, d3.max(Object.values(Attacks), dl => d3.max(dl, d=>d[6]+0.05))], [0, svgLWidth-padding]);
           let xRScale = d3.scaleLinear([minRisk, d3.max(Object.values(Attacks), dl => d3.max(dl, d=>d[6]+0.05))], [padding + 30, svgRWidth-3*padding]);
           let yScale = d3.scaleLinear([0.5 + leftAddNum, attrNum+0.5], [svgHeight - 3.5 * padding, 2 * padding])
 
@@ -1603,7 +1711,7 @@ export default {
             .attr('fill', 'none');
         // 绘制属性排名图
         let rankColor = this.rankColor;
-        let RankLineXScale = d3.scaleLinear([0, 1.1], [svgLWidth - 30, 5]);
+        let RankLineXScale = d3.scaleLinear([0, 1.1], [svgLWidth - 15, 5]);
         let randomSize = 1;
         for(let di in attrRankData) {
           for(let ddi in attrRankData[di]) {
@@ -1681,7 +1789,7 @@ export default {
         let highRiskPoints = rightPanel.append('g').attr('transform', `translate(${0}, ${0})`).attr('class', 'hrps');
         let arc = d3.arc()
             .innerRadius(0)
-            .outerRadius(13)
+            .outerRadius(10)
         let hrpG = highRiskPoints.selectAll('.hrp')
             .data(highRiskPoint)
             .join('g')
@@ -1707,7 +1815,7 @@ export default {
             .attr('class', (d, i) => `highRiskPoint`)
             .attr('cx', 0)
             .attr('cy', 0)
-            .attr('r', 5)
+            .attr('r', 3)
             .style('fill', this.colorMap['deep-grey'])
             .style('stroke', 'none')
             .style('stroke-width', '0')
@@ -1752,7 +1860,7 @@ export default {
             .attr('id', (d, i) => `highRiskCircle${d[1].length}`)
             .attr('cx', 0)
             .attr('cy', 0)
-            .attr('r', 15)
+            .attr('r', 12)
             .style('fill', 'rgba(0,0,0,0)')
             .style('stroke', 'rgba(249, 245, 0, 0.5)')
             .style('stroke-width', '0')
@@ -1854,6 +1962,8 @@ export default {
           let removeIdx = this.attrGropeFilter[attr].indexOf(select);
           this.attrGropeFilter[attr].splice(removeIdx, 1);
         }
+        console.log(this.attrGropeFilter)
+        console.log(this.attrGropeFilter[attr], this.attrSelects[attr])
         // let zipData = this.dataProcessing(this.rawData);
         // this.drawPlot(zipData, ...this.plotZipStatus);
       },
@@ -3546,10 +3656,18 @@ export default {
       switch2DataDistribution() {
         this.DataExplorationStatus = 'DD';
       },
+      getDecimalPlace(f) {
+        let strF = f.toString();
+        let dotIdx = strF.indexOf('.');
+        if(dotIdx === -1) {
+          return 0;
+        }
+        return strF.length - dotIdx - 1;
+      },
       rowStyle({row, rowIndex}) {
         let style;
         if(rowIndex === 0) {
-          style = {"background": `${this.colorMap['risk-opacity']} !important`};
+          style = {"background": `${'rgba(234,120,119, 0.5)'} !important`};
         }
         else {
           style = {"background": `${this.colorMap['blue-normal-opacity']} !important`};
@@ -6172,7 +6290,7 @@ export default {
   #attrRankPlotLegend {
     position: absolute;
     top: 20px;
-    right: 0px;
+    right: 10px;
     width: 220px;
     height: 50px;
   }
@@ -6188,7 +6306,7 @@ export default {
   }
   .highRisk {
     position: relative;
-    width: 54%;
+    width: 56%;
   }
   .addClickBtn {
     border: none;
@@ -6752,6 +6870,10 @@ export default {
     flex-direction: row;
   }
 
+  .numericalScopeMess {
+    font-size: 14px;
+  }
+
   /*.attrRangeInput {*/
   /*  width: 15px;*/
   /*  height:15px;*/
@@ -6774,6 +6896,14 @@ export default {
     font-size: 14px;
   }
 
+  .numericalScopeMess {
+    word-break: break-all;
+  }
+
+  .FilterAllBtn button {
+    background: none !important;
+    color: #666 !important;
+  }
 
 </style>
 
