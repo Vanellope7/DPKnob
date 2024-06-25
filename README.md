@@ -1,4 +1,4 @@
-# DPKnob: A Visual Analysis Approach to Risk-aware Formulation
+# DPKnob: A Visual Analysis Approach to Risk-aware Formulation of Differential Privacy Schemes for Data Query Scenarios
 This is the code repository of DPKnob.
 
 The front end and back end frameworks of the project are Vue and Django.
